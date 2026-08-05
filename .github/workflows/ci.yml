@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive   # required — without this, tdm/ is checked out empty
+
+      - name: Show pinned TDM version
+        run: git -C tdm log -1 --oneline
+
+      # - name: Set up environment
+      #   run: ./setup.sh
+
+      # - name: Run calibration checks
+      #   run: python scripts/your_check.py

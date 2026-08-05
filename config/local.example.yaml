@@ -1,0 +1,16 @@
+#========================================================================================
+# config/local.example.yaml
+#
+# Copy this file to config/local.yaml and fill in values for your own machine.
+# config/local.yaml is gitignored -- it holds values that vary by who is running
+# the framework and where, not anything about a calibration run.
+#
+# These values are merged into every rendered Control Center file, so they only
+# need to be set once per machine, not once per calibration run.
+#========================================================================================
+
+UserName: ""
+UserCompany: ""
+
+# Absolute path to the Cube Voyager executable installed on this machine.
+Voyager_EXE: "C:\\Program Files\\Bentley\\OpenPaths\\CUBE 25.01.01\\Voyager\\Voyager.exe"

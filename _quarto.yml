@@ -1,0 +1,14 @@
+project:
+  type: website
+  render:
+    - "index.qmd"
+    - "report/**/*.qmd"
+
+website:
+  title: "WF-TDM Calibration"
+  page-navigation: true
+
+# specify kernel to use to render jupyter notebooks (must match the local env name)
+jupyter: wftdm-docs
+
+freeze: auto

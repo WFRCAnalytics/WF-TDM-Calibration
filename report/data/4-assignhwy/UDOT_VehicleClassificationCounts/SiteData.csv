@@ -1,0 +1,91 @@
+"SITE","SITE_DESCRIPTION","ROUTE","RT_TYP","MILEPOST","RAMP_ID","RAMP_BMP","COUNTY","FUNCTIONAL_CLASS","LATITUDE","LONGITUDE"
+"-0321","US-6 0.1 miles W of SR-68, Elberta","0006","US-6","149.853","","","Utah","Rural Minor Arterial",39.951841,-111.957826
+"-0650","151 East Main Street, Santaquin","0006","US-6","159.993","","","Utah","Urban Minor Arterial",39.975713,-111.782327
+"-0327","SR 6   0.2 mile W of Center Street,  Spanish Fork  MP 174.652  FC 14","0006","US-6","174.652","","","Utah","Urban Principal Arterial - Other",40.113338,-111.634242
+"-0312","SR 6   4.5 miles SE of SR 89,  Moark Jct.  MP 182.390  FC 02","0006","US-6","182.390","","","Utah","Rural Principal Arterial - Other",40.038281,-111.534617
+"-0638","I 15 Santaquin","0015","I-15","243.780","","","Utah","Urban Principal Arterial - Interstate",39.965126,-111.786648
+"-0349","I 15 1.6 miles N of Santaquin Int MP 246.735","0015","I-15","246.735","","","Utah","Urban Principal Arterial - Interstate",40.004882,-111.762202
+"-0639","I 15 N. of SR-178, Payson","0015","I-15","250.320","","","Utah","Urban Principal Arterial - Interstate",40.048419,-111.739698
+"-0655","I 15 100 South Spanish Fork","0015","I-15","255.582","","","Utah","Urban Principal Arterial - Interstate",40.107783,-111.677741
+"-0611","I 15 1.34 miles S of SR 77 Int, Springville MP 258.933","0015","I-15","258.933","","","Utah","Urban Principal Arterial - Interstate",40.141369,-111.646487
+"-0665","I 15 750 N, Springville","0015","I-15","261.075","","","Utah","Urban Principal Arterial - Interstate",40.177462,-111.646988
+"-0667","I 15 2400 S Provo","0015","I-15","262.562","","","Utah","Urban Principal Arterial - Interstate",40.198394,-111.650734
+"-0668","I 15 900 S  Provo","0015","I-15","264.530","","","Utah","Urban Principal Arterial - Interstate",40.221888,-111.671841
+"-0306","I 15   2 miles N of Center Street,  Provo  MP 267.841  FC 11","0015","I-15","267.841","","","Utah","Urban Principal Arterial - Interstate",40.255621,-111.699319
+"-0669","I 15 680 South, Orem MP 270.152","0015","I-15","270.152","","","Utah","Urban Principal Arterial - Interstate",40.284733,-111.725896
+"-0641","I 15 N. of SR 52 800 N. ","0015","I-15","272.150","","","Utah","Urban Principal Arterial - Interstate",40.318482,-111.726596
+"-0670","I 15 200 North,  Lindon MP 274.926","0015","I-15","274.926","","","Utah","Urban Principal Arterial - Interstate",40.343262,-111.757886
+"-0671","I 15 0.75 Miles N of SR 180 (500 East), American Fork MP 277.555","0015","I-15","277.555","","","Utah","Urban Principal Arterial - Interstate",40.367744,-111.796055
+"-0672","I 15 300 N, American Fork","0015","I-15","279.272","","","Utah","Urban Principal Arterial - Interstate",40.383218,-111.830221
+"-0673","I 15 1200 N, Lehi MP 281.502","0015","I-15","281.502","","","Utah","Urban Principal Arterial - Interstate",40.40317,-111.852098
+"-0674","I 15 N of SR 92, Lehi","0015","I-15","284.974","","","Utah","Urban Principal Arterial - Interstate",40.438999,-111.89784
+"-0302","I 15  12900 South  M.P.  290.896  FC 11","0015","I-15","290.896","","","Salt Lake","Urban Principal Arterial - Interstate",40.515107,-111.891745
+"-0680","I-15 NB Collector","0015","I-15","296.9060","0015PC29401","001.4700","Salt Lake","Urban Principal Arterial - Interstate",40.60135,-111.903567
+"-0816","I 215 South Interchange Via I-15 NB @MP 300.35","0015","I-15","300.350","","","Salt Lake","Urban Principal Arterial - Interstate",40.650487,-111.901575
+"-0629","I 15 2900 South  MP 304.342  FC 11","0015","I-15","304.342","","","Salt Lake","Urban Principal Arterial - Interstate",40.707881,-111.90423
+"-0616","I 15 0.7 miles N of I 215 On-Ramp, North Salt Lake MP 314.653","0015","I-15","314.653","","","Davis","Urban Principal Arterial - Interstate",40.8506,-111.91224
+"-0315","I-15 0.56 Miles S of Davis Corridor MP 321.6560","0015","I-15","321.6560","","","Davis","Urban Principal Arterial - Interstate",40.948029,-111.891601
+"-0612","I 15 N of SR 126 Int, Layton MP 331.326  FC 11","0015","I-15","331.326","","","Davis","Urban Principal Arterial - Interstate",41.067263,-111.970084
+"-0348","I 15   0.5 mile S of 31st Street,  Ogden  MP 341.250  FC 11","0015","I-15","341.250","","","Weber","Urban Principal Arterial - Interstate",41.19604,-112.000256
+"-0613","I-15 0.65 miles N of Perry POE","0015","I-15","359.8045","","","Box Elder","Urban Principal Arterial - Interstate",41.449186,-112.055613
+"-0310","I 15 Riverside MP 385.899","0015","I-15","385.899","","","Box Elder","Rural Principal Arterial - Interstate",41.789116,-112.172102
+"-0320","SR 39   0.5 mile W of SR 158, Ogden Cyn.  MP 13.243  FC 06","0039","SR-39","013.243","","","Weber","Rural Minor Arterial",41.253946,-111.852044
+"-0642","SR 52 800 N 700 W, Orem","0052","SR-52","001.215","","","Utah","Urban Principal Arterial - Other",40.311928,-111.711767
+"-0661","SR 52 921 E 800 North, Orem MP 3.196","0052","SR-52","003.196","","","Utah","Urban Principal Arterial - Other",40.312134,-111.674182
+"-0624","SR 67  Legacy Parkway  MP 0.944  FC 12","0067","SR-67","000.944","","","Davis","Urban Principal Arterial - Other Freeways",40.840893,-111.942145
+"-0625","SR 67  Legacy Parkway  MP 8.294  FC 12","0067","SR-67","008.294","","","Davis","Urban Principal Arterial - Other Freeways",40.932964,-111.89285
+"-0407","SR-68 Camp Williams Substation","0068","SR-68","038.4453","","","Salt Lake","Urban Principal Arterial - Other",40.46655,-111.944862
+"-0406","SR 71   4550 S 700 E,  SLC  MP 16.337  FC 14","0071","SR-71","016.337","","","Salt Lake","Urban Principal Arterial - Other",40.671812,-111.871691
+"-0333","SR 71 1040 S 700 E, SLC MP 21.503","0071","SR-71","021.503","","","Salt Lake","Urban Principal Arterial - Other",40.746457,-111.871363
+"-0626","SR 73  W of 800 W,  Saratoga Springs   MP 35.153   FC 14","0073","SR-73","035.153","","","Utah","Urban Principal Arterial - Other",40.386364,-111.940473
+"-0646","1445 West 400 South, Springville","0077","SR-77","007.790","","","Utah","Urban Principal Arterial - Other",40.161129,-111.634985
+"-0340","I 80   1325  W,  SLC  MP 118.420  FC 11","0080","I-80","118.420","","","Salt Lake","Urban Principal Arterial - Interstate",40.764607,-111.928873
+"-0341","I 80   1 mile E of 300 E Overpass,  SLC  MP 123.540  FC 11","0080","I-80","123.540","","","Salt Lake","Urban Principal Arterial - Interstate",40.718028,-111.880191
+"-0301","I 80   1 mile E of I 215 Int.,  Parleys Canyon,  SLC  MP 129.000  FC 11","0080","I-80","129.000","","","Salt Lake","Rural Principal Arterial - Interstate",40.724399,-111.772936
+"-0677","I-80 Lambs Canyon MP 138.564","0080","I-80","138.564","","","Salt Lake","Rural Principal Arterial - Interstate",40.749001,-111.634015
+"-0614","I 84   3.2 miles W of Bothwell Int.  MP 36.640  FC 01","0084","I-84","036.640","","","Box Elder","Rural Principal Arterial - Interstate",41.752914,-112.259814
+"-0633","SR-131 2300 W Porter Rockwell Blvd","0085","SR-85","003.374","","","Salt Lake","Urban Principal Arterial - Other Freeways",40.464051,-111.950068
+"-0634","SR 85  7600 South Mountainview Corridor  MP 15.840  FC 12","0085","SR-85","015.840","","","Salt Lake","Urban Principal Arterial - Other Freeways",40.613708,-112.037736
+"-0416","SR 89 Birdseye, 9.8 miles S of SR 6 MP 303.711","0089","US-89","303.711","","","Utah","Rural Principal Arterial - Other",39.890502,-111.548663
+"-0664","1400 N State St, Mapleton","0089","US-89","326.609","","","Utah","Urban Principal Arterial - Other",40.142157,-111.601098
+"-0660","2779 S State St, Springville","0089","US-89","330.234","","","Utah","Urban Principal Arterial - Other",40.192026,-111.612332
+"-0647","710 N State St, Pleasant Grove","0089","US-89","344.170","","","Utah","Urban Principal Arterial - Other",40.353899,-111.733836
+"-0658","765 West State St, American Fork","0089","US-89","349.598","","","Utah","Urban Principal Arterial - Other",40.385706,-111.819418
+"-0325","US-89 1086 S State Street, SLC","0089","US-89","377.7840","","","Salt Lake","Urban Principal Arterial - Other",40.745655,-111.888458
+"-0329","SR 89   3450 S Washington Blvd.,  Ogden  MP 412.398  FC 14","0089","US-89","412.398","","","Weber","Urban Principal Arterial - Other",41.201341,-111.971118
+"-0682","US 91 Mantua MP 5.625","0091","US-91","005.625","","","Box Elder","Rural Principal Arterial - Other",41.497027,-111.956282
+"-0679","SR 91 Mantua to Wellsville MP 12.26","0091","US-91","012.260","","","Box Elder","Rural Principal Arterial - Other",41.578344,-111.973381
+"-0676","SR 92 East of Center St","0092","SR-92","002.558","","","Utah","Urban Principal Arterial - Other",40.432623,-111.847285
+"-0675","Timpanogos Hwy Collector Lanes","0092","SR-92","002.559","0092PC00101","001.969","Utah","Urban Principal Arterial - Other Freeways",40.432411,-111.847294
+"-0601","SR 92   American Fork Canyon W Toll Booth  MP 8.349  FC 17","0092","SR-92","008.349","","","Utah","Rural Major Collector",40.43352,-111.738425
+"-0602","SR 92 American Fork Canyon E Toll Booth","0092","SR-92","22.4969","","","Utah","Rural Major Collector",40.405315,-111.604715
+"-0649","730 West Center Street, Provo","0114","SR-114","000.207","","","Utah","Urban Principal Arterial - Other",40.233911,-111.671631
+"-0651","1102 South Geneva Road, Orem","0114","SR-114","005.200","","","Utah","Urban Principal Arterial - Other",40.277892,-111.729913
+"-0645","200 N North County Boulevard, Pleasant Grove","0129","SR-129","002.640","","","Utah","Urban Principal Arterial - Other",40.365417,-111.768944
+"-0632","SR 145 Pioneer Crossing VMS Sign, Lehi","0145","SR-145","005.8621","","","Utah","Urban Principal Arterial - Other",40.375894,-111.835822
+"-0636","SR 154 Bangerter Hwy 700 West, Draper","0154","SR-154","001.6373","","","Salt Lake","Urban Principal Arterial - Other Freeways",40.49684,-111.913637
+"-0820","SR-154 N. of 12600 S., South Jordan","0154","SR-154","007.500","","","Salt Lake","Urban Principal Arterial - Other",40.532745,-111.983901
+"-0819","SR-154 N. of SR-175 (11400 S., South Jordan)","0154","SR-154","008.900","","","Salt Lake","Urban Principal Arterial - Other",40.552486,-111.978815
+"-0627","SR 154  7700 S Bangerter Highway  MP 13.004  FC 14","0154","SR-154","013.004","","","Salt Lake","Urban Principal Arterial - Other Freeways",40.61527,-111.976263
+"-0711","SR 154 2500 S Bangerter Hwy, West Valley MP 20.050","0154","SR-154","020.050","","","Salt Lake","Urban Principal Arterial - Other",40.714886,-111.983906
+"-0653","890 North Main Street, Spanish Fork","0156","SR-156","001.043","","","Utah","Urban Principal Arterial - Other",40.121068,-111.654506
+"-0354","SR 171 1200 W 3300 S,  SLC  MP 8.800 FC 14","0171","SR-171","008.800","","","Salt Lake","Urban Principal Arterial - Other",40.699222,-111.922279
+"-0335","SR-173 960 W 5400 S, Murray","0173","SR-173","008.367","","","Salt Lake","Urban Principal Arterial - Other",40.652842,-111.917948
+"-0332","SR 186   950 S Foothill Blvd.,  SLC  MP 6.186  FC 14","0186","SR-186","006.186","","","Salt Lake","Urban Principal Arterial - Other",40.746859,-111.830381
+"-0659","871 North University Avenue, Provo","0189","US-189","002.720","","","Utah","Urban Principal Arterial - Other",40.245445,-111.658848
+"-0350","SR 189   3200 N University Avenue,  Provo  MP 4.831  FC 14","0189","US-189","004.831","","","Utah","Urban Principal Arterial - Other",40.275905,-111.657356
+"-0319","SR 189   1 mile W of SR 92, Provo Cyn.  MP 13.342 FC 02","0189","US-189","013.342","","","Utah","Rural Principal Arterial - Other",40.356281,-111.573374
+"-0322","SR 190   Mouth of Big Cottonwood Cyn.  MP 2.460  FC 16","0190","SR-190","002.460","","","Salt Lake","Rural Minor Arterial",40.619153,-111.786042
+"-0648","2964 West via 2100 North, Lehi","0194","SR-194","001.2330","","","Utah","Urban Principal Arterial - Other",40.41308,-111.899598
+"-0317","SR 210   Mouth of Little Cottonwood Canyon, SLC  MP 4.166  FC 06","0210","SR-210","004.1290","","","Salt Lake","Rural Minor Arterial",40.571662,-111.771439
+"-0617","I 215   5800 S Knudsen's Corner,  SLC  MP 5.300 FC 11","0215","I-215","005.530","","","Salt Lake","Urban Principal Arterial - Interstate",40.648187,-111.808086
+"-0818","I 215 1700 E, Murray MP 8.256","0215","I-215","008.256","","","Salt Lake","Rural Principal Arterial - Interstate",40.631094,-111.843873
+"-0351","I 215   1050 W,  SLC  MP 12.381  FC 11","0215","I-215","012.381","","","Salt Lake","Urban Principal Arterial - Interstate",40.637943,-111.921034
+"-0353","I 215   2500 S,  SLC  MP 18.732  FC 11","0215","I-215","018.732","","","Salt Lake","Urban Principal Arterial - Interstate",40.713874,-111.954092
+"-0628","I 215   1100 West, East of Redwood Rd. MP 28.550  FC 11","0215","I-215","028.550","","","Davis","Urban Principal Arterial - Interstate",40.834219,-111.922903
+"-0631","SR 266 4700 S 1075 W, SLC MP 1.923 FC 14","0266","SR-266","001.923","","","Salt Lake","Urban Minor Arterial",40.672918,-111.918702
+"-0409","Route 2330 1200 W North Temple, SLC MP 1.690 FC 16","2330","FAR-2330","001.720","","","Salt Lake","Urban Minor Arterial",40.771384,-111.926512
+"-0662","FR 2878 960 N 2300 West, Lehi MP 3.091","2878","FAR-2878","003.091","","","Utah","Urban Minor Arterial",40.399342,-111.886321
+"-0644","756 Pony Express Parkway, Saratoga Springs","2881","FAR-2881","012.000","","","Utah","Urban Minor Arterial",40.362326,-111.931613
+"-0657","9227 N Ranches Parkway, Eagle Mountain","2889","FAR-2889","000.777","","","Utah","Urban Minor Arterial",40.369777,-111.975897
+"-0643","1860 North 1200 East, Lehi","2932","FAR-2932","001.600","","","Utah","Urban Collector",40.410319,-111.8302

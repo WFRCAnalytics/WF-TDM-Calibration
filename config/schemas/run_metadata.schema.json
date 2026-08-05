@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "run_metadata.schema.json",
+  "title": "Run metadata",
+  "type": "object",
+  "required": [
+    "schema_version", "calib_run_id", "run_id", "status",
+    "started_at", "tdm", "control_center", "framework_commit"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "calib_run_id": { "type": "string" },
+    "run_id": { "type": "string" },
+    "status": { "type": "string", "enum": ["pending", "running", "success", "failed"] },
+    "execution_mode": {
+      "type": "string",
+      "enum": ["cli", "manual"],
+      "description": "\"cli\" if `run`/`run-all` executed the model; \"manual\" if the model was run outside the CLI and this record was produced by import-manual-run to curate outputs after the fact."
+    },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": ["string", "null"], "format": "date-time" },
+    "framework_commit": {
+      "type": "string",
+      "description": "Git commit SHA of this repo itself at the time of the run."
+    },
+    "tdm": {
+      "type": "object",
+      "required": ["requested_ref", "resolved_commit", "dirty"],
+      "properties": {
+        "requested_ref": { "type": "string" },
+        "resolved_commit": { "type": "string" },
+        "resolved_tag": { "type": ["string", "null"] },
+        "branch": { "type": ["string", "null"] },
+        "detached_head": { "type": "boolean" },
+        "dirty": { "type": "boolean" }
+      }
+    },
+    "control_center": {
+      "type": "object",
+      "required": ["baseline_file", "overrides"],
+      "properties": {
+        "baseline_file": { "type": "string" },
+        "overrides": { "type": "object" },
+        "rendered_path": { "type": "string" },
+        "driver_script": {
+          "type": "string",
+          "description": "Source path of the driver script staged into the working folder for this run -- relative to calibration_runs/ if a custom driver_script was declared, or relative to the TDM submodule root (e.g. 'Scenarios/_default/__HailMary_1Subfolder.s') if the framework default was used. Absent only for execution_mode 'manual'."
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "properties": {
+        "command": { "type": "array", "items": { "type": "string" } },
+        "exit_code": { "type": ["integer", "null"] },
+        "log_path": { "type": ["string", "null"] },
+        "status_source": {
+          "type": "string",
+          "enum": ["model_log", "exit_code"],
+          "description": "How run status was decided. \"model_log\" means the TDM's own _Log\\_RunTime.txt completion report was found and used (preferred). \"exit_code\" means no recognizable log entry was found yet. Absent for execution_mode \"manual\"."
+        },
+        "model_log": {
+          "type": "object",
+          "description": "Parsed from the TDM's own _Log\\_RunTime.txt. Absent when that file/entry wasn't found.",
+          "properties": {
+            "outcome": { "type": "string", "enum": ["success", "crashed"] },
+            "crashed_step": { "type": ["string", "null"] },
+            "started_at": { "type": ["string", "null"] },
+            "finished_at": { "type": ["string", "null"] },
+            "run_time": { "type": ["string", "null"] },
+            "exit_code_mismatch": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "scenario_folder": { "type": "string", "description": "The run's working folder inside the TDM submodule (Scenarios/{calib_run_id}/)." },
+    "seeded_from": {
+      "type": "object",
+      "required": ["calib_run_id", "run_id"],
+      "description": "Identifies the prior run whose raw working folder was copied into this one before Control Center rendering, when this run declared start_from_copy.",
+      "properties": {
+        "calib_run_id": { "type": "string" },
+        "run_id": { "type": "string" }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "properties": {
+        "inventory_count": { "type": "integer" },
+        "inventory_total_bytes": { "type": "integer" },
+        "curated": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "relative_path": { "type": "string" },
+              "size_bytes": { "type": "integer" },
+              "sha256": { "type": "string" },
+              "repo_path": { "type": "string" },
+              "committed": {
+                "type": "boolean",
+                "description": "False when this file exceeded the calibration run's max_file_size_mb -- it was still written to repo_path locally (e.g. for rendering reports on this machine) but is listed in its outputs/ folder's auto-generated .gitignore and was never committed to the repo."
+              }
+            }
+          }
+        },
+        "retired": { "type": "boolean" },
+        "retired_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "error": { "type": ["string", "null"] },
+    "postprocess": {
+      "type": "object",
+      "description": "Result of tdmcalib.postprocess.render_validation() re-rendering the report/ Quarto project after this run. Absent when the run itself did not succeed (nothing new for a report to show).",
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["skipped", "success", "failed"] },
+        "reason": { "type": "string" },
+        "stderr_tail": { "type": "string" }
+      }
+    }
+  }
+}

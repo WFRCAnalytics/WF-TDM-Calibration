@@ -1,0 +1,1777 @@
+---
+title: Trip Distribution & HBW Destination Choice
+echo: false
+warning: false
+message: false
+---
+
+```{python}
+# ==============================================================================
+# CONFIGURATION
+# ==============================================================================
+import pandas as pd
+import geopandas as gpd
+import numpy as np
+import os
+import re
+import openmatrix as omx
+from dbfread import DBF
+from functools import reduce
+from scipy import special
+import math as ms
+from math import floor
+from IPython.display import Markdown
+import sys
+from pathlib import Path
+
+sys.path.insert(0, ".")
+import _validation_scripts as vs
+
+repo_root = Path("..")
+calib_runs = vs.list_available_runs(repo_root)
+
+# static reference / shared observed paths (not run-specific) -- per-run
+# filenames are resolved inside the per-run loader functions below, against
+# each run's own outputs_dir
+config_paths = {
+    "hts_trips_path": r"../inputs/UT_HTS_2023_Linked_Trips.csv",
+    "hts_hh"        : r"../inputs/UT_HTS_2023_Households.csv",
+    "skm_obs"       : r"../inputs/trips_output_CVM_PVM.omx",
+    "taz_v10"       : r"data/4-assignhwy/taz/WFv1000_TAZ.shp",
+}
+
+# variables
+debug = False
+intra_time_min = 4
+intra_dist_min = 0
+intra_gc_min = 4
+
+# read in taz shapefile once and derive the column subsets each section needs
+tazv10 = gpd.read_file(config_paths["taz_v10"], low_memory=False)
+tazv10_st = tazv10[['CO_TAZID', 'DISTLRG']]
+tazv10_wf = tazv10[['TAZID', 'DISTLRG']]
+```
+
+```{python}
+purp_mats = [
+  'HBW',
+  'HBShp',
+  'HBOth',
+  'HBSch_Pr',
+  'HBSch_Sc',
+  'HBC',
+  'NHBW',
+  'NHBNW'
+]
+truck_mats = [
+  'II_LT',
+  'II_MD',
+  'II_HV',
+  'II_LT_D2D',
+  'II_LT_HnS',
+  'II_LT_Lcl',
+  'II_LT_Reg',
+  'II_LT_LHl',
+  'II_LT_Unk',
+  'II_MD_D2D',
+  'II_MD_HnS',
+  'II_MD_Lcl',
+  'II_MD_Reg',
+  'II_MD_LHl',
+  'II_MD_Unk',
+  'II_MD_Adj',
+  'II_HV_D2D',
+  'II_HV_HnS',
+  'II_HV_Lcl',
+  'II_HV_Reg',
+  'II_HV_LHl',
+  'II_HV_Unk',
+  'II_HV_Adj'
+]
+ext_mats = [
+  "IX",
+  'XI',
+  'IX_MD',
+  'XI_MD',
+  'IX_HV',
+  'XI_HV'
+]
+
+purp_mats_obs = [
+  'HBW',
+  'HBSHP',
+  'HBOTH',
+  'HBSCH_PR',
+  'HBSCH_SC',
+  'HBC',
+  'NHBW',
+  'NHBNW'
+]
+truck_mats_obs = [
+  mat for mat in truck_mats if mat not in ['II_LT', 'II_MD', 'II_HV']
+]
+ext_mats_obs = [
+  "IX",
+  'XI',
+  'IX_MD',
+  'XI_MD',
+  'IX_HV',
+  'XI_HV'
+]
+
+purp_mats_skim = [
+  'HBW',
+  'HBShp',
+  'HBOth',
+  'NHBW',
+  'NHBNW',
+  'HBS',
+  'LT',
+  'MD',
+  'HV',
+  'Ext']
+```
+
+## Trip Distribution
+
+The model used the 2012 Household Travel Survey to calibrate trip lengths for internal and external person trips. Trips were calibrated based on generalized cost trip length frequencies and validated to time and distance trip length frequencies and average trip lengths. The validation results are shown in @fig-ave-trip-length and @fig-trip-length-freq. Trip lengths by time and distance met the validation targets and aligned closely with observed data.
+
+No observed data was available for internal and external commercial vehicle calibration. CV trips were calibrated based on previous model estimation and validated relative to person work and other trip lengths.
+
+```{python}
+# ------------------------------------------------ #
+# 1. Define Standardization Maps
+# ------------------------------------------------ #
+
+# Map modeled truck names to the standard names
+mod_trip_map = {
+    'II_LT': 'LT',
+    'II_MD': 'MD',
+    'II_HV': 'HV'
+}
+
+# Map uppercase observed names to your preferred standard names
+obs_trip_map = {
+    'HBSHP': 'HBShp',
+    'HBOTH': 'HBOth',
+    'HBSCH_PR': 'HBSch_Pr',
+    'HBSCH_SC': 'HBSch_Sc'
+}
+
+# Map the standard trip purposes to the skim matrix names for joining
+skim_join_map = {
+    'IX': 'Ext',
+    'XI': 'Ext',
+    'IX_MD': 'Ext',
+    'XI_MD': 'Ext',
+    'IX_HV': 'Ext',
+    'XI_HV': 'Ext',
+    'HBSch_Pr': 'HBS',
+    'HBSch_Sc': 'HBS',
+    'II_LT_D2D': 'LT',
+    'II_LT_HnS': 'LT',
+    'II_LT_Lcl': 'LT',
+    'II_LT_Reg': 'LT',
+    'II_LT_LHl': 'LT',
+    'II_LT_Unk': 'LT',
+    'II_MD_D2D': 'MD',
+    'II_MD_HnS': 'MD',
+    'II_MD_Lcl': 'MD',
+    'II_MD_Reg': 'MD',
+    'II_MD_LHl': 'MD',
+    'II_MD_Unk': 'MD',
+    'II_MD_Adj': 'MD',
+    'II_HV_D2D': 'HV',
+    'II_HV_HnS': 'HV',
+    'II_HV_Lcl': 'HV',
+    'II_HV_Reg': 'HV',
+    'II_HV_LHl': 'HV',
+    'II_HV_Unk': 'HV',
+    'II_HV_Adj': 'HV'
+}
+
+# ------------------------------------------------ #
+# 2. Helper Function with Renaming Capability
+# ------------------------------------------------ #
+def extract_omx_to_df(omx_path, matrix_names, val_col_name, rename_dict=None, optional_missing=None):
+    df_list = []
+    taz_ids = np.arange(1, 3630)
+    rename_lookup = {k.upper(): v for k, v in (rename_dict or {}).items()}
+    optional_missing = {m.upper() for m in (optional_missing or [])}
+
+    with omx.open_file(omx_path, 'r') as f:
+        matrix_lookup = {mat.upper(): mat for mat in f.list_matrices()}
+
+        for mat_name in matrix_names:
+            mat_key = mat_name.upper()
+            actual_mat_name = matrix_lookup.get(mat_key)
+
+            if actual_mat_name is None:
+                if mat_key not in optional_missing:
+                    print(f"Warning: {mat_name} not found in OMX")
+                continue
+
+            mat = np.array(f[actual_mat_name]).astype(float)
+            ii, jj = np.nonzero(mat)
+
+            # Apply renaming if a dictionary is provided, otherwise keep the original name
+            std_purpose = rename_lookup.get(mat_key, mat_name)
+
+            df_mat = pd.DataFrame({
+                "i": taz_ids[ii],
+                "j": taz_ids[jj],
+                val_col_name: mat[ii, jj],
+                "Purpose": std_purpose
+            })
+
+            df_list.append(df_mat)
+
+    if df_list:
+        return pd.concat(df_list, ignore_index=True)
+    else:
+        return pd.DataFrame(columns=["i", "j", val_col_name, "Purpose"])
+
+# ------------------------------------------------ #
+# 3. Execute Extraction & Merge (modeled side: one calibration run at a time;
+#    observed side: shared, extracted once)
+# ------------------------------------------------ #
+obs_trips = extract_omx_to_df(
+    config_paths["skm_obs"],
+    purp_mats_obs + truck_mats_obs + ext_mats_obs,
+    "Trips_Obs",
+    rename_dict=obs_trip_map
+)
+
+def _load_mod_trips_dist_gc(calib_run, outputs_dir):
+    mod_trips = extract_omx_to_df(
+        outputs_dir / "PA_AllPurp_GRAVITY.omx",
+        purp_mats + truck_mats + ext_mats,
+        "Trips_Mod",
+        rename_dict=mod_trip_map
+    )
+    mod_dist = extract_omx_to_df(outputs_dir / "skm_DY_Dist.omx", purp_mats_skim, "Dist")
+    mod_gc = extract_omx_to_df(outputs_dir / "skm_DY_GC.omx", purp_mats_skim, "GC")
+
+    df = pd.merge(mod_trips, obs_trips, on=['i', 'j', 'Purpose'], how='outer')
+    df['Trips_Mod'] = df['Trips_Mod'].fillna(0)
+    df['Trips_Obs'] = df['Trips_Obs'].fillna(0)
+
+    # Create a temporary 'Skim_Purpose' column to link up with the skims (maps 'IX' to 'Ext', etc.)
+    df['Skim_Purpose'] = df['Purpose'].apply(lambda x: skim_join_map.get(x, x))
+    mod_dist = mod_dist.rename(columns={'Purpose': 'Skim_Purpose'})
+    mod_gc = mod_gc.rename(columns={'Purpose': 'Skim_Purpose'})
+
+    df = pd.merge(df, mod_dist, on=['i', 'j', 'Skim_Purpose'], how='left')
+    df = pd.merge(df, mod_gc, on=['i', 'j', 'Skim_Purpose'], how='left')
+    df = df.drop(columns=['Skim_Purpose'])
+    df['Dist'] = df['Dist'].fillna(0)
+    df['GC'] = df['GC'].fillna(0)
+    return df
+
+df_flat = vs.load_per_run(repo_root, _load_mod_trips_dist_gc)
+```
+
+```{python}
+# 1. CALCULATE EXACT AVERAGES (grouped by calib_run too -- df_flat holds
+#    every calibration run's modeled data; Observed is recomputed per run's
+#    subset, which is redundant but not wrong, since Trips_Obs is identical
+#    across runs)
+avg_records = []
+for var_col, var_name in [('Dist', 'Dist'), ('GC', 'GC')]:
+    for source_col, source_name in [('Trips_Mod', 'Model'), ('Trips_Obs', 'Observed')]:
+
+        # Calculate weighted average: sum(Trips * Value) / sum(Trips)
+        grouped = df_flat.groupby(['Purpose', 'calib_run']).apply(
+            lambda x: (x[source_col] * x[var_col]).sum() / x[source_col].sum() if x[source_col].sum() > 0 else np.nan
+        ).reset_index(name='AVG_TRIP_LEN')
+
+        grouped['DataSource'] = source_name
+        grouped['Variable'] = var_name
+        avg_records.append(grouped)
+
+gcdtime_Stats = pd.concat(avg_records, ignore_index=True)
+
+# 2. CALCULATE TRIP LENGTH FREQUENCIES (TLF)
+df_flat['Dist_BIN'] = np.floor(df_flat['Dist']).astype(int)
+df_flat['GC_BIN'] = np.floor(df_flat['GC']).astype(int)
+
+tlf_records = []
+for var_col, var_name in [('Dist_BIN', 'Dist'), ('GC_BIN', 'GC')]:
+    for source_col, source_name in [('Trips_Mod', 'freqMod'), ('Trips_Obs', 'freqObs')]:
+
+        # Group by purpose, run, and bin, sum the trips
+        binned = df_flat.groupby(['Purpose', 'calib_run', var_col])[source_col].sum().reset_index()
+        binned.rename(columns={var_col: 'BIN', source_col: 'TRIPS'}, inplace=True)
+
+        # Calculate percentage (frequency) within each purpose x run
+        total_trips = binned.groupby(['Purpose', 'calib_run'])['TRIPS'].transform('sum')
+        binned = binned[total_trips > 0].copy()
+        if binned.empty:
+            continue
+
+        total_trips = binned.groupby(['Purpose', 'calib_run'])['TRIPS'].transform('sum')
+        binned['freq'] = binned['TRIPS'] / total_trips
+
+        binned['TLFTYPE'] = var_name
+        binned['freqSource'] = source_name
+        binned.rename(columns={'Purpose': 'TRIPPURP'}, inplace=True)
+
+        tlf_records.append(binned[['TRIPPURP', 'calib_run', 'BIN', 'freq', 'TLFTYPE', 'freqSource']])
+
+dfObsModelMerge = pd.concat(tlf_records, ignore_index=True)
+```
+
+### Average Trip Length
+
+```{python}
+internalTripPurposes = ['HBW','HBShp','HBOth','HBSch_Pr','HBSch_Sc','NHBW','NHBNW','LT','MD','HV']
+internalTruckPurposes = [
+    'II_LT_D2D',
+    'II_LT_HnS',
+    'II_LT_Lcl',
+    'II_LT_Reg',
+    'II_LT_LHl',
+    'II_LT_Unk',
+    'II_MD_D2D',
+    'II_MD_HnS',
+    'II_MD_Lcl',
+    'II_MD_Reg',
+    'II_MD_LHl',
+    'II_MD_Unk',
+    'II_MD_Adj',
+    'II_HV_D2D',
+    'II_HV_HnS',
+    'II_HV_Lcl',
+    'II_HV_Reg',
+    'II_HV_LHl',
+    'II_HV_Unk',
+    'II_HV_Adj'
+]
+externals = ['IX','XI','IX_MD','IX_HV','XI_MD','XI_HV']
+
+gcdtime_Stats.loc[gcdtime_Stats['Purpose'].isin(internalTripPurposes), 'PurpType'] = 'InternalTripPurposes'
+gcdtime_Stats.loc[gcdtime_Stats['Purpose'].isin(internalTruckPurposes), 'PurpType'] = 'InternalTruckPurposes'
+gcdtime_Stats.loc[gcdtime_Stats['Purpose'].isin(externals), 'PurpType'] = 'Externals'
+
+# Set up sorting order
+order = internalTripPurposes + internalTruckPurposes + ['IX','XI','IX_MD','XI_MD','IX_HV','XI_HV']
+purpose_index = {purpose: f"{i}-{purpose}" for i, purpose in enumerate(order)}
+gcdtime_Stats['Purpose'] = gcdtime_Stats['Purpose'].map(purpose_index)
+
+order_mapped = [f"{i}-{purpose}" for i, purpose in enumerate(order)]
+
+# Convert the 'Purpose' column to a categorical type with the desired order
+gcdtime_Stats['Purpose'] = pd.Categorical(gcdtime_Stats['Purpose'], categories=order_mapped, ordered=True)
+gcdtime_Stats['order'] = gcdtime_Stats['Purpose'].cat.codes
+gcdtime_Stats = gcdtime_Stats.sort_values('Purpose')
+
+## Set external commercial vehicles observed to 0 since its not reliable
+#gcdtime_Stats.loc[
+#    (gcdtime_Stats['PurpType'] == 'Externals') &
+#    (gcdtime_Stats['DataSource'] == 'Observed') &
+#    (~gcdtime_Stats['Purpose'].isin(['10-IX', '11-XI'])),
+#    'AVG_TRIP_LEN'
+#] = 0
+#
+#gcdtime_Stats.loc[(gcdtime_Stats['PurpType'] == 'InternalTripPurposes') & (gcdtime_Stats['DataSource'] == 'Observed') & (gcdtime_Stats['Purpose'] == '8-MD'), #'AVG_TRIP_LEN'] = 0
+#gcdtime_Stats.loc[(gcdtime_Stats['PurpType'] == 'InternalTripPurposes') & (gcdtime_Stats['DataSource'] == 'Observed') & (gcdtime_Stats['Purpose'] == '9-HV'), #'AVG_TRIP_LEN'] = 0
+
+ojs_define(dataStats = gcdtime_Stats)
+```
+
+```{ojs}
+distRunsAvailable = Array.from(new Set(transpose(dataStats).map(d => d.calib_run))).sort()
+
+viewof distCalibRunSelect = Inputs.select(distRunsAvailable, {
+  value: distRunsAvailable[distRunsAvailable.length - 1],
+  label: "Calibration Run"
+})
+
+viewof varSelect = Inputs.select(new Map([['Generalized Cost','GC'], ['Distance', 'Dist']]), {value: 'GC', label: "Variable"})
+
+viewof purpSelect  = Inputs.select(new Map([['Internal Trip Purposes', 'InternalTripPurposes'], ['Internal Truck Purposes', 'InternalTruckPurposes'], ['External Trip Purposes', 'Externals']]), {value: 'InternalTripPurposes', label: "Purpose Set"});
+
+dataLT = transpose(dataStats)
+filtered_data = dataLT.filter(function(dataL) {
+    return varSelect == dataL.Variable && purpSelect == dataL.PurpType && dataL.calib_run === distCalibRunSelect;
+})
+
+import {Legend, Swatches} from "@d3/color-legend"
+import {howto, altplot} from "@d3/example-components"
+```
+
+::: {.panel-tabset}
+#### Plot
+
+```{ojs}
+//|label: fig-ave-trip-length
+//|fig-cap: Average Trip Length
+//|echo: False
+Plot.plot({
+  y: {axis: null},
+  x: {tickFormat: "s", grid: true},
+  color: {
+    domain: ["Model", "Observed"],
+    range: ["#376092", "#77933c"],
+    legend: true
+  },
+  facet: {
+    data: filtered_data,
+    y: "Purpose",
+    label: null,
+    marginLeft: 105,
+    marginTop: 4,
+    marginBottom: 4
+  },
+  style: {fontSize: 16},
+  marginTop: 10,
+  marginBottom: 40,
+  marginRight: 40,
+  marginLeft: 105,
+  height: filtered_data.length * 22,
+  marks: [
+    Plot.barX(filtered_data, {
+      y: "DataSource",
+      x: "AVG_TRIP_LEN",
+      fill: "DataSource"
+    }),
+    Plot.ruleX([0])
+  ]
+})
+```
+
+#### Table
+
+```{ojs}
+//| echo: false
+Inputs.table(filtered_data)
+```
+
+:::
+
+### Trip Length Frequency Validation
+
+```{python}
+Markdown(f"""
+The following trip length frequency charts have been updated to exclude intrazonal trips. The distance charts only include data beyond {intra_dist_min}, the time charts only include data beyond {intra_time_min}, and the general cost charts only include data beyond {intra_gc_min}. Please note that these values were calculated at a mark where the majority of the trip would not be intrazonal trips. Intrazonal trips were analyzed separately.
+""")
+```
+
+```{python}
+# filter out intrazonals
+dfObsModelMerge4p = dfObsModelMerge.copy()
+
+min_bin = {'Dist': intra_dist_min, 'GC': intra_gc_min}
+dfObsModelMerge4p = dfObsModelMerge4p[dfObsModelMerge4p.apply(lambda row: row['BIN'] >= min_bin.get(row['TLFTYPE'], 0), axis=1)]
+
+ojs_define(freq = dfObsModelMerge4p)
+
+# specifiy the xmax for each view of the trip length frequency plot (HBC removed)
+xvals_data = [
+    ['HBW'      , 'GC'  , 70 , intra_gc_min  ],
+    ['HBShp'    , 'GC'  , 40 , intra_gc_min  ],
+    ['HBOth'    , 'GC'  , 60 , intra_gc_min  ],
+    ['HBSch_Pr' , 'GC'  , 15 , intra_gc_min  ],
+    ['HBSch_Sc' , 'GC'  , 25 , intra_gc_min  ],
+    ['NHBW'     , 'GC'  , 40 , intra_gc_min  ],
+    ['NHBNW'    , 'GC'  , 40 , intra_gc_min  ],
+    ['LT'       , 'GC'  , 80 , intra_gc_min  ],
+    ['MD'       , 'GC'  , 120, intra_gc_min  ],
+    ['HV'       , 'GC'  , 120, intra_gc_min  ],
+    ['II_LT_D2D', 'GC'  , 50 , intra_gc_min  ],
+    ['II_LT_HnS', 'GC'  , 80 , intra_gc_min  ],
+    ['II_LT_Lcl', 'GC'  , 100, intra_gc_min  ],
+    ['II_LT_Reg', 'GC'  , 100, intra_gc_min  ],
+    ['II_LT_LHl', 'GC'  , 100, intra_gc_min  ],
+    ['II_LT_Unk', 'GC'  , 100, intra_gc_min  ],
+    ['II_MD_D2D', 'GC'  , 60 , intra_gc_min  ],
+    ['II_MD_HnS', 'GC'  , 120, intra_gc_min  ],
+    ['II_MD_Lcl', 'GC'  , 120, intra_gc_min  ],
+    ['II_MD_Reg', 'GC'  , 140, intra_gc_min  ],
+    ['II_MD_LHl', 'GC'  , 140, intra_gc_min  ],
+    ['II_MD_Unk', 'GC'  , 140, intra_gc_min  ],
+    ['II_MD_Adj', 'GC'  , 60 , intra_gc_min  ],
+    ['II_HV_D2D', 'GC'  , 60 , intra_gc_min  ],
+    ['II_HV_HnS', 'GC'  , 120, intra_gc_min  ],
+    ['II_HV_Lcl', 'GC'  , 120, intra_gc_min  ],
+    ['II_HV_Reg', 'GC'  , 140, intra_gc_min  ],
+    ['II_HV_LHl', 'GC'  , 140, intra_gc_min  ],
+    ['II_HV_Unk', 'GC'  , 140, intra_gc_min  ],
+    ['II_HV_Adj', 'GC'  , 60, intra_gc_min   ],
+    ['IX'       , 'GC'  , 120, intra_gc_min  ],
+    ['XI'       , 'GC'  , 120, intra_gc_min  ],
+    ['IX_MD'    , 'GC'  , 120, intra_gc_min  ],
+    ['XI_MD'    , 'GC'  , 120, intra_gc_min  ],
+    ['IX_HV'    , 'GC'  , 120, intra_gc_min  ],
+    ['XI_HV'    , 'GC'  , 120, intra_gc_min  ],
+    ['HBW'      , 'Dist', 40 , intra_dist_min],
+    ['HBShp'    , 'Dist', 20 , intra_dist_min],
+    ['HBOth'    , 'Dist', 10 , intra_dist_min],
+    ['HBSch_Pr' , 'Dist', 10 , intra_dist_min],
+    ['HBSch_Sc' , 'Dist', 14 , intra_dist_min],
+    ['NHBW'     , 'Dist', 25 , intra_dist_min],
+    ['NHBNW'    , 'Dist', 25 , intra_dist_min],
+    ['LT'       , 'Dist', 40 , intra_dist_min],
+    ['MD'       , 'Dist', 60 , intra_dist_min],
+    ['HV'       , 'Dist', 80 , intra_dist_min],
+    ['II_LT_D2D', 'Dist', 25 , intra_gc_min  ],
+    ['II_LT_HnS', 'Dist', 40 , intra_gc_min  ],
+    ['II_LT_Lcl', 'Dist', 50 , intra_gc_min  ],
+    ['II_LT_Reg', 'Dist', 50 , intra_gc_min  ],
+    ['II_LT_LHl', 'Dist', 50 , intra_gc_min  ],
+    ['II_LT_Unk', 'Dist', 50 , intra_gc_min  ],
+    ['II_MD_D2D', 'Dist', 30 , intra_gc_min  ],
+    ['II_MD_HnS', 'Dist', 60 , intra_gc_min  ],
+    ['II_MD_Lcl', 'Dist', 60 , intra_gc_min  ],
+    ['II_MD_Reg', 'Dist', 70 , intra_gc_min  ],
+    ['II_MD_LHl', 'Dist', 70 , intra_gc_min  ],
+    ['II_MD_Unk', 'Dist', 70 , intra_gc_min  ],
+    ['II_MD_Adj', 'Dist', 30 , intra_gc_min  ],
+    ['II_HV_D2D', 'Dist', 30 , intra_gc_min  ],
+    ['II_HV_HnS', 'Dist', 60 , intra_gc_min  ],
+    ['II_HV_Lcl', 'Dist', 60 , intra_gc_min  ],
+    ['II_HV_Reg', 'Dist', 70 , intra_gc_min  ],
+    ['II_HV_LHl', 'Dist', 70 , intra_gc_min  ],
+    ['II_HV_Unk', 'Dist', 70 , intra_gc_min  ],
+    ['II_HV_Adj', 'Dist', 30 , intra_gc_min  ],
+    ['IX'       , 'Dist', 80 , intra_dist_min],
+    ['XI'       , 'Dist', 80 , intra_dist_min],
+    ['IX_MD'    , 'Dist', 80 , intra_dist_min],
+    ['XI_MD'    , 'Dist', 80 , intra_dist_min],
+    ['IX_HV'    , 'Dist', 80 , intra_dist_min],
+    ['XI_HV'    , 'Dist', 80 , intra_dist_min]
+]
+
+xvals = pd.DataFrame(xvals_data, columns=['Purpose','TLF','maxX', 'minX'])
+
+ojs_define(xvals = xvals)
+```
+
+```{ojs}
+optionsTripPurpBySet = ({
+  "InternalTripPurposes": [
+    ['Home-Based Work'                   , 'HBW'     ],
+    ['Home-Based Shopping'               , 'HBShp'   ],
+    ['Home-Based Other'                  , 'HBOth'   ],
+    ['Home-Based School - Primary'       , 'HBSch_Pr'],
+    ['Home-Based School - Secondary'     , 'HBSch_Sc'],
+    ['Non-Home-Based Work'               , 'NHBW'    ],
+    ['Non-Home-Based Non-Work'           , 'NHBNW'   ],
+    ['Light CV'                          , 'LT'      ],
+    ['Medium CV'                         , 'MD'      ],
+    ['Heavy CV'                          , 'HV'      ]
+  ],
+  "InternalTruckPurposes": [
+    ['Light CV - Door-to-Door'            , 'II_LT_D2D'],
+    ['Light CV - Hub-and-Spoke'           , 'II_LT_HnS'],
+    ['Light CV - Local'                   , 'II_LT_Lcl'],
+    ['Light CV - Regional'                , 'II_LT_Reg'],
+    ['Light CV - Long Haul'               , 'II_LT_LHl'],
+    ['Light CV - Unknown'                 , 'II_LT_Unk'],
+    ['Medium CV - Door-to-Door'           , 'II_MD_D2D'],
+    ['Medium CV - Hub-and-Spoke'          , 'II_MD_HnS'],
+    ['Medium CV - Local'                  , 'II_MD_Lcl'],
+    ['Medium CV - Regional'               , 'II_MD_Reg'],
+    ['Medium CV - Long Haul'              , 'II_MD_LHl'],
+    ['Medium CV - Unknown'                , 'II_MD_Unk'],
+    ['Medium CV - Adjusted'               , 'II_MD_Adj'],
+    ['Heavy CV - Door-to-Door'            , 'II_HV_D2D'],
+    ['Heavy CV - Hub-and-Spoke'           , 'II_HV_HnS'],
+    ['Heavy CV - Local'                   , 'II_HV_Lcl'],
+    ['Heavy CV - Regional'                , 'II_HV_Reg'],
+    ['Heavy CV - Long Haul'               , 'II_HV_LHl'],
+    ['Heavy CV - Unknown'                 , 'II_HV_Unk'],
+    ['Heavy CV - Adjusted'                , 'II_HV_Adj']
+  ],
+  "Externals": [
+    ['Internal-to-External'              , 'IX'      ],
+    ['External-to-Internal'              , 'XI'      ],
+    ['Internal-to-External Medium CV'    , 'IX_MD'   ],
+    ['External-to-Internal Medium CV'    , 'XI_MD'   ],
+    ['Internal-to-External Heavy CV'     , 'IX_HV'   ],
+    ['External-to-Internal Heavy CV'     , 'XI_HV'   ]
+  ]
+})
+
+viewof vTlfPurpSet = Inputs.select(new Map([['Internal Trip Purposes', 'InternalTripPurposes'], ['Internal Truck Purposes', 'InternalTruckPurposes'], ['External Trip Purposes', 'Externals']]), {value: 'InternalTripPurposes', label: "Purpose Set:"})
+
+optionsTripPurp = optionsTripPurpBySet[vTlfPurpSet]
+
+viewof vTripPurp = Inputs.select(new Map(optionsTripPurp), {value: optionsTripPurp[0][1], label: "Trip Purpose:"})
+viewof vTlfType = Inputs.select(new Map([['Generalized Cost','GC'],['Distance','Dist']]), {value: 'GC', label: "Variable:"})
+viewof binSize = Inputs.range([1, 5], {value: 2, step: 1, label: "Bin Size:"})
+```
+
+```{ojs}
+freqT = transpose(freq)
+
+// reuses distCalibRunSelect (defined above, "Average Trip Length" section)
+freqT_filtered_Obs = freqT.filter(function(freqData) {
+    return vTripPurp == freqData.TRIPPURP &&
+    vTlfType == freqData.TLFTYPE &&
+    freqData.calib_run === distCalibRunSelect &&
+    'freqObs' == freqData.freqSource;
+})
+
+freqT_filtered_Mod = freqT.filter(function(freqData) {
+    return vTripPurp == freqData.TRIPPURP &&
+    vTlfType == freqData.TLFTYPE &&
+    freqData.calib_run === distCalibRunSelect &&
+    'freqMod' == freqData.freqSource;
+})
+
+colorScale = d3.scaleOrdinal()
+  .domain(["Model", "Observed"])
+  .range(["#376092", "#77933c"]);
+key2 = Legend(colorScale, {title: "Data Source"})
+```
+
+```{ojs}
+//|echo: False
+//|error: False
+//|message: False
+dataX = transpose(xvals)
+filtered_x = dataX.filter(function(dx) {
+    return vTripPurp == dx.Purpose &&
+           vTlfType == dx.TLF;
+})
+
+maxXValue = filtered_x.length > 0 ? Math.max(...filtered_x.map(function(dx){
+    return dx.maxX;
+})) : 120;
+minXValue = filtered_x.length > 0 ? Math.max(...filtered_x.map(function(dx){
+    return dx.minX;
+})) : 0;
+```
+
+```{ojs}
+//|label: fig-trip-length-freq
+//|fig-cap: Trip Length Frequency
+//|echo: False
+//|message: False
+//|error: False
+Plot.plot({
+  grid: true,
+  height: 420,
+  x: {
+    label: 'Distance / Cost',
+    domain: [minXValue, maxXValue]
+  },
+  y: {
+    label: 'Frequency',
+    tickFormat: f => `${Math.round(f * 100)}%`
+  },
+  marginRight: 40,
+  marginLeft: 60,
+  marginTop: 40,
+  marginBottom: 50,
+  style: { fontSize: 15 },
+  marks: [
+    Plot.line(freqT_filtered_Mod, Plot.groupX({y: "sum"}, {
+      x: d => Math.floor(d.BIN / binSize) * binSize,
+      y: 'freq',
+      stroke: "#376092",
+      strokeWidth: 3
+    })),
+    Plot.line(freqT_filtered_Obs, Plot.groupX({y: "sum"}, {
+      x: d => Math.floor(d.BIN / binSize) * binSize,
+      y: 'freq',
+      stroke: "#77933c",
+      strokeWidth: 3
+    })),
+    Plot.frame({ strokeOpacity: 0.2 })
+  ]
+});
+```
+
+### Intrazonal Trip Percentage
+
+```{python}
+# ------------------------------------------------ #
+# Calcualte Observed Intrazonal Trip Percentages   #
+# ------------------------------------------------ #
+# read in hts trip table, filter to WF model area, calculate purpose
+hts_trips = pd.read_csv(config_paths["hts_trips_path"], low_memory=False)
+hts_trips = hts_trips[(hts_trips['pSUBAREAID']==1) & (hts_trips['aSUBAREAID']==1)]
+hts_trips['PURP'] = np.where(
+    hts_trips['PURP7_t'] == 'HBSch',
+    np.where(
+        hts_trips['HBSch_lev'] == 'primary',
+        'HBSch_Pr',
+        np.where(
+            hts_trips['HBSch_lev'] == 'secondary',
+            'HBSch_Sc',
+            pd.NA
+        )
+    ),
+    hts_trips['PURP7_t']
+)
+
+# filter out na and select columns
+hts_trips = hts_trips[~hts_trips['PURP'].isna()]
+hts_trips = hts_trips[hts_trips['trip_weight'] > 0]
+hts_trips = hts_trips[['linked_trip_id','PURP','pCO_TAZID_USTMv4','aCO_TAZID_USTMv4','trip_weight']]
+
+# flag intrazonal trips
+hts_trips['is_intra'] = (hts_trips['pCO_TAZID_USTMv4'] == hts_trips['aCO_TAZID_USTMv4'])
+
+# weighted totals by purpose
+obs_intra = (
+    hts_trips
+        .assign(
+            intra_wt = lambda x: np.where(x['is_intra'], x['trip_weight'], 0)
+        )
+        .groupby('PURP', as_index=False)
+        .agg(
+            total_trips_wt=('trip_weight', 'sum'),
+            intra_trips_wt=('intra_wt', 'sum')
+        )
+)
+
+# percent intrazonal
+obs_intra['pct_intrazonal'] = (100 * obs_intra['intra_trips_wt'] / obs_intra['total_trips_wt'])
+obs_intra = obs_intra[['PURP','pct_intrazonal']]
+```
+
+
+```{python}
+# ------------------------------------------------ #
+# Calcualte Modeled Intrazonal Trip Percentages    #
+# (one calibration run at a time)                  #
+# ------------------------------------------------ #
+def _load_mod_intra(calib_run, outputs_dir):
+    results = []
+    with omx.open_file(outputs_dir / "PA_AllPurp_GRAVITY.omx", 'r') as f:
+        for mat_name in purp_mats:
+            if mat_name not in f.list_matrices():
+                print(f"⚠️ {mat_name} not found in OMX")
+                continue
+            mat = f[mat_name][:].astype(float)
+            total_trips = mat.sum()
+            intra_trips = np.trace(mat)
+            results.append({
+                "PURP": mat_name,
+                "total_trips": total_trips,
+                "intra_trips": intra_trips,
+                "pct_intrazonal": 100 * intra_trips / total_trips
+            })
+    return pd.DataFrame(results)[['PURP','pct_intrazonal']]
+
+mod_intra = vs.load_per_run(repo_root, _load_mod_intra)
+```
+
+```{python}
+# Prepare intrazonal percent data (obs_intra repeated per run below, same
+# reasoning as elsewhere -- it's not run-specific, so it gets duplicated
+# across the run dimension rather than merged on it)
+obs_intra_per_run = pd.concat(
+    [obs_intra.assign(calib_run=cr) for cr in calib_runs], ignore_index=True
+)
+obs_intra_per_run['DataSource'] = 'Observed'
+mod_intra['DataSource'] = 'Model'
+
+# Combine observed and modeled data
+df_intra = pd.concat([obs_intra_per_run, mod_intra], ignore_index=True)
+
+# Keep only the purposes we care about
+valid_purposes = ['HBW','HBShp','HBOth','HBSch_Pr','HBSch_Sc','NHBW','NHBNW']
+df_intra = df_intra[df_intra['PURP'].isin(valid_purposes)]
+
+# Map purposes to numbered labels
+purpose_index = {
+    'HBW': '0-HBW',
+    'HBShp': '1-HBShp',
+    'HBOth': '2-HBOth',
+    'HBSch_Pr': '3-HBSchPr',
+    'HBSch_Sc': '4-HBSchSc',
+    'NHBW': '5-NHBW',
+    'NHBNW': '6-NHBNW'
+}
+df_intra['PURP'] = df_intra['PURP'].map(purpose_index)
+
+# Convert to categorical for sorting in order
+df_intra['PURP'] = pd.Categorical(
+    df_intra['PURP'],
+    categories=['0-HBW','1-HBShp','2-HBOth','3-HBSchPr','4-HBSchSc','5-NHBW','6-NHBNW'],
+    ordered=True
+)
+
+# Add numeric order column
+df_intra['order'] = df_intra['PURP'].cat.codes
+
+# Sort by order
+df_intra = df_intra.sort_values('order')
+```
+
+```{python}
+# Send to OJS
+ojs_define(dataIntra = df_intra)
+```
+
+
+```{ojs}
+// reuses distCalibRunSelect (defined above, "Average Trip Length" section)
+dataIntraT = transpose(dataIntra).filter(d => d.calib_run === distCalibRunSelect)
+```
+
+::: {.panel-tabset}
+
+#### Plot
+```{ojs}
+//|label: fig-intrazonal
+//|fig-cap: Intrazonal trip percentage between model and observed.
+//|echo: False
+Plot.plot({
+  y: {axis: null},
+  x: {tickFormat: "s", grid: true},
+  color: {
+    domain: ["Model", "Observed"],
+    range: ["#376092", "#77933c"],
+    legend: true
+  },
+  facet: {
+    data: dataIntraT,
+    y: "PURP",
+    label: null,
+    marginLeft: 95,
+    marginTop: 4,
+    marginBottom: 4
+  },
+  style: {fontSize: 16},
+  marginTop: 10,
+  marginBottom: 40,
+  marginRight: 40,
+  marginLeft: 95,
+  height: dataIntraT.length * 22,
+  marks: [
+    Plot.barX(dataIntraT, {
+      y: "DataSource",
+      x: "pct_intrazonal",
+      fill: "DataSource"
+    }),
+    Plot.ruleX([0])
+  ]
+})
+```
+
+#### Table
+```{ojs}
+//| echo: false
+Inputs.table(dataIntraT)
+```
+
+:::
+
+
+
+### Productions & Attractions
+
+```{python}
+# ------------------------------------------------ #
+# Preprocess Observed HTS Trips
+# ------------------------------------------------ #
+obs_trips = hts_trips.copy()
+
+# merge to get large districts and summarize accordingly
+obs_trips = obs_trips.merge(tazv10[['CO_TAZID','DISTLRG','CO_FIPS']], how = 'left', left_on='pCO_TAZID_USTMv4', right_on='CO_TAZID')
+obs_trips = obs_trips.rename(columns={'DISTLRG':'p_DistLrg', 'CO_FIPS':'p_CO_FIPS'}).drop(columns={'CO_TAZID'})
+obs_trips = obs_trips.merge(tazv10[['CO_TAZID','DISTLRG','CO_FIPS']], how = 'left', left_on='aCO_TAZID_USTMv4', right_on='CO_TAZID')
+obs_trips = obs_trips.rename(columns={'DISTLRG':'a_DistLrg', 'CO_FIPS':'a_CO_FIPS'}).drop(columns={'CO_TAZID'})
+
+# ------------------------------------------------ #
+# Preprocess Modeled Skim Data (one calibration run at a time)
+# ------------------------------------------------ #
+taz_ids = np.arange(1, 3630)
+
+def _load_master_trips(calib_run, outputs_dir):
+    od_results = []
+    with omx.open_file(outputs_dir / "PA_AllPurp_GRAVITY.omx", 'r') as f:
+        for mat_name in purp_mats:
+            if mat_name not in f.list_matrices():
+                print(f"⚠️ {mat_name} not found in OMX")
+                continue
+            mat = f[mat_name][:].astype(float)
+            ii, jj = np.nonzero(mat)
+            od_results.extend(
+                {"i": taz_ids[i], "j": taz_ids[j], "trips": mat[i, j], "purpose": mat_name}
+                for i, j in zip(ii, jj)
+            )
+
+    mod_trips = pd.DataFrame(od_results)
+    mod_trips = mod_trips.merge(tazv10[['TAZID','DISTLRG','CO_FIPS']], how = 'left', left_on='i', right_on='TAZID')
+    mod_trips = mod_trips.rename(columns={'DISTLRG':'p_DistLrg', 'CO_FIPS':'p_CO_FIPS'}).drop(columns={'TAZID'})
+    mod_trips = mod_trips.merge(tazv10[['TAZID','DISTLRG','CO_FIPS']], how = 'left', left_on='j', right_on='TAZID')
+    mod_trips = mod_trips.rename(columns={'DISTLRG':'a_DistLrg', 'CO_FIPS':'a_CO_FIPS'}).drop(columns={'TAZID'})
+    mod_trips = mod_trips.rename(columns={'purpose':'PURP'})
+
+    mod_trips_dist = mod_trips.groupby(['PURP','p_DistLrg','a_DistLrg'], as_index=False).agg(trips=('trips','sum'))
+    mod_trips_co = mod_trips.groupby(['PURP','p_CO_FIPS','a_CO_FIPS'], as_index=False).agg(trips=('trips','sum'))
+    mod_trips_dist['Geo'] = 'District'
+    mod_trips_co['Geo'] = 'County'
+    mod_trips_dist = mod_trips_dist.rename(columns={'p_DistLrg': 'p_Loc', 'a_DistLrg': 'a_Loc', 'trips': 'mod'})
+    mod_trips_co = mod_trips_co.rename(columns={'p_CO_FIPS': 'p_Loc', 'a_CO_FIPS': 'a_Loc', 'trips': 'mod'})
+    return pd.concat([mod_trips_dist, mod_trips_co], ignore_index=True)
+
+mod_trips_all = vs.load_per_run(repo_root, _load_master_trips)
+
+# ------------------------------------------------ #
+# Summarize Observed (shared, not run-specific)
+# ------------------------------------------------ #
+obs_trips_dist = obs_trips.groupby(['PURP','p_DistLrg','a_DistLrg'], as_index=False).agg(trips=('trip_weight','sum'))
+obs_trips_co = obs_trips.groupby(['PURP','p_CO_FIPS','a_CO_FIPS'], as_index=False).agg(trips=('trip_weight','sum'))
+obs_trips_dist['Geo'] = 'District'
+obs_trips_co['Geo'] = 'County'
+obs_trips_dist = obs_trips_dist.rename(columns={'p_DistLrg': 'p_Loc', 'a_DistLrg': 'a_Loc', 'trips': 'obs'})
+obs_trips_co = obs_trips_co.rename(columns={'p_CO_FIPS': 'p_Loc', 'a_CO_FIPS': 'a_Loc', 'trips': 'obs'})
+obs_trips_all = pd.concat([obs_trips_dist, obs_trips_co], ignore_index=True)
+
+# Merge Model (per run) and Observed (shared) -- calib_run isn't a merge
+# key, so it rides along on the modeled side, same pattern as elsewhere
+master_trips = mod_trips_all.merge(
+    obs_trips_all, on=['PURP', 'p_Loc', 'a_Loc', 'Geo'], how='outer'
+).fillna({'mod': 0, 'obs': 0})
+
+# filter out HBC
+master_trips = master_trips[~(master_trips['PURP']=='HBC')]
+
+# ------------------------------------------------ #
+# ADD "AllPurps" CATEGORY (per calib_run)
+# ------------------------------------------------ #
+all_purps = master_trips.groupby(['p_Loc', 'a_Loc', 'Geo', 'calib_run'], as_index=False).agg({'mod': 'sum','obs': 'sum'})
+all_purps['PURP'] = 'AllPurps'
+master_trips2 = pd.concat([master_trips, all_purps], ignore_index=True)
+```
+
+```{python}
+ojs_define(trips_master_data = master_trips2)
+```
+
+
+```{ojs}
+// 1. Data Processing
+paRunsAvailable = Array.from(new Set(transpose(trips_master_data).map(d => d.calib_run))).sort()
+
+dc_final = {
+  const data = transpose(trips_master_data).filter(d => d.calib_run === vCalibRun_final);
+  return data.map(d => ({
+    ...d,
+    tmeMod: d.mod,
+    tmeObs: d.obs,
+    tmeErrorPct: d.obs > 0 ? (d.mod - d.obs) / d.obs : 0
+  })).filter(d => d.tmeObs > 0 || d.tmeMod > 0);
+}
+
+// 2. Selectors
+viewof vCalibRun_final = Inputs.select(paRunsAvailable, {
+  value: paRunsAvailable[paRunsAvailable.length - 1],
+  label: "Calibration Run:"
+})
+
+viewof vGeo_final = Inputs.select(["District", "County"], {label: "Geography Level:", value: "District"})
+
+// This dropdown updates its options based on what's available in the data
+viewof vPurp_final = Inputs.select(
+  Array.from(new Set(dc_final.map(d => d.PURP))).sort(),
+  {label: "Trip Purpose:"}
+)
+
+// 3. Final Filtered Data
+dc_filtered_final = dc_final.filter(d => d.Geo === vGeo_final && d.PURP === vPurp_final)
+
+chartMax_final = d3.max(dc_filtered_final, d => Math.max(d.tmeObs, d.tmeMod)) * 1.05
+```
+
+:::: {.columns}
+::: {.column width="50%"}
+
+
+```{ojs}
+// CHART 4a: Model vs Observed Trips
+Plot.plot({
+  grid: true,
+  width: 460,
+  height: 380,
+  marginRight: 50,
+  caption: html`<h4>4a. ${vPurp_final} Trips (${vGeo_final} Level)</h4>`,
+  x: { label: "Observed Trips", domain: [0, chartMax_final] },
+  y: { label: "Modeled Trips", domain: [0, chartMax_final] },
+  marks: [
+    Plot.link([0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4], {
+      x1: 0, y1: 0,
+      x2: (k) => (k <= 1 ? chartMax_final : chartMax_final / k),
+      y2: (k) => (k <= 1 ? chartMax_final * k : chartMax_final),
+      strokeOpacity: (k) => k === 1 ? 1 : 0.2,
+      stroke: "gray",
+      strokeWidth: (k) => k === 1 ? 2 : 1
+    }),
+    // Labels for Fan Lines
+    Plot.text([0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4], {
+      x: (k) => (k <= 1 ? chartMax_final : chartMax_final / k),
+      y: (k) => (k <= 1 ? chartMax_final * k : chartMax_final),
+      text: (k) => k === 1 ? "Equal" : d3.format("+.0%")(k - 1),
+      textAnchor: "start", dx: 6, fill: "gray", fontSize: 10
+    }),
+    Plot.dot(dc_filtered_final, {
+      x: "tmeObs", y: "tmeMod", r: 3.5,
+      fill: "rgb(80, 116, 230)", fillOpacity: 0.5,
+      tip: true,
+      title: (d) =>
+        `${d.Geo}: ${d.p_Loc} to ${d.a_Loc}\n` +
+        `Observed: ${d3.format(",.0f")(d.tmeObs)}\n` +
+        `Modeled: ${d3.format(",.0f")(d.tmeMod)}`
+    }),
+    Plot.linearRegressionY(dc_filtered_final, {
+      x: "tmeObs", y: "tmeMod",
+      stroke: "rgb(80, 116, 230)", strokeDasharray: "4 4"
+    })
+  ]
+})
+```
+
+:::
+
+::: {.column width="50%"}
+
+```{ojs}
+// CHART 4b: Percent Error
+Plot.plot({
+  grid: true,
+  width: 460,
+  height: 380,
+  caption: html`<h4>4b. ${vPurp_final} Percent Error</h4>`,
+  x: { label: "Observed Trips", domain: [0, chartMax_final] },
+  y: { label: "Percent Error", domain: [-2, 2], tickFormat: d3.format(".0%") },
+  marks: [
+    Plot.ruleY([0], { stroke: "#000", strokeWidth: 1.5 }),
+    Plot.dot(dc_filtered_final, {
+      x: "tmeObs", y: "tmeErrorPct", r: 3.5,
+      fill: "rgb(80, 116, 230)", fillOpacity: 0.5,
+      tip: true,
+      title: (d) =>
+        `${d.Geo}: ${d.p_Loc} to ${d.a_Loc}\n` +
+        `Observed: ${d3.format(",.0f")(d.tmeObs)}\n` +
+        `Error: ${d3.format("+.1%")(d.tmeErrorPct)}`
+    }),
+    // The Validation "Staircase"
+    Plot.line([[0, 2.0], [1, 2.0], [1, 1.0], [2.5, 1.0], [2.5, 0.5], [5, 0.5], [5, 0.25], [10, 0.25], [10, 0.20], [25, 0.20], [25, 0.15], [50, 0.15], [50, 0.10], [chartMax_final, 0.10]],
+      { stroke: "gray", strokeWidth: 1.5, strokeDasharray: "2 2", curve: "step-after" }),
+    Plot.line([[0, -2.0], [1, -2.0], [1, -1.0], [2.5, -1.0], [2.5, -0.5], [5, -0.5], [5, -0.25], [10, -0.25], [10, -0.20], [25, -0.20], [25, -0.15], [50, -0.15], [50, -0.10], [chartMax_final, -0.10]],
+      { stroke: "gray", strokeWidth: 1.5, strokeDasharray: "2 2", curve: "step-after" })
+  ]
+})
+```
+
+:::
+::::
+
+## HBW Destination Choice
+
+```{python}
+def _load_dist_sum_mod(calib_run, outputs_dir):
+    #--------------------------------------------------------------------#
+    # Modeled: Destination Choice Model                                  #
+    #--------------------------------------------------------------------#
+    dist_sum_mod_mc = pd.read_csv(outputs_dir / "DISTLRG_PA_AllPurp.csv", low_memory=False)[['I','J','HBW','HBO','NHB','HBSch','HBC']]
+    dist_sum_mod_mc = dist_sum_mod_mc.rename(columns={'I':'p_DistLrg', 'J':'a_DistLrg'})
+    dist_sum_mod_mc = dist_sum_mod_mc.melt(
+        id_vars=['p_DistLrg', 'a_DistLrg'],
+        value_vars=['HBW', 'HBO', 'NHB', 'HBSch', 'HBC'],
+        var_name='PURP5_t',
+        value_name='total_trips'
+    )
+    dist_sum_mod_mc['Source'] = 'Destination Choice'
+
+    #--------------------------------------------------------------------#
+    # Modeled: Gravity Choice Model                                      #
+    #--------------------------------------------------------------------#
+    dist_sum_mod_db = pd.read_csv(outputs_dir / "DISTLRG_PA_Gravity_AllPurp.csv", low_memory=False)
+    dist_sum_mod_db['HBO'] = dist_sum_mod_db['HBOth'] + dist_sum_mod_db['HBShp']
+    dist_sum_mod_db['HBSch'] = dist_sum_mod_db['HBSch_Pr'] + dist_sum_mod_db['HBSch_Sc']
+    dist_sum_mod_db['NHB'] = dist_sum_mod_db['NHBW'] + dist_sum_mod_db['NHBNW']
+    dist_sum_mod_db = dist_sum_mod_db[['I','J','HBW','HBO','NHB','HBSch','HBC']]
+    dist_sum_mod_db = dist_sum_mod_db.rename(columns={'I':'p_DistLrg', 'J':'a_DistLrg'})
+    dist_sum_mod_db = dist_sum_mod_db.melt(
+        id_vars=['p_DistLrg', 'a_DistLrg'],
+        value_vars=['HBW', 'HBO', 'NHB', 'HBSch', 'HBC'],
+        var_name='PURP5_t',
+        value_name='total_trips'
+    )
+    dist_sum_mod_db['Source'] = 'Gravity'
+
+    dist_sum_mod = pd.concat([dist_sum_mod_mc, dist_sum_mod_db], ignore_index=True)
+    dist_sum_mod = dist_sum_mod[dist_sum_mod['PURP5_t']=='HBW']
+    return dist_sum_mod[['Source','p_DistLrg','a_DistLrg','total_trips']]
+
+dist_sum_mod_chart = vs.load_per_run(repo_root, _load_dist_sum_mod)
+
+#--------------------------------------------------------------------#
+# Observed: Household Travel Survey                                  #
+#--------------------------------------------------------------------#
+hts_trips_in_dc = pd.read_csv(config_paths["hts_trips_path"], low_memory=False)
+hts_trips_dc = hts_trips_in_dc.copy()[['linked_trip_id','PURP5_t','pCO_TAZID_USTMv4','aCO_TAZID_USTMv4','trip_weight']]
+
+# merge to get large districts and summarize accordingly
+dist_sum_obs_1 = hts_trips_dc.merge(tazv10_st, how = 'left', left_on='pCO_TAZID_USTMv4', right_on='CO_TAZID')
+dist_sum_obs_1 = dist_sum_obs_1.rename(columns={'DISTLRG':'p_DistLrg'}).drop(columns={'CO_TAZID'})
+dist_sum_obs_2 = dist_sum_obs_1.merge(tazv10_st, how = 'left', left_on='aCO_TAZID_USTMv4', right_on='CO_TAZID')
+dist_sum_obs_2 = dist_sum_obs_2.rename(columns={'DISTLRG':'a_DistLrg'}).drop(columns={'CO_TAZID'})
+
+# summarize data
+dist_sum_obs = (
+    dist_sum_obs_2
+        .groupby(
+            ['p_DistLrg', 'a_DistLrg', 'PURP5_t'],
+            dropna=False
+        )['trip_weight']
+        .sum()
+        .reset_index(name='total_trips')
+)
+
+# filter data
+dist_sum_obs = dist_sum_obs[
+    (dist_sum_obs['total_trips'] != 0) &
+    (dist_sum_obs['p_DistLrg'].notna()) &
+    (dist_sum_obs['a_DistLrg'].notna())
+]
+
+#--------------------------------------------------------------------#
+# Prep Observed for Charts (dist_sum_mod_chart already built above,
+# per calibration run, via _load_dist_sum_mod)                       #
+#--------------------------------------------------------------------#
+dist_sum_obs = dist_sum_obs.copy()
+dist_sum_obs = dist_sum_obs[dist_sum_obs['PURP5_t']=='HBW']
+dist_sum_obs = dist_sum_obs[['p_DistLrg','a_DistLrg','total_trips']]
+
+# combine to get observed for both
+obs_dc = dist_sum_obs.copy()
+obs_dc["Source"] = "Destination Choice"
+obs_grav = dist_sum_obs.copy()
+obs_grav["Source"] = "Gravity"
+dist_sum_obs_chart = pd.concat([obs_dc, obs_grav], ignore_index=True)
+```
+
+```{python}
+#=============================================================================#
+# Production & Attractions by Vehicle Ownership & Income Category            #
+#=============================================================================#
+df_trip = pd.read_csv(config_paths["hts_trips_path"], low_memory=False)
+df_hh = pd.read_csv(config_paths["hts_hh"], low_memory=False)
+
+#--------------------------------------------------------------------#
+# Process Observed Data (HTS)                                        #
+#--------------------------------------------------------------------#
+# calculate vehicle category - income category variables
+hts_hh_23_hbw_merge = df_hh.copy()
+hts_hh_23_hbw_merge['inc'] = np.select(
+    [hts_hh_23_hbw_merge['income_detailed'].between(1, 4),hts_hh_23_hbw_merge['income_detailed'].between(5, 10)],
+    ['lo', 'hi'],
+    default=pd.NA
+)
+hts_hh_23_hbw_merge['veh'] = np.select(
+    [hts_hh_23_hbw_merge['num_vehicles'] == 0,hts_hh_23_hbw_merge['num_vehicles'] == 1,hts_hh_23_hbw_merge['num_vehicles'].between(2, 7)],
+    ['0', '1', '2'],
+    default=pd.NA
+)
+hts_hh_23_hbw_merge['veh_inc'] = (
+    'HBW_' + hts_hh_23_hbw_merge['veh'] + 'veh_' + hts_hh_23_hbw_merge['inc']
+)
+hts_hh_23_hbw_merge = hts_hh_23_hbw_merge[['hh_id','veh_inc']]
+
+#--------------------------------------------------------------------#
+# Summarize Observed Data (HTS)                                      #
+#--------------------------------------------------------------------#
+# observed data continued
+hts_trip_hbw_0 = df_trip.copy()
+hts_trip_hbw_0 = hts_trip_hbw_0.merge(hts_hh_23_hbw_merge,how='left',on='hh_id')
+
+# merge to get large districts
+hts_trip_hbw_1 = hts_trip_hbw_0.merge(tazv10_st, how = 'left', left_on='pCO_TAZID_USTMv4', right_on='CO_TAZID')
+hts_trip_hbw_1 = hts_trip_hbw_1.rename(columns={'DISTLRG':'p_DistLrg'}).drop(columns={'CO_TAZID'})
+hts_trip_hbw_2 = hts_trip_hbw_1.merge(tazv10_st, how = 'left', left_on='aCO_TAZID_USTMv4', right_on='CO_TAZID')
+hts_trip_hbw_2 = hts_trip_hbw_2.rename(columns={'DISTLRG':'a_DistLrg'}).drop(columns={'CO_TAZID'})
+
+# filter and cleanup
+hts_trip_hbw = hts_trip_hbw_2[['unique_id','PURP7_t','veh_inc','p_DistLrg','a_DistLrg','trip_weight']]
+hts_trip_hbw = hts_trip_hbw[(hts_trip_hbw['p_DistLrg'] > 0) & (hts_trip_hbw['a_DistLrg'] > 0)]
+hts_trip_hbw = hts_trip_hbw[hts_trip_hbw['PURP7_t']=='HBW']
+hts_trip_hbw = hts_trip_hbw[hts_trip_hbw['trip_weight']>0]
+hts_trip_hbw = hts_trip_hbw[~(hts_trip_hbw['veh_inc'].isna())]
+hts_trip_hbw['p_DistLrg'] = hts_trip_hbw['p_DistLrg'].astype(int)
+hts_trip_hbw['a_DistLrg'] = hts_trip_hbw['a_DistLrg'].astype(int)
+hts_trip_hbw = hts_trip_hbw[['veh_inc','p_DistLrg','a_DistLrg','trip_weight']]
+
+# summarize
+obs_dist_hbw_sum = (
+    hts_trip_hbw
+        [['veh_inc','p_DistLrg','a_DistLrg','trip_weight']]
+        .groupby(['veh_inc','p_DistLrg','a_DistLrg'], as_index=False)
+        .agg(total_trips=('trip_weight','sum'))
+)
+
+#--------------------------------------------------------------------#
+# Process + Summarize Modeled Data (OMX Files, one run at a time)     #
+#--------------------------------------------------------------------#
+def parse_veh_inc(fname):
+    base = os.path.splitext(fname)[0]      # pa_HBW_2veh_hi_noXI
+    base = base.replace("pa_", "")         # HBW_2veh_hi_noXI
+    base = base.replace("_noXI", "")       # HBW_2veh_hi
+    return base
+
+_hbw_veh_files = [
+    "pa_HBW_0veh_hi.omx",
+    "pa_HBW_0veh_lo.omx",
+    "pa_HBW_1veh_hi.omx",
+    "pa_HBW_1veh_lo.omx",
+    "pa_HBW_2veh_hi_noXI.omx",
+    "pa_HBW_2veh_lo_noXI.omx",
+]
+
+def _load_mod_dist_hbw_sum(calib_run, outputs_dir):
+    dfs = []
+    for f in _hbw_veh_files:
+        with omx.open_file(outputs_dir / f, "r") as omx_file:
+            mat = omx_file["trips"][:]
+        df = (
+            pd.DataFrame(mat)
+              .reset_index()
+              .melt(id_vars="index", var_name="a_taz", value_name="trips")
+              .rename(columns={"index": "p_taz"})
+        )
+        df["p_taz"] += 1  # shift from 0-based to 1-based TAZ
+        df["a_taz"] += 1
+        df["veh_inc"] = parse_veh_inc(f)
+        dfs.append(df)
+    mod_taz_hbw_0 = pd.concat(dfs, ignore_index=True)
+
+    mod_taz_hbw_1 = mod_taz_hbw_0.merge(tazv10_wf, how = 'left', left_on='p_taz', right_on='TAZID')
+    mod_taz_hbw_1 = mod_taz_hbw_1.rename(columns={'DISTLRG':'p_DistLrg'}).drop(columns={'TAZID'})
+    mod_taz_hbw_2 = mod_taz_hbw_1.merge(tazv10_wf, how = 'left', left_on='a_taz', right_on='TAZID')
+    mod_taz_hbw_2 = mod_taz_hbw_2.rename(columns={'DISTLRG':'a_DistLrg'}).drop(columns={'TAZID'})
+
+    return (
+        mod_taz_hbw_2
+            [['veh_inc','p_DistLrg','a_DistLrg','trips']]
+            .groupby(['veh_inc','p_DistLrg','a_DistLrg'], as_index=False)
+            .agg(total_trips=('trips','sum'))
+    )
+
+mod_dist_hbw_sum = vs.load_per_run(repo_root, _load_mod_dist_hbw_sum)
+
+#--------------------------------------------------------------------#
+# Process Observed Data (HTS): No Outliers                           #
+#--------------------------------------------------------------------#
+hbw_outliers = pd.DataFrame(
+    [
+        ("0veh_hi", 16.0, 16.0, 945.865752),
+        ("0veh_hi", 24.0, 22.0, 260.006460),
+        ("0veh_lo", 12.0, 14.0, 1041.594276),
+        ("0veh_lo", 16.0, 14.0, 736.802277),
+        ("0veh_lo", 16.0, 16.0, 357.601250),
+        ("0veh_lo", 17.0, 16.0, 337.166385),
+        ("0veh_lo", 21.0, 20.0, 350.486464),
+        ("1veh_hi", 4.0, 4.0, 903.754456),
+        ("1veh_hi", 5.0, 4.0, 856.997219),
+        ("1veh_hi", 8.0, 5.0, 1986.926338),
+        ("1veh_lo", 11.0, 13.0, 1030.396980),
+        ("1veh_lo", 12.0, 11.0, 790.298966),
+        ("1veh_lo", 15.0, 12.0, 903.562997),
+        ("1veh_lo", 21.0, 16.0, 7291.465536),
+        ("2veh_hi", 16.0, 14.0, 1820.992224),
+        ("2veh_hi", 17.0, 5.0, 1780.170192),
+        ("2veh_hi", 21.0, 13.0, 1037.019398),
+        ("2veh_lo", 8.0, 9.0, 863.288864),
+        ("2veh_lo", 12.0, 14.0, 909.217964),
+        ("2veh_lo", 12.0, 16.0, 1046.770880),
+        ("2veh_lo", 21.0, 20.0, 1746.499851),
+    ],
+    columns=["segment", "p_DistLrg", "a_DistLrg", "trips_weight"],
+)
+hbw_outliers["veh_inc"] = "HBW_" + hbw_outliers["segment"]
+hbw_outliers = hbw_outliers[["veh_inc", "p_DistLrg", "a_DistLrg", "trips_weight"]]
+
+obs_dist_hbw_sum_no_outliers = obs_dist_hbw_sum.merge(
+    hbw_outliers,
+    on=["veh_inc", "p_DistLrg", "a_DistLrg"],
+    how="left",
+)
+obs_dist_hbw_sum_no_outliers["trips_weight"] = (
+    obs_dist_hbw_sum_no_outliers["trips_weight"].fillna(0)
+)
+obs_dist_hbw_sum_no_outliers["total_trips"] = (
+    obs_dist_hbw_sum_no_outliers["total_trips"]
+    - obs_dist_hbw_sum_no_outliers["trips_weight"]
+).clip(lower=0)
+obs_dist_hbw_sum_no_outliers = obs_dist_hbw_sum_no_outliers.drop(columns=["trips_weight"])
+```
+
+
+```{python}
+def _load_mod_distrib_hbw_sum(calib_run, outputs_dir):
+    # ---------------------------
+    # 1) LOAD
+    # ---------------------------
+    hhdisag_dfs = {
+        s: pd.DataFrame(DBF(outputs_dir / f"VO_HH{s}_IncLoHi_Worker_VehOwn.dbf", load=True))
+        for s in range(1, 7)
+    }
+
+    # ---------------------------
+    # 2) COLLAPSE WORKERS (W)
+    # ---------------------------
+    for s, df in hhdisag_dfs.items():
+        for inc in ["L", "H"]:
+            for v in range(4):
+                cols = [f"S{s}I{inc}W{w}V{v}" for w in range(4)]
+                df[f"S{s}I{inc}V{v}"] = df[cols].sum(axis=1)
+
+    # ---------------------------
+    # 3) LEFT-JOIN ALL 6 ON Z
+    # ---------------------------
+    Z_COLS = ["Z"]
+
+    dfs_list = [hhdisag_dfs[s] for s in range(1, 7)]
+
+    df_merged = reduce(
+        lambda left, right: pd.merge(left, right, on=Z_COLS, how="left"),
+        dfs_list
+    )
+
+    # ---------------------------
+    # 4) COLLAPSE HOUSEHOLD SIZE (S)
+    # ---------------------------
+    final_hhdisag_vals = df_merged[Z_COLS].copy()
+
+    for inc in ["L", "H"]:
+        for v in range(4):
+            cols = [f"S{s}I{inc}V{v}" for s in range(1, 7)]
+            final_hhdisag_vals[f"I{inc}V{v}"] = df_merged[cols].sum(axis=1)
+
+    # ---------------------------
+    # 5) KEEP ONLY Z + I/V
+    # ---------------------------
+    final_hhdisag_vals = final_hhdisag_vals[Z_COLS + [c for c in final_hhdisag_vals.columns if c.startswith("I")]]
+
+    # Combine 2 and 3 vehicles into 2+ and overwrite V2
+    for inc in ["L", "H"]:
+        # Add 3-vehicle to 2-vehicle
+        final_hhdisag_vals[f"I{inc}V2"] = final_hhdisag_vals[f"I{inc}V2"] + final_hhdisag_vals[f"I{inc}V3"]
+
+    # Drop the old 3-vehicle columns
+    final_hhdisag_vals = final_hhdisag_vals.drop(columns=[f"I{inc}V3" for inc in ["L","H"]])
+
+    # ---------------------------
+    # 6) CALCULATE percentages
+    # ---------------------------
+    final_hhdisag_pct = final_hhdisag_vals.copy()
+    row_totals = final_hhdisag_pct.drop(columns=Z_COLS).sum(axis=1)
+    final_hhdisag_pct.loc[:, final_hhdisag_pct.columns.difference(Z_COLS)] = (
+        final_hhdisag_pct.drop(columns=Z_COLS).div(row_totals, axis=0)
+    )
+    final_hhdisag_pct.loc[:, final_hhdisag_pct.columns.difference(Z_COLS)] = final_hhdisag_pct.loc[:, final_hhdisag_pct.columns.difference(Z_COLS)].round(4)
+
+    final_hhdisag_pct = final_hhdisag_pct.fillna(0)
+
+    # -----------------------------
+    # Read in PA_AllPurp_Gravity Matrix from Distribution
+    # -----------------------------
+    taz_ids = list(range(1, 3630))  # 1-based
+
+    with omx.open_file(outputs_dir / "PA_AllPurp_GRAVITY.omx", 'r') as f:
+        mat = f['HBW'][:].astype(float)
+
+    df = pd.DataFrame(mat, index=taz_ids, columns=taz_ids)
+    hbw_distrib_trips = df.stack().reset_index()
+    hbw_distrib_trips.columns = ['i', 'j', 'trips']
+
+    # -----------------------------
+    # Calculate income/vehicle ownerhsip breakdown
+    # -----------------------------
+    mod_distrib_hbw = hbw_distrib_trips.merge(final_hhdisag_pct, left_on="i", right_on="Z", how="left").drop(columns=["Z"])
+    mod_distrib_hbw['HBW_0veh_lo'] = mod_distrib_hbw['ILV0'] * mod_distrib_hbw['trips']
+    mod_distrib_hbw['HBW_0veh_hi'] = mod_distrib_hbw['IHV0'] * mod_distrib_hbw['trips']
+    mod_distrib_hbw['HBW_1veh_lo'] = mod_distrib_hbw['ILV1'] * mod_distrib_hbw['trips']
+    mod_distrib_hbw['HBW_1veh_hi'] = mod_distrib_hbw['IHV1'] * mod_distrib_hbw['trips']
+    mod_distrib_hbw['HBW_2veh_lo'] = mod_distrib_hbw['ILV2'] * mod_distrib_hbw['trips']
+    mod_distrib_hbw['HBW_2veh_hi'] = mod_distrib_hbw['IHV2'] * mod_distrib_hbw['trips']
+
+    hbw_cols = ['HBW_0veh_lo', 'HBW_0veh_hi','HBW_1veh_lo', 'HBW_1veh_hi','HBW_2veh_lo', 'HBW_2veh_hi']
+    mod_distrib_hbw_long = mod_distrib_hbw.melt(
+        id_vars=['i', 'j'],
+        value_vars=hbw_cols,
+        var_name='veh_inc',
+        value_name='hbw_trips'
+    )
+    mod_distrib_hbw_long = mod_distrib_hbw_long.rename(columns={'hbw_trips':'trips'})
+
+    # -----------------------------
+    # Summrize at Large District level
+    # -----------------------------
+    mod_distrib_hbw_1 = mod_distrib_hbw_long.merge(tazv10_wf, how = 'left', left_on='i', right_on='TAZID')
+    mod_distrib_hbw_1 = mod_distrib_hbw_1.rename(columns={'DISTLRG':'p_DistLrg'}).drop(columns={'TAZID'})
+    mod_distrib_hbw_2 = mod_distrib_hbw_1.merge(tazv10_wf, how = 'left', left_on='j', right_on='TAZID')
+    mod_distrib_hbw_2 = mod_distrib_hbw_2.rename(columns={'DISTLRG':'a_DistLrg'}).drop(columns={'TAZID'})
+
+    return (
+        mod_distrib_hbw_2
+            [['veh_inc','p_DistLrg','a_DistLrg','trips']]
+            .groupby(['veh_inc','p_DistLrg','a_DistLrg'], as_index=False)
+            .agg(total_trips=('trips','sum'))
+    )
+
+mod_distrib_hbw_sum = vs.load_per_run(repo_root, _load_mod_distrib_hbw_sum)
+```
+
+
+
+### Production & Attractions by Model
+
+```{python}
+# export to ojs dataframes
+ojs_define(dist_sum_mod = dist_sum_mod_chart)
+ojs_define(dist_sum_obs = dist_sum_obs_chart)
+```
+
+```{ojs}
+paModelRunsAvailable = Array.from(new Set(transpose(dist_sum_mod).map(d => d.calib_run))).sort()
+
+viewof paModelCalibRun = Inputs.select(paModelRunsAvailable, {
+  value: paModelRunsAvailable[paModelRunsAvailable.length - 1],
+  label: "Calibration Run:"
+})
+```
+
+```{ojs}
+// 1. DATA PROCESSING & INPUTS
+dc = {
+  const modT = transpose(dist_sum_mod).filter(d => d.calib_run === paModelCalibRun);
+  const obsT = transpose(dist_sum_obs);
+
+  return modT.map(m => {
+    const o = obsT.find(d =>
+      d.p_DistLrg === m.p_DistLrg &&
+      d.a_DistLrg === m.a_DistLrg &&
+      d.Source === m.Source
+    );
+
+    if (!o || o.total_trips === 0) return null;
+
+    return {
+      p_DistLrg: m.p_DistLrg,
+      a_DistLrg: m.a_DistLrg,
+      Source: m.Source,
+      tmeMod: m.total_trips,
+      tmeObs: o.total_trips,
+      // Added Percent Error calculation for the second chart
+      tmeErrorPct: (m.total_trips - o.total_trips) / o.total_trips
+    };
+  }).filter(d => d !== null);
+}
+
+// Source Selection
+viewof vSource = Inputs.select(
+  Array.from(new Set(dc.map(d => d.Source))).sort(),
+  { label: "Model Source:" }
+)
+
+// Filtered data based on selection
+dc_filtered = dc.filter(d => d.Source === vSource)
+
+// Shared Max for the Scatter Plot axes
+chartMax = d3.max(dc_filtered, d => Math.max(d.tmeObs, d.tmeMod))
+```
+
+
+:::: {.columns}
+::: {.column width="50%"}
+
+```{ojs}
+// CHART 1a: Model vs Observed Trips
+Plot.plot({
+  grid: true,
+  width: 460,
+  height: 380,
+  marginRight: 50,
+  caption: html`<h4>1a. Model vs Observed Trips</h4>`,
+  x: { label: "Observed Trips", domain: [0, chartMax] },
+  y: { label: "Modeled Trips", domain: [0, chartMax] },
+  marks: [
+    // Fan Reference Lines (+/- 10% increments)
+    Plot.link([0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4], {
+      x1: 0, y1: 0,
+      x2: (k) => (k <= 1 ? chartMax : chartMax / k),
+      y2: (k) => (k <= 1 ? chartMax * k : chartMax),
+      strokeOpacity: (k) => k === 1 ? 1 : 0.2,
+      stroke: "gray",
+      strokeWidth: (k) => k === 1 ? 2 : 1
+    }),
+    // Labels for Fan Lines
+    Plot.text([0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4], {
+      x: (k) => (k <= 1 ? chartMax : chartMax / k),
+      y: (k) => (k <= 1 ? chartMax * k : chartMax),
+      text: (k) => k === 1 ? "Equal" : d3.format("+.0%")(k - 1),
+      textAnchor: "start", dx: 6, fill: "gray", fontSize: 10
+    }),
+    // Data Points
+    Plot.dot(dc_filtered, {
+      x: "tmeObs",
+      y: "tmeMod",
+      r: 3, // Slightly larger dots are easier to hover
+      fill: "rgb(80, 116, 230)",
+      fillOpacity: 0.5,
+      // Add Tooltip data here:
+      tip: true,
+      title: (d) =>
+        `District: ${d.p_DistLrg} to ${d.a_DistLrg}\n` +
+        `Observed: ${d3.format(",.0f")(d.tmeObs)}\n` +
+        `Modeled: ${d3.format(",.0f")(d.tmeMod)}`
+    }),
+    // Regression Line
+    Plot.linearRegressionY(dc_filtered, {
+      x: "tmeObs", y: "tmeMod",
+      stroke: "rgb(80, 116, 230)", strokeDasharray: "4 4"
+    })
+  ]
+})
+```
+
+:::
+::: {.column width="50%"}
+
+```{ojs}
+// CHART 1b: Percent Error
+Plot.plot({
+  grid: true,
+  width: 460,
+  height: 380,
+  caption: html`<h4>1b. Model vs Observed Percent Error</h4>`,
+  x: { label: "Observed Trips", domain: [0, chartMax] },
+  y: { label: "Percent Error", domain: [-2, 2], tickFormat: d3.format(".0%") },
+  marks: [
+    Plot.ruleY([0], { stroke: "#000", strokeWidth: 1.5 }),
+    Plot.dot(dc_filtered, {
+      x: "tmeObs",
+      y: "tmeErrorPct",
+      r: 3,
+      fill: "rgb(80, 116, 230)",
+      fillOpacity: 0.5,
+      // Add Tooltip data here:
+      tip: true,
+      title: (d) =>
+        `District: ${d.p_DistLrg} to ${d.a_DistLrg}\n` +
+        `Observed: ${d3.format(",.0f")(d.tmeObs)}\n` +
+        `Error: ${d3.format("+.1%")(d.tmeErrorPct)}`
+    }),
+    // The Validation "Staircase" (Targets)
+    Plot.line([[0, 1.0], [500, 1.0], [500, 0.5], [1000, 0.5], [1000, 0.25], [chartMax, 0.25]],
+      { stroke: "gray", strokeWidth: 1.5, strokeDasharray: "2 2", curve: "step-after" }),
+    Plot.line([[0, -1.0], [500, -1.0], [500, -0.5], [1000, -0.5], [1000, -0.25], [chartMax, -0.25]],
+      { stroke: "gray", strokeWidth: 1.5, strokeDasharray: "2 2", curve: "step-after" })
+  ]
+})
+```
+
+
+:::
+::::
+
+### Production & Attractions by Vehicle Ownership & Income Category
+
+```{python}
+# Load both modeled datasets
+mod_mc = mod_dist_hbw_sum.copy()
+mod_db = mod_distrib_hbw_sum.copy()
+
+# Add the Source identifier
+mod_mc['Source'] = 'Destination Choice'
+mod_db['Source'] = 'Gravity'
+
+# Combine them into one modeled dataframe
+mod_combined = pd.concat([mod_mc, mod_db], ignore_index=True)
+```
+
+```{python}
+# export to ojs dataframes
+ojs_define(dist_sum_mod2 = mod_combined)
+ojs_define(dist_sum_obs2 = obs_dist_hbw_sum)
+ojs_define(dist_sum_obs2_no_outliers = obs_dist_hbw_sum_no_outliers)
+```
+
+```{ojs}
+// 1. STABLE SELECTIONS
+vincs_list = Array.from(
+  new Set(transpose(dist_sum_obs2).map(d => String(d.veh_inc).replace(/^HBW_/, "")))
+).sort()
+
+// Model Type Selection
+viewof vSource_2 = Inputs.select(
+  ["Destination Choice", "Gravity"],
+  { label: "Model Type:", value: "Destination Choice" }
+)
+
+// Observed Data Selection
+viewof vRemoveOutliers_2 = Inputs.toggle({
+  label: "Remove outliers",
+  value: false
+})
+
+viewof vCalibRun_2 = Inputs.select(
+  Array.from(new Set(transpose(dist_sum_mod2).map(d => d.calib_run))).sort(),
+  { label: "Calibration Run:" }
+)
+
+// 2. DATA PROCESSING (Matches selected model source to selected observed data)
+dc_2 = {
+  const modT2 = transpose(dist_sum_mod2).filter(d => d.calib_run === vCalibRun_2);
+  const obsT2 = vRemoveOutliers_2
+    ? transpose(dist_sum_obs2_no_outliers)
+    : transpose(dist_sum_obs2);
+
+  return modT2.map(m => {
+    const o = obsT2.find(d =>
+      d.p_DistLrg === m.p_DistLrg &&
+      d.a_DistLrg === m.a_DistLrg &&
+      d.veh_inc === m.veh_inc
+    );
+
+    if (!o || o.total_trips === 0) return null;
+
+    return {
+      p_DistLrg: m.p_DistLrg,
+      a_DistLrg: m.a_DistLrg,
+      veh_inc: m.veh_inc,
+      veh_inc_clean: String(m.veh_inc).replace(/^HBW_/, ""),
+      Source: m.Source,
+      tmeMod: m.total_trips,
+      tmeObs: o.total_trips,
+      tmeErrorPct: (m.total_trips - o.total_trips) / o.total_trips
+    };
+  }).filter(d => d !== null);
+}
+
+// 3. FINAL FILTERING
+dc_filtered_2 = dc_2.filter(d => d.Source === vSource_2)
+
+// 4. NOTEBOOK-MATCHED METRICS
+slope_through_origin = (rows) => {
+  const denominator = d3.sum(rows, d => d.tmeObs * d.tmeObs);
+  return denominator > 0
+    ? d3.sum(rows, d => d.tmeObs * d.tmeMod) / denominator
+    : 0;
+}
+
+wmape = (rows) => {
+  const totalObs = d3.sum(rows, d => d.tmeObs);
+  return totalObs > 0
+    ? d3.sum(rows, d => Math.abs(d.tmeMod - d.tmeObs)) / totalObs
+    : 0;
+}
+
+segment_summaries = vincs_list.map(seg => {
+  const rows = dc_filtered_2.filter(d => d.veh_inc_clean === seg);
+  return {
+    seg,
+    rows,
+    slope: slope_through_origin(rows),
+    wmape: wmape(rows),
+    maxVal: d3.max(rows, d => Math.max(d.tmeObs, d.tmeMod)) || 1
+  };
+})
+
+global_wmape_2 = wmape(dc_filtered_2)
+avg_slope_2 = d3.mean(segment_summaries.filter(d => d.rows.length > 1), d => d.slope) || 0
+obs_label_2 = vRemoveOutliers_2 ? "No Outliers" : "Standard"
+```
+
+```{ojs}
+// CHART 2: Model vs Observed Trips by Segment
+segment_chart = (summary) => {
+  const rows = summary.rows;
+  const maxVal = summary.maxVal;
+  const axisMax = maxVal * 1.1;
+  const fanRatios = [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3];
+  const titleText = rows.length
+    ? `${summary.seg} | Slope: ${d3.format(".2f")(summary.slope)} | Error: ${d3.format(".1%")(summary.wmape)}`
+    : `${summary.seg} (No Data)`;
+
+  return html`<div class="hbw-segment-chart">
+    <h4>${titleText}</h4>
+    ${Plot.plot({
+      grid: true,
+      width: 400,
+      height: 315,
+      marginLeft: 50,
+      marginBottom: 42,
+      x: { label: "Obs Trips", domain: [0, axisMax] },
+      y: { label: "Mod Trips", domain: [0, axisMax] },
+      marks: [
+        Plot.link(fanRatios, {
+          x1: 0,
+          y1: 0,
+          x2: maxVal,
+          y2: (r) => maxVal * r,
+          stroke: "gray",
+          strokeOpacity: (r) => r === 1 ? 1 : 0.25,
+          strokeWidth: (r) => r === 1 ? 2 : 1,
+          strokeDasharray: (r) => r === 1 ? null : "2 2"
+        }),
+        Plot.dot(rows, {
+          x: "tmeObs",
+          y: "tmeMod",
+          r: 3,
+          fill: "rgb(80, 116, 230)",
+          fillOpacity: 0.6,
+          tip: true,
+          title: (d) =>
+            `District: ${d.p_DistLrg} to ${d.a_DistLrg}\n` +
+            `Observed: ${d3.format(",.0f")(d.tmeObs)}\n` +
+            `Modeled: ${d3.format(",.0f")(d.tmeMod)}`
+        }),
+        Plot.line(
+          [
+            { x: 0, y: 0 },
+            { x: maxVal, y: summary.slope * maxVal }
+          ],
+          {
+            x: "x",
+            y: "y",
+            stroke: "rgb(80, 116, 230)",
+            strokeWidth: 2,
+            strokeDasharray: "4 4"
+          }
+        )
+      ]
+    })}
+  </div>`;
+}
+
+html`<div>
+  <style>
+    .hbw-segment-summary {
+      font-weight: 600;
+      margin: 0.75rem 0 1rem 0;
+    }
+    .hbw-segment-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(360px, 1fr));
+      gap: 0.75rem;
+      align-items: start;
+    }
+    .hbw-segment-chart h4 {
+      font-size: 0.95rem;
+      margin: 0 0 0.25rem 0;
+      line-height: 1.25;
+    }
+    @media (max-width: 960px) {
+      .hbw-segment-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+  <div class="hbw-segment-summary">
+    Run: ${vSource_2} | Obs: ${obs_label_2} | Global WMAPE: ${d3.format(".1%")(global_wmape_2)} | Avg Slope: ${d3.format(".2f")(avg_slope_2)}
+  </div>
+  <div class="hbw-segment-grid">
+    ${segment_summaries.map(segment_chart)}
+  </div>
+</div>`
+```

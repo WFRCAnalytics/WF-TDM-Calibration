@@ -1,0 +1,1260 @@
+---
+title: Household Disaggregation and Auto Ownership
+echo: false
+warning: false
+message: false
+---
+
+```{python}
+# ==============================================================================
+# CONFIGURATION (shared)
+# ==============================================================================
+import pandas as pd
+import geopandas as gpd
+import numpy as np
+import json
+import requests
+from pathlib import Path
+from dbfread import DBF
+from IPython.display import Markdown
+
+import sys
+sys.path.insert(0, ".")
+import _validation_scripts as vs
+
+# repo root, and every calibration run with at least one successful tdmcalib
+# run to load and compare -- no single "calib_run" (see report/README.md)
+repo_root = Path("..")
+calib_runs = vs.list_available_runs(repo_root)
+
+# File paths — Part 1: Household Disaggregation
+#              Part 2: Vehicle Ownership
+config_paths = {
+    "taz_shp": r"data/4-assignhwy/taz/WFv1000_TAZ.shp",
+    "hts_hh": r"../inputs/UT_HTS_2023_Households.csv",
+    "raw_pums": r"data/0-hhdisag-autoown/utah_raw_pums_person.csv",
+    "pums_csv": r"data/0-hhdisag-autoown/utah_observed_pums_long.csv",
+    "acs_tract": r"data/0-hhdisag-autoown/ACS5Y_2023_B08201_Tract.gpkg",
+    "acs_bg": r"data/0-hhdisag-autoown/ACS5Y_2023_B11001_BG.gpkg",
+    "census_places": r"data/0-hhdisag-autoown/Census_2023_Places.gpkg",
+    "census_counties": r"data/0-hhdisag-autoown/Census_2023_Counties.gpkg",
+}
+
+# Constants
+PROJECT_CRS = "EPSG:26912"
+
+# Debug flag (Part 1)
+debug = False
+nameMod = "Model"
+```
+
+---
+
+```{python}
+# Load Household Travel Survey Household data
+df_hts_hh = pd.read_csv(config_paths["hts_hh"])
+```
+
+## Household Disaggregation
+
+```{python}
+# ==============================================================================
+# P1-A: MODEL DATA (one calibration run at a time -- see _validation_scripts.load_per_run)
+# ==============================================================================
+def _load_hhdisag(calib_run, outputs_dir):
+    hhdis_df = pd.DataFrame(DBF(outputs_dir / "Joint_HHSize_Income_Worker.dbf", load=True))
+
+    value_vars = [col for col in hhdis_df.columns if col.startswith("S") and col[1].isdigit()]
+    id_vars = ["Z", "CO_FIPS"]
+
+    df = hhdis_df.melt(
+        id_vars=id_vars, value_vars=value_vars, var_name="Variable", value_name="COUNT"
+    )
+    df["HHSIZE"] = df["Variable"].str[1].astype(int)
+    df["INC"] = (
+        df["Variable"]
+        .str[3]
+        .map({"1": "<$50k", "2": "$50k–$100k", "3": "$100k–$150k", "4": ">$150k"})
+    )
+    df["WRKS"] = df["Variable"].str[5]
+    return df[["Z", "CO_FIPS", "HHSIZE", "INC", "WRKS", "COUNT"]]
+
+df_hhdisag = vs.load_per_run(repo_root, _load_hhdisag)
+
+if debug:
+    display(df_hhdisag)
+```
+
+```{python}
+# ==============================================================================
+# P1-B: OBSERVED DATA (ACS PUMS)
+# ==============================================================================
+raw_data_path = Path(config_paths["raw_pums"])
+final_output_path = Path(config_paths["pums_csv"])
+
+if raw_data_path.exists():
+    df_pums = pd.read_csv(raw_data_path, dtype=str)
+else:
+    url = "https://api.census.gov/data/2023/acs/acs5/pums"
+    params = {"get": "SERIALNO,PUMA,SPORDER,ESR,HINCP,NP,WGTP", "for": "state:49"}
+    response = requests.get(url, params=params)
+
+    if response.status_code == 200:
+        data = response.json()
+        df_pums = pd.DataFrame(data[1:], columns=data[0])
+        df_pums.to_csv(raw_data_path, index=False)
+    else:
+        print(f"Error {response.status_code}: {response.text}")
+        exit()
+
+numeric_cols = ["PUMA", "SPORDER", "ESR", "HINCP", "NP", "WGTP"]
+df_pums[numeric_cols] = df_pums[numeric_cols].apply(pd.to_numeric, errors="coerce")
+
+df_pums["IS_WORKER"] = df_pums["ESR"].isin([1, 2, 4, 5]).astype(int)
+workers_per_hh = df_pums.groupby("SERIALNO")["IS_WORKER"].sum().reset_index()
+workers_per_hh.rename(columns={"IS_WORKER": "HH_WORKERS"}, inplace=True)
+
+df_hh = df_pums[df_pums["SPORDER"] == 1].copy()
+df_hh = pd.merge(df_hh, workers_per_hh, on="SERIALNO", how="left")
+
+df_hh["INC"] = pd.cut(
+    df_hh["HINCP"],
+    bins=[-np.inf, 50_000, 100_000, 150_000, np.inf],
+    labels=["<$50k", "$50k–$100k", "$100k–$150k", ">$150k"],
+    right=False
+).astype(str)
+df_hh["WRKS"] = df_hh["HH_WORKERS"].apply(lambda x: min(x, 3))
+df_hh["HHSIZE"] = df_hh["NP"].apply(lambda x: min(x, 6))
+
+observed_df = df_hh.groupby(["PUMA", "HHSIZE", "INC", "WRKS"])["WGTP"].sum().reset_index()
+observed_df.rename(columns={"WGTP": "COUNT"}, inplace=True)
+observed_df.to_csv(final_output_path, index=False)
+```
+
+```{python}
+# ==============================================================================
+# P1-C: MERGE MODEL + OBSERVED
+# ==============================================================================
+# TAZ → PUMA crosswalk via spatial join
+puma_url = "https://www2.census.gov/geo/tiger/TIGER2023/PUMA/tl_2023_49_puma20.zip"
+taz_gdf = gpd.read_file(config_paths["taz_shp"])
+puma_gdf = gpd.read_file(puma_url).to_crs(taz_gdf.crs)
+taz_centroids = taz_gdf.copy()
+taz_centroids.geometry = taz_centroids.geometry.centroid
+
+taz_puma_join = gpd.sjoin(taz_centroids, puma_gdf, how="left", predicate="intersects")
+taz_crosswalk = taz_puma_join[["TAZID", "PUMACE20"]].copy()
+taz_crosswalk.rename(columns={"PUMACE20": "PUMA"}, inplace=True)
+taz_crosswalk["PUMA"] = pd.to_numeric(taz_crosswalk["PUMA"])
+
+# fmt: off
+# PUMA → County crosswalk
+puma_to_county = {
+    3000:  3,                                          # Box Elder
+    57001: 57, 57002: 57,                              # Weber
+    11002: 11, 11003: 11, 11004: 11,                  # Davis
+    35014: 35, 35011: 35, 35012: 35, 35013: 35,       # Salt Lake
+    35015: 35, 35016: 35, 35008: 35, 35017: 35, 35009: 35,
+    49004: 49, 49001: 49, 49002: 49, 49003: 49,       # Utah
+}
+# fmt: on
+
+df_obs = pd.read_csv(config_paths["pums_csv"])
+df_obs["CO_FIPS"] = df_obs["PUMA"].map(puma_to_county)
+df_obs = df_obs.dropna(subset=["CO_FIPS"])
+df_obs["CO_FIPS"] = df_obs["CO_FIPS"].astype(int)
+df_obs = df_obs[["CO_FIPS", "PUMA", "HHSIZE", "INC", "WRKS", "COUNT"]]
+
+df_mod = df_hhdisag.copy()
+df_mod = df_mod.merge(taz_crosswalk, how="left", left_on="Z", right_on="TAZID")
+df_mod = df_mod.drop(columns={"TAZID"}).dropna(subset=["PUMA"])
+df_mod["PUMA"] = df_mod["PUMA"].astype(int)
+df_mod = df_mod.groupby(["calib_run", "CO_FIPS", "PUMA", "HHSIZE", "INC", "WRKS"], as_index=False)["COUNT"].sum()
+```
+
+```{python}
+# ==============================================================================
+# P1-D-HTS: HTS OBSERVED DATA — HOUSEHOLD DISAGGREGATION
+# ==============================================================================
+
+# Filter to model region using USTMv4 subarea flag (1 = inside model region)
+df_hts_p1 = df_hts_hh[df_hts_hh["hSUBAREAID_USTMv4"] == 1].copy()
+
+_inc_detail_map = {
+    1: "<$50k", 2: "<$50k", 3: "<$50k", 4: "<$50k",
+    5: "$50k–$100k", 6: "$50k–$100k",
+    7: "$100k–$150k",
+    8: ">$150k", 9: ">$150k", 10: ">$150k",
+}
+df_hts_p1["income_detailed"] = pd.to_numeric(df_hts_p1["income_detailed"], errors="coerce")
+df_hts_p1["INC"] = df_hts_p1["income_detailed"].map(_inc_detail_map)
+
+df_hts_p1["HHSIZE"] = df_hts_p1["hhsize_6cat"].astype(int)
+df_hts_p1["WRKS"]   = df_hts_p1["workers_4cat"].astype(int)
+
+df_hts_p1["PUMA"]    = pd.to_numeric(df_hts_p1["home_puma_2022"], errors="coerce")
+df_hts_p1["CO_FIPS"] = df_hts_p1["PUMA"].map(puma_to_county)
+df_hts_p1 = df_hts_p1.dropna(subset=["CO_FIPS", "PUMA", "INC"])
+df_hts_p1["CO_FIPS"] = df_hts_p1["CO_FIPS"].astype(int)
+df_hts_p1["PUMA"]    = df_hts_p1["PUMA"].astype(int)
+
+df_hts_agg_p1 = (
+    df_hts_p1
+    .groupby(["CO_FIPS", "PUMA", "HHSIZE", "INC", "WRKS"])["hh_weight"]
+    .sum()
+    .reset_index()
+    .rename(columns={"hh_weight": "HTS_Count"})
+)
+```
+
+### Modeled vs. Observed
+
+```{python}
+# ==============================================================================
+# P1-D: COMPARISON + OJS EXPORT
+# ==============================================================================
+df_mod_clean = df_mod.rename(columns={'COUNT': 'Modeled_Count'})
+df_obs_clean = df_obs.rename(columns={'COUNT': 'Observed_Count'})
+
+int_cols = ['CO_FIPS', 'PUMA', 'HHSIZE', 'WRKS']
+for col in int_cols:
+    df_mod_clean[col] = df_mod_clean[col].astype(int)
+    df_obs_clean[col] = df_obs_clean[col].astype(int)
+
+df_mod_clean['INC'] = df_mod_clean['INC'].astype(str)
+df_obs_clean['INC'] = df_obs_clean['INC'].astype(str)
+
+df_compare = pd.merge(df_mod_clean, df_obs_clean,
+                      on=['CO_FIPS', 'PUMA', 'HHSIZE', 'INC', 'WRKS'], how='outer')
+
+# Exclude Box Elder (limited coverage)
+df_compare = df_compare[(df_compare['CO_FIPS'] != 3) & (df_compare['PUMA'] != 3000)].copy()
+
+df_compare['Modeled_Count']  = df_compare['Modeled_Count'].fillna(0)
+df_compare['Observed_Count'] = df_compare['Observed_Count'].fillna(0)
+df_compare['ErrorPct'] = ((df_compare['Modeled_Count'] - df_compare['Observed_Count'])
+                          / (df_compare['Observed_Count'] + 0.001))
+
+# Merge HTS data into comparison table
+df_compare = df_compare.merge(
+    df_hts_agg_p1[['CO_FIPS', 'PUMA', 'HHSIZE', 'INC', 'WRKS', 'HTS_Count']],
+    on=['CO_FIPS', 'PUMA', 'HHSIZE', 'INC', 'WRKS'], how='left'
+)
+df_compare['HTS_Count']    = df_compare['HTS_Count'].fillna(0)
+df_compare['HTS_ErrorPct'] = ((df_compare['Modeled_Count'] - df_compare['HTS_Count'])
+                               / (df_compare['HTS_Count'] + 0.001))
+
+ojs_define(hhdis_data=df_compare)
+```
+
+```{python}
+# ==============================================================================
+# P1-E: SPATIAL BOUNDARIES FOR OJS MAP
+# ==============================================================================
+taz_geo = taz_gdf[["TAZID", "geometry"]].merge(taz_crosswalk, on="TAZID", how="left")
+taz_geo["CO_FIPS"] = taz_geo["PUMA"].map(puma_to_county)
+
+taz_geo = taz_geo.dropna(subset=["PUMA", "CO_FIPS"])
+taz_geo["PUMA"] = taz_geo["PUMA"].astype(int)
+taz_geo["CO_FIPS"] = taz_geo["CO_FIPS"].astype(int)
+
+puma_bounds = taz_geo.dissolve(by="PUMA").reset_index()
+county_bounds = taz_geo.dissolve(by="CO_FIPS").reset_index()
+
+def export_geojson(gdf, cols):
+    return gdf[cols + ["geometry"]].to_crs("EPSG:4326").__geo_interface__
+
+ojs_define(
+    geo_puma_hh   = export_geojson(puma_bounds,   ["PUMA"]),
+    geo_county_hh = export_geojson(county_bounds, ["CO_FIPS"])
+)
+```
+
+```{ojs}
+hh_data = transpose(hhdis_data);
+
+// Sorted unique values for facet dimensions (HHSIZE = cols, WRKS = rows)
+hh_hhsize_vals = Array.from(new Set(hh_data.map(d => d.HHSIZE))).sort((a, b) => a - b)
+hh_wrks_vals   = Array.from(new Set(hh_data.map(d => d.WRKS))).sort((a, b) => a - b)
+inc_list       = ["Total", "<$50k", "$50k–$100k", "$100k–$150k", ">$150k"]
+hh_runsAvailable = Array.from(new Set(hh_data.map(d => d.calib_run).filter(r => r != null))).sort()
+```
+
+```{ojs}
+//| panel: input
+// layout-ncol deliberately omitted: combined with a "panel: input" OJS cell,
+// it trips a Quarto 1.8.27 bug (makeSubFigures throws "Cannot read
+// properties of undefined (reading 'info')") -- panel: input already flows
+// multiple viewof inputs horizontally on its own without it.
+
+viewof hhCalibRunSelect = Inputs.select(hh_runsAvailable, {
+  value: hh_runsAvailable[hh_runsAvailable.length - 1],
+  label: "Calibration Run:"
+})
+
+// Removed: HH Size and Workers dropdowns — now used as facet dimensions (cols × rows)
+viewof vGeoLevel = Inputs.select(["CO_FIPS", "PUMA"],
+  { label: "Geography Level:", value: "CO_FIPS" })
+
+viewof vINC = Inputs.select(inc_list,
+  { label: "Income Level:", value: inc_list[0] })
+```
+
+```{ojs}
+//| panel: input
+// layout-ncol deliberately omitted: combined with a "panel: input" OJS cell,
+// it trips a Quarto 1.8.27 bug (makeSubFigures throws "Cannot read
+// properties of undefined (reading 'info')") -- panel: input already flows
+// multiple viewof inputs horizontally on its own without it.
+
+viewof vXAxis = Inputs.select(["Modeled", "PUMS", "HTS"],
+  { label: "X Axis:", value: "PUMS" })
+
+viewof vYAxis = Inputs.select(
+  ["Modeled", "PUMS", "HTS"].filter(d => d !== vXAxis),
+  {
+    label: "Y Axis:",
+    value: ["Modeled", "PUMS", "HTS"].find(d => d !== vXAxis)
+  }
+)
+
+viewof vDisplay = Inputs.radio(["Households", "Percentages"],
+  { label: "Display:", value: "Households" })
+```
+
+```{ojs}
+// Filter by selected calibration run + income — HHSIZE (cols) and WRKS
+// (rows) are facet dimensions. Filtering to one run is required, not just
+// cosmetic: Observed_Count/HTS_Count are repeated on every run's row (see
+// the P1-D merge in the Python cell above), so aggregating across more than
+// one run here would double/triple-count observed data.
+hh_filtered_base = hh_data.filter(d =>
+  d.calib_run === hhCalibRunSelect && (vINC === "Total" || d.INC === vINC)
+)
+
+// Aggregate by geo × HHSIZE × WRKS
+hh_agg_facet = {
+  const grouped = d3.groups(hh_filtered_base, d => d[vGeoLevel], d => d.HHSIZE, d => d.WRKS);
+  const rows = [];
+  for (const [geo_id, bySize] of grouped) {
+    for (const [hhsize, byWrks] of bySize) {
+      for (const [wrks, records] of byWrks) {
+        const mod  = d3.sum(records, d => d.Modeled_Count);
+        const pums = d3.sum(records, d => d.Observed_Count);
+        const hts  = d3.sum(records, d => d.HTS_Count);
+        rows.push({
+          geo_id, HHSIZE: hhsize, WRKS: wrks,
+          Modeled_Count: mod, Observed_Count: pums, HTS_Count: hts,
+          Mod_vs_PUMS:  pums > 0 ? (mod - pums) / pums : 0,
+          Mod_vs_HTS:   hts  > 0 ? (mod - hts)  / hts  : 0,
+          PUMS_vs_Mod:  mod  > 0 ? (pums - mod)  / mod  : 0,
+          HTS_vs_Mod:   mod  > 0 ? (hts  - mod)  / mod  : 0,
+          PUMS_vs_HTS:  hts  > 0 ? (pums - hts)  / hts  : 0,
+          HTS_vs_PUMS:  pums > 0 ? (hts  - pums) / pums : 0,
+        });
+      }
+    }
+  }
+  // Normalise each source by its own grand total across all geo × size × workers
+  const totMod  = d3.sum(rows, d => d.Modeled_Count);
+  const totPums = d3.sum(rows, d => d.Observed_Count);
+  const totHts  = d3.sum(rows, d => d.HTS_Count);
+  return rows.map(r => ({
+    ...r,
+    Modeled_Pct:  totMod  > 0 ? r.Modeled_Count  / totMod  : 0,
+    Observed_Pct: totPums > 0 ? r.Observed_Count  / totPums : 0,
+    HTS_Pct:      totHts  > 0 ? r.HTS_Count       / totHts  : 0,
+  }));
+}
+
+hh_xy_cfg = {
+  const fm = {
+    "PUMS":    { field: "Observed_Count", pctField: "Observed_Pct", label: "Observed (PUMS)", color: "steelblue" },
+    "HTS":     { field: "HTS_Count",      pctField: "HTS_Pct",      label: "Observed (HTS)",  color: "#2ca02c"  },
+    "Modeled": { field: "Modeled_Count",  pctField: "Modeled_Pct",  label: "Modeled",          color: "orange"  }
+  };
+  const errMap = {
+    "PUMS|Modeled": "Mod_vs_PUMS",  "PUMS|HTS": "HTS_vs_PUMS",
+    "HTS|Modeled":  "Mod_vs_HTS",   "HTS|PUMS": "PUMS_vs_HTS",
+    "Modeled|PUMS": "PUMS_vs_Mod",  "Modeled|HTS": "HTS_vs_Mod"
+  };
+  return { xCfg: fm[vXAxis], yCfg: fm[vYAxis], errField: errMap[`${vXAxis}|${vYAxis}`] };
+}
+
+hh_vf = vDisplay === "Percentages"
+  ? { xf: hh_xy_cfg.xCfg.pctField, yf: hh_xy_cfg.yCfg.pctField,
+      fmt: d3.format(".1%"), tickFmt: d3.format(".0%"), axSuffix: " (%)" }
+  : { xf: hh_xy_cfg.xCfg.field,    yf: hh_xy_cfg.yCfg.field,
+      fmt: d3.format(",.0f"), tickFmt: undefined, axSuffix: "" }
+
+hh_chart_max = d3.max(hh_agg_facet, d => Math.max(d[hh_vf.xf], d[hh_vf.yf])) * 1.05
+```
+
+::: {.panel-tabset}
+
+## Scatter Plot
+
+```{ojs}
+// 2-D faceted scatter: columns = HH Size, rows = Workers
+Plot.plot({
+  grid: true,
+  width: 900,
+  height: 140 * hh_wrks_vals.length + 40,
+  marginRight: 60,
+  marginLeft: 50,
+  fx: { label: "HH Size", tickFormat: d => `Size ${d}`, padding: 0.1 },
+  fy: { label: "Workers", tickFormat: d => `${d} Worker${d !== 1 ? "s" : ""}`, padding: 0.1 },
+  x: {
+    label: `${hh_xy_cfg.xCfg.label}${hh_vf.axSuffix} →`,
+    domain: [0, hh_chart_max],
+    tickFormat: hh_vf.tickFmt
+  },
+  y: {
+    label: `↑ ${hh_xy_cfg.yCfg.label}${hh_vf.axSuffix}`,
+    domain: [0, hh_chart_max],
+    tickFormat: hh_vf.tickFmt
+  },
+  caption: html`<b>${hh_xy_cfg.yCfg.label} vs. ${hh_xy_cfg.xCfg.label}</b> — columns: HH Size &nbsp;|&nbsp; rows: Workers`,
+  marks: [
+    // 45-degree equal reference line in every facet panel
+    Plot.link(
+      hh_hhsize_vals.flatMap(s => hh_wrks_vals.map(w => ({ s, w }))),
+      {
+        x1: 0, y1: 0,
+        x2: hh_chart_max, y2: hh_chart_max,
+        fx: "s", fy: "w",
+        stroke: "gray", strokeOpacity: 0.7, strokeWidth: 1.5
+      }
+    ),
+    Plot.dot(hh_agg_facet, {
+      x: hh_vf.xf, y: hh_vf.yf,
+      fx: "HHSIZE", fy: "WRKS",
+      r: 3.5, fill: hh_xy_cfg.yCfg.color, fillOpacity: 0.6,
+      tip: true,
+      title: d =>
+        `${vGeoLevel}: ${d.geo_id}\nHH Size: ${d.HHSIZE}  Workers: ${d.WRKS}\n` +
+        `${hh_xy_cfg.xCfg.label}: ${hh_vf.fmt(d[hh_vf.xf])}\n` +
+        `${hh_xy_cfg.yCfg.label}: ${hh_vf.fmt(d[hh_vf.yf])}`
+    }),
+    Plot.linearRegressionY(hh_agg_facet, {
+      x: hh_vf.xf, y: hh_vf.yf,
+      fx: "HHSIZE", fy: "WRKS",
+      stroke: hh_xy_cfg.yCfg.color, strokeDasharray: "4 4"
+    })
+  ]
+})
+```
+
+## Interactive Map
+
+```{ojs}
+{
+  if (!document.getElementById("leaflet-css")) {
+    const link  = document.createElement("link");
+    link.id     = "leaflet-css";
+    link.rel    = "stylesheet";
+    link.href   = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+    document.head.appendChild(link);
+  }
+
+  const L = await require("leaflet@1.9.4");
+  const container = html`<div style="height:560px; width:100%; border-radius:6px; overflow:hidden;"></div>`;
+  yield container;
+
+  const map = L.map(container, {zoomControl: true});
+
+  L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ' +
+        '&copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: "abcd",
+      maxZoom: 19,
+    }
+  ).addTo(map);
+
+  // Aggregate map data across all HHSIZE × WRKS combinations for selected income filter
+  const mapAgg = d3.rollup(
+    hh_filtered_base,
+    v => {
+      const mod  = d3.sum(v, d => d.Modeled_Count);
+      const pums = d3.sum(v, d => d.Observed_Count);
+      const hts  = d3.sum(v, d => d.HTS_Count);
+      return {
+        Modeled_Count: mod, Observed_Count: pums, HTS_Count: hts,
+        Mod_vs_PUMS:  pums > 0 ? (mod - pums) / pums : null,
+        Mod_vs_HTS:   hts  > 0 ? (mod - hts)  / hts  : null,
+        PUMS_vs_Mod:  mod  > 0 ? (pums - mod)  / mod  : null,
+        HTS_vs_Mod:   mod  > 0 ? (hts  - mod)  / mod  : null,
+        PUMS_vs_HTS:  hts  > 0 ? (pums - hts)  / hts  : null,
+        HTS_vs_PUMS:  pums > 0 ? (hts  - pums) / pums : null,
+      };
+    },
+    d => d[vGeoLevel]
+  );
+
+  const geo_lookup = {
+    "CO_FIPS": { geo: geo_county_hh, prop: "CO_FIPS" },
+    "PUMA":    { geo: geo_puma_hh,   prop: "PUMA" }
+  };
+  const { geo: base_geo, prop: name_prop } = geo_lookup[vGeoLevel];
+
+  const features = base_geo.features.map(f => {
+    const key = f.properties[name_prop];
+    const row = mapAgg.get(+key) || mapAgg.get(String(key))
+      || { Modeled_Count: 0, Observed_Count: 0, HTS_Count: 0,
+           Mod_vs_PUMS: null, Mod_vs_HTS: null,
+           PUMS_vs_Mod: null, HTS_vs_Mod: null,
+           PUMS_vs_HTS: null, HTS_vs_PUMS: null };
+    return { ...f, properties: { ...f.properties, ...row } };
+  });
+  const map_features_hh = { type: "FeatureCollection", features };
+
+  const colorScale = d3.scaleDiverging(d3.interpolateRdBu).domain([0.5, 0, -0.5]);
+  function getColor(pct) {
+    if (pct === null || pct === undefined) return "#cccccc";
+    return colorScale(Math.max(-0.5, Math.min(0.5, pct)));
+  }
+
+  let geojsonLayer = L.geoJSON(map_features_hh, {
+    style: feature => ({
+      fillColor:   getColor(feature.properties[hh_xy_cfg.errField]),
+      fillOpacity: 0.72,
+      color:       "#ffffff",
+      weight:      1,
+    }),
+    onEachFeature: (feature, layer) => {
+      const p      = feature.properties;
+      const err    = p[hh_xy_cfg.errField];
+      const noData = err === null || err === undefined;
+      layer.bindPopup(
+        `<b>${vGeoLevel} ${p[name_prop]}</b><br>` +
+        `<i style="font-size:10px;color:#666">${hh_xy_cfg.yCfg.label} vs. ${hh_xy_cfg.xCfg.label}</i><br>` +
+        `Pct Error: ${noData ? "N/A" : (err * 100).toFixed(1) + "%"}<br>` +
+        `Modeled: ${d3.format(",.0f")(p.Modeled_Count)}<br>` +
+        `Observed (PUMS): ${d3.format(",.0f")(p.Observed_Count)}<br>` +
+        `Observed (HTS): ${d3.format(",.0f")(p.HTS_Count)}`
+      );
+      layer.on("mouseover", () => layer.setStyle({fillOpacity: 0.95, weight: 2}));
+      layer.on("mouseout",  () => geojsonLayer.resetStyle(layer));
+    }
+  }).addTo(map);
+
+  if (geojsonLayer.getBounds().isValid()) {
+    map.fitBounds(geojsonLayer.getBounds(), {padding: [10, 10]});
+  }
+
+  const resizeObserver = new ResizeObserver(() => {
+    setTimeout(() => {
+      map.invalidateSize();
+      if (geojsonLayer.getBounds().isValid()) {
+        map.fitBounds(geojsonLayer.getBounds(), {padding: [10, 10]});
+      }
+    }, 100);
+  });
+  resizeObserver.observe(container);
+  invalidation.then(() => { map.remove(); resizeObserver.disconnect(); });
+
+  const legend = L.control({position: "bottomright"});
+  legend.onAdd = () => {
+    const stops  = [-0.5, -0.25, 0, 0.25, 0.5];
+    const labels = ["≤ −50%", "−25%", "0%", "+25%", "≥ +50%"];
+    const swatches = stops.map((v, i) =>
+      `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">` +
+        `<span style="display:inline-block;width:14px;height:14px;border-radius:2px;flex-shrink:0;` +
+                     `background:${getColor(v)};border:1px solid rgba(0,0,0,0.15);"></span>` +
+        `<span style="font-size:11px;">${labels[i]}</span>` +
+      `</div>`
+    ).join("");
+    const div = L.DomUtil.create("div");
+    div.innerHTML =
+      `<div style="background:white;padding:10px 12px;border-radius:6px;` +
+                  `box-shadow:0 1px 5px rgba(0,0,0,0.25);line-height:1.5;">` +
+        `<div style="font-size:12px;font-weight:600;margin-bottom:4px;">Percent Error</div>` +
+        `<div style="font-size:10px;color:#666;margin-bottom:6px;">` +
+          `Red = Underpredict &nbsp;|&nbsp; Blue = Overpredict` +
+        `</div>` +
+        swatches +
+      `</div>`;
+    return div;
+  };
+  legend.addTo(map);
+}
+```
+
+## Data Table
+
+```{ojs}
+hh_cnt_fmt = vDisplay === "Percentages" ? d3.format(".1%") : d3.format(",.0f")
+
+viewof hh_summary_table = Inputs.table(hh_agg_facet, {
+  columns: [
+    "geo_id", "HHSIZE", "WRKS",
+    vDisplay === "Percentages" ? "Modeled_Pct"  : "Modeled_Count",
+    vDisplay === "Percentages" ? "Observed_Pct" : "Observed_Count",
+    vDisplay === "Percentages" ? "HTS_Pct"      : "HTS_Count",
+    "Mod_vs_PUMS", "Mod_vs_HTS", "PUMS_vs_HTS"
+  ],
+  header: {
+    geo_id:         "Geo ID",
+    HHSIZE:         "HH Size",
+    WRKS:           "Workers",
+    Modeled_Count:  "Modeled",    Modeled_Pct:  "Modeled (%)",
+    Observed_Count: "PUMS",       Observed_Pct: "PUMS (%)",
+    HTS_Count:      "HTS",        HTS_Pct:      "HTS (%)",
+    Mod_vs_PUMS:    "Mod vs PUMS",
+    Mod_vs_HTS:     "Mod vs HTS",
+    PUMS_vs_HTS:    "PUMS vs HTS"
+  },
+  format: {
+    Modeled_Count:  hh_cnt_fmt, Modeled_Pct:  hh_cnt_fmt,
+    Observed_Count: hh_cnt_fmt, Observed_Pct: hh_cnt_fmt,
+    HTS_Count:      hh_cnt_fmt, HTS_Pct:      hh_cnt_fmt,
+    Mod_vs_PUMS:    d3.format("+.1%"),
+    Mod_vs_HTS:     d3.format("+.1%"),
+    PUMS_vs_HTS:    d3.format("+.1%")
+  },
+  sort:    "Mod_vs_PUMS",
+  reverse: true,
+  rows:    15,
+  width:   "100%"
+})
+```
+
+:::
+
+---
+
+## Vehicle Ownership
+
+```{python}
+# ==============================================================================
+# P2-A: DATA LOADING (shared reference data -- not run-specific)
+# ==============================================================================
+
+df_taz_shp    = gpd.read_file(config_paths["taz_shp"]).to_crs(PROJECT_CRS)
+df_taz_shp["TAZID"] = df_taz_shp["TAZID"].astype(int)
+df_acs_tract  = gpd.read_file(config_paths["acs_tract"], ignore_geometry=True)
+df_acs_bg     = gpd.read_file(config_paths["acs_bg"]).to_crs(PROJECT_CRS)
+df_places     = gpd.read_file(config_paths["census_places"]).to_crs(PROJECT_CRS)
+df_counties   = gpd.read_file(config_paths["census_counties"]).to_crs(PROJECT_CRS)
+
+_geo_cols = [
+    "TAZID",
+    "DISTSUPER", "DSUP_NAME",
+    "DISTLRG",   "DLRG_NAME",
+    "DISTMED",   "DMED_NAME",
+    "DISTSML",   "DSML_NAME",
+]
+```
+
+```{python}
+# ==============================================================================
+# P2-B: PROCESSING MODELED DATA (one calibration run at a time)
+# ==============================================================================
+
+def _load_vehown(calib_run, outputs_dir):
+    df_mod_vehown = pd.DataFrame(
+        DBF(outputs_dir / "VO_HHSize_VehOwn.dbf", load=True, encoding="utf-8")
+    )
+    df_mod_vehown["Z"] = df_mod_vehown["Z"].astype(int)
+
+    sv_cols   = [col for col in df_mod_vehown.columns if col.startswith("S") and "V" in col]
+    df_subset = df_mod_vehown[["Z"] + sv_cols]
+
+    df_melted = df_subset.melt(id_vars="Z", var_name="Category", value_name="Households")
+
+    df_melted["HHSize_Num"] = df_melted["Category"].str.extract(r"S(\d+)")[0].astype(int)
+    df_melted["VehOwn_Num"] = df_melted["Category"].str.extract(r"V(\d+)")[0].astype(int)
+
+    df_melted["HHSize"] = np.where(df_melted["HHSize_Num"] >= 4, "4+", df_melted["HHSize_Num"].astype(str))
+    df_melted["VehOwn"] = np.where(df_melted["VehOwn_Num"] >= 3, "3+", df_melted["VehOwn_Num"].astype(str))
+
+    df_mod_long = df_melted.groupby(["Z", "HHSize", "VehOwn"])["Households"].sum().reset_index()
+    df_mod_long.rename(columns={"Z": "TAZID"}, inplace=True)
+
+    return df_mod_long.merge(df_taz_shp[_geo_cols], on="TAZID", how="left")
+
+df_mod_final = vs.load_per_run(repo_root, _load_vehown)
+```
+
+```{python}
+# ==============================================================================
+# P2-C: PROCESSING ACS CENSUS DATA
+# ==============================================================================
+
+acs_var_map = {
+    "1_0":  ["B08201_008E"],
+    "1_1":  ["B08201_009E"],
+    "1_2":  ["B08201_010E"],
+    "1_3+": ["B08201_011E", "B08201_012E"],
+    "2_0":  ["B08201_014E"],
+    "2_1":  ["B08201_015E"],
+    "2_2":  ["B08201_016E"],
+    "2_3+": ["B08201_017E", "B08201_018E"],
+    "3_0":  ["B08201_020E"],
+    "3_1":  ["B08201_021E"],
+    "3_2":  ["B08201_022E"],
+    "3_3+": ["B08201_023E", "B08201_024E"],
+    "4+_0": ["B08201_026E"],
+    "4+_1": ["B08201_027E"],
+    "4+_2": ["B08201_028E"],
+    "4+_3+":["B08201_029E", "B08201_030E"],
+}
+
+df_tract_processed = df_acs_tract[["GEOID"]].copy()
+df_tract_processed.rename(columns={"GEOID": "TRACT_GEOID"}, inplace=True)
+for new_col, acs_cols in acs_var_map.items():
+    df_tract_processed[new_col] = df_acs_tract[acs_cols].clip(lower=0).fillna(0).sum(axis=1)
+
+df_acs_bg["TRACT_GEOID"] = df_acs_bg["GEOID"].str[:11]
+tract_hh_sums = (df_acs_bg.groupby("TRACT_GEOID")["Total_HHE"]
+                 .sum().reset_index(name="Tract_Total_HH"))
+df_bg_weights = df_acs_bg[["GEOID", "TRACT_GEOID", "Total_HHE", "geometry"]].merge(
+    tract_hh_sums, on="TRACT_GEOID", how="left")
+df_bg_weights["Weight"] = np.where(
+    df_bg_weights["Tract_Total_HH"] > 0,
+    df_bg_weights["Total_HHE"] / df_bg_weights["Tract_Total_HH"],
+    0)
+
+df_bg_disagg = df_bg_weights.merge(df_tract_processed, on="TRACT_GEOID", how="left")
+
+cat_cols = list(acs_var_map.keys())
+_missing_tracts = df_bg_disagg[df_bg_disagg[cat_cols[0]].isna()]["TRACT_GEOID"].unique()
+if len(_missing_tracts) > 0:
+    print(f"WARNING: {len(_missing_tracts)} Tracts unmatched — affected BGs will have zero disaggregated counts.")
+df_bg_disagg[cat_cols] = df_bg_disagg[cat_cols].fillna(0)
+
+df_bg_disagg[cat_cols] = df_bg_disagg[cat_cols].mul(df_bg_disagg["Weight"], axis=0)
+
+df_acs_long = (
+    df_bg_disagg
+    .melt(id_vars=["GEOID", "geometry"], value_vars=cat_cols,
+          var_name="Category", value_name="Households")
+    .assign(
+        HHSize=lambda df: df["Category"].str.split("_").str[0],
+        VehOwn=lambda df: df["Category"].str.split("_").str[1],
+    )
+    .drop(columns=["Category"])
+)
+
+df_acs_final = gpd.GeoDataFrame(df_acs_long, geometry="geometry", crs=PROJECT_CRS)
+```
+
+```{python}
+# ==============================================================================
+# P2-D: SPATIAL ASSIGNMENT (CITY, COUNTY, ALL DISTRICT LEVELS)
+# ==============================================================================
+
+df_places_clean   = df_places[["NAME",  "geometry"]].rename(columns={"NAME": "City"})
+df_counties_clean = df_counties[["NAME", "geometry"]].rename(columns={"NAME": "County"})
+
+df_taz_bounds = df_taz_shp[[
+    "TAZID",
+    "DISTSUPER", "DSUP_NAME",
+    "DISTLRG",   "DLRG_NAME",
+    "DISTMED",   "DMED_NAME",
+    "DISTSML",   "DSML_NAME",
+    "geometry",
+]]
+
+taz_pts = df_taz_bounds.copy()
+taz_pts["geometry"] = taz_pts.centroid
+
+taz_mapped = gpd.sjoin(taz_pts, df_places_clean,    how="left", predicate="intersects").drop(columns=["index_right"])
+taz_mapped = taz_mapped.drop_duplicates(subset=["TAZID"], keep="first")
+taz_mapped = gpd.sjoin(taz_mapped, df_counties_clean, how="left", predicate="intersects").drop(columns=["index_right"])
+taz_mapped = taz_mapped.drop_duplicates(subset=["TAZID"], keep="first")
+
+df_mod_tagged = df_mod_final.merge(
+    taz_mapped[["TAZID", "City", "County"]], on="TAZID", how="left")
+
+bg_pts = df_acs_bg[["GEOID", "geometry"]].copy()
+bg_pts["geometry"] = bg_pts.centroid
+
+bg_mapped = gpd.sjoin(bg_pts, df_taz_bounds,      how="left", predicate="intersects").drop(columns=["index_right"])
+bg_mapped = bg_mapped.drop_duplicates(subset=["GEOID"], keep="first")
+bg_mapped = gpd.sjoin(bg_mapped, df_places_clean,    how="left", predicate="intersects").drop(columns=["index_right"])
+bg_mapped = bg_mapped.drop_duplicates(subset=["GEOID"], keep="first")
+bg_mapped = gpd.sjoin(bg_mapped, df_counties_clean,  how="left", predicate="intersects").drop(columns=["index_right"])
+bg_mapped = bg_mapped.drop_duplicates(subset=["GEOID"], keep="first")
+
+df_acs_tagged = df_acs_final.merge(
+    bg_mapped[[
+        "GEOID", "TAZID",
+        "DISTSUPER", "DSUP_NAME",
+        "DISTLRG",   "DLRG_NAME",
+        "DISTMED",   "DMED_NAME",
+        "DISTSML",   "DSML_NAME",
+        "City", "County",
+    ]],
+    on="GEOID", how="left")
+
+df_mod_tagged = pd.DataFrame(df_mod_tagged)
+df_acs_tagged = pd.DataFrame(df_acs_tagged.drop(columns=["geometry"]))
+```
+
+```{python}
+# ==============================================================================
+# P2-D-HTS: HTS VEHICLE OWNERSHIP DATA
+# ==============================================================================
+
+df_hts_p2 = df_hts_hh[df_hts_hh["hSUBAREAID_USTMv4"] == 1].copy()
+
+df_hts_p2["HHSize"] = np.where(df_hts_p2["hhsize_6cat"] >= 4, "4+",
+                                df_hts_p2["hhsize_6cat"].astype(str))
+df_hts_p2["VehOwn"] = np.where(df_hts_p2["num_vehicles_4cat"] >= 3, "3+",
+                                df_hts_p2["num_vehicles_4cat"].astype(str))
+
+df_hts_p2["GEOID"] = df_hts_p2["home_bg_2020"].astype(str)
+df_hts_p2 = df_hts_p2.merge(
+    bg_mapped[[
+        "GEOID",
+        "DISTSUPER", "DSUP_NAME",
+        "DISTLRG",   "DLRG_NAME",
+        "DISTMED",   "DMED_NAME",
+        "DISTSML",   "DSML_NAME",
+        "City", "County",
+    ]].drop_duplicates(subset=["GEOID"]),
+    on="GEOID", how="left"
+)
+
+df_hts_tagged = df_hts_p2.copy()
+```
+
+```{python}
+# ==============================================================================
+# P2-E: AGGREGATION AND VALIDATION METRICS
+# ==============================================================================
+
+def summarize_validation(geo_cols):
+    group_cols = geo_cols + ["HHSize", "VehOwn"]
+    # df_mod_tagged carries multiple calibration runs' rows (see P2-B/P2-D) --
+    # keep calib_run in its own groupby so runs don't get summed together;
+    # ACS/HTS aren't run-specific, so calib_run just rides along on the
+    # mod_agg side of the merge below (repeated across each run, correctly).
+    mod_agg = (df_mod_tagged.groupby(group_cols + ["calib_run"])["Households"]
+               .sum().reset_index().rename(columns={"Households": "Model_HH"}))
+    acs_agg = (df_acs_tagged.groupby(group_cols)["Households"]
+               .sum().reset_index().rename(columns={"Households": "ACS_HH"}))
+    hts_agg = (df_hts_tagged.groupby(group_cols)["hh_weight"]
+               .sum().reset_index().rename(columns={"hh_weight": "HTS_HH"}))
+
+    df_merged = pd.merge(mod_agg, acs_agg, on=group_cols, how="outer")
+    df_merged = pd.merge(df_merged, hts_agg, on=group_cols, how="outer")
+    df_merged = df_merged.fillna({"Model_HH": 0, "ACS_HH": 0, "HTS_HH": 0})
+
+    df_merged["Diff"]         = df_merged["Model_HH"] - df_merged["ACS_HH"]
+    df_merged["Pct_Diff"]     = np.where(
+        df_merged["ACS_HH"] > 0, df_merged["Diff"] / df_merged["ACS_HH"], 0)
+    df_merged["Diff_HTS"]     = df_merged["Model_HH"] - df_merged["HTS_HH"]
+    df_merged["Pct_Diff_HTS"] = np.where(
+        df_merged["HTS_HH"] > 0, df_merged["Diff_HTS"] / df_merged["HTS_HH"], 0)
+    return df_merged
+
+df_val_county = summarize_validation(["County"])
+df_val_super  = summarize_validation(["DISTSUPER", "DSUP_NAME"])
+df_val_large  = summarize_validation(["DISTLRG",   "DLRG_NAME"])
+df_val_dmed   = summarize_validation(["DISTMED",   "DMED_NAME"])
+df_val_small  = summarize_validation(["DISTSML",   "DSML_NAME"])
+df_val_city   = summarize_validation(["City"])
+```
+
+```{python}
+# ==============================================================================
+# P2-F: OJS DATA PREPARATION
+# ==============================================================================
+
+df_val_county["GeoLevel"] = "County";         df_val_county["GeoName"] = df_val_county["County"]
+df_val_super["GeoLevel"]  = "Super District";  df_val_super["GeoName"]  = df_val_super["DSUP_NAME"]
+df_val_large["GeoLevel"]  = "Large District";  df_val_large["GeoName"]  = df_val_large["DLRG_NAME"]
+df_val_dmed["GeoLevel"]   = "Medium District"; df_val_dmed["GeoName"]   = df_val_dmed["DMED_NAME"]
+df_val_small["GeoLevel"]  = "Small District";  df_val_small["GeoName"]  = df_val_small["DSML_NAME"]
+df_val_city["GeoLevel"]   = "City";            df_val_city["GeoName"]   = df_val_city["City"]
+
+cols_to_keep = ["GeoLevel", "GeoName", "HHSize", "VehOwn", "Model_HH", "ACS_HH", "HTS_HH", "calib_run"]
+df_val_combined = pd.concat([
+    df_val_county[cols_to_keep],
+    df_val_super[cols_to_keep],
+    df_val_large[cols_to_keep],
+    df_val_dmed[cols_to_keep],
+    df_val_small[cols_to_keep],
+    df_val_city[cols_to_keep],
+])
+
+ojs_define(val_data_ojs=df_val_combined)
+
+def gdf_to_geojson(gdf, cols):
+    return gdf[cols + ["geometry"]].to_crs("EPSG:4326").__geo_interface__
+
+df_super_bounds = df_taz_bounds.dissolve(by="DSUP_NAME").reset_index()
+df_large_bounds = df_taz_bounds.dissolve(by="DLRG_NAME").reset_index()
+df_dmed_bounds  = df_taz_bounds.dissolve(by="DMED_NAME").reset_index()
+df_small_bounds = df_taz_bounds.dissolve(by="DSML_NAME").reset_index()
+
+ojs_define(
+    geo_counties = gdf_to_geojson(df_counties_clean, ["County"]),
+    geo_super    = gdf_to_geojson(df_super_bounds,   ["DSUP_NAME"]),
+    geo_large    = gdf_to_geojson(df_large_bounds,   ["DLRG_NAME"]),
+    geo_medium   = gdf_to_geojson(df_dmed_bounds,    ["DMED_NAME"]),
+    geo_small    = gdf_to_geojson(df_small_bounds,   ["DSML_NAME"]),
+    geo_cities   = gdf_to_geojson(df_places_clean,   ["City"]),
+)
+```
+
+### Modeled vs. Observed
+
+```{ojs}
+// Sorted unique facet dimension values (fixed to match ACS/model categories)
+// HHSize = columns, VehOwn = rows
+vo_hhsize_vals = ["1", "2", "3", "4+"]
+vo_vehown_vals = ["0", "1", "2", "3+"]
+```
+
+```{ojs}
+//| panel: input
+// layout-ncol deliberately omitted: combined with a "panel: input" OJS cell,
+// it trips a Quarto 1.8.27 bug (makeSubFigures throws "Cannot read
+// properties of undefined (reading 'info')") -- panel: input already flows
+// multiple viewof inputs horizontally on its own without it.
+
+vo_runsAvailable = Array.from(new Set(transpose(val_data_ojs).map(d => d.calib_run).filter(r => r != null))).sort()
+
+viewof voCalibRunSelect = Inputs.select(vo_runsAvailable, {
+  value: vo_runsAvailable[vo_runsAvailable.length - 1],
+  label: "Calibration Run:"
+})
+
+// Removed: HH Size and Vehicle Count dropdowns — now used as facet dimensions (cols × rows)
+viewof geo_level = Inputs.select(
+  ["County", "Super District", "Large District", "Medium District", "Small District", "City"],
+  {label: "Geography:", value: "County"})
+```
+
+```{ojs}
+//| panel: input
+// layout-ncol deliberately omitted: combined with a "panel: input" OJS cell,
+// it trips a Quarto 1.8.27 bug (makeSubFigures throws "Cannot read
+// properties of undefined (reading 'info')") -- panel: input already flows
+// multiple viewof inputs horizontally on its own without it.
+
+viewof vo_x_axis = Inputs.select(["Modeled", "ACS", "HTS"],
+  { label: "X Axis:", value: "ACS" })
+
+viewof vo_y_axis = Inputs.select(
+  ["Modeled", "ACS", "HTS"].filter(d => d !== vo_x_axis),
+  {
+    label: "Y Axis:",
+    value: ["Modeled", "ACS", "HTS"].find(d => d !== vo_x_axis)
+  }
+)
+
+viewof vo_display = Inputs.radio(["Households", "Percentages"],
+  { label: "Display:", value: "Households" })
+```
+
+```{ojs}
+// Filter by selected calibration run + geography (HHSize/VehOwn are facet
+// dimensions). Filtering to one run avoids double-counting ACS_HH/HTS_HH,
+// which are repeated on every run's row -- same reasoning as hh_filtered_base above.
+vo_filtered_base = transpose(val_data_ojs).filter(row =>
+  row.GeoLevel === geo_level && row.calib_run === voCalibRunSelect
+)
+
+// Aggregate by GeoName × HHSize × VehOwn
+vo_agg_facet = {
+  const grouped = d3.groups(vo_filtered_base, d => d.GeoName, d => d.HHSize, d => d.VehOwn);
+  const rows = [];
+  for (const [GeoName, bySize] of grouped) {
+    for (const [hhsize, byVeh] of bySize) {
+      for (const [vehown, records] of byVeh) {
+        const mod = d3.sum(records, d => d.Model_HH);
+        const acs = d3.sum(records, d => d.ACS_HH);
+        const hts = d3.sum(records, d => d.HTS_HH);
+        rows.push({
+          GeoName, HHSize: hhsize, VehOwn: vehown,
+          Model_HH: mod, ACS_HH: acs, HTS_HH: hts,
+          Pct_Error:      acs > 0 ? (mod - acs) / acs : 0,
+          Pct_Error_HTS:  hts > 0 ? (mod - hts) / hts : 0,
+          Pct_ACS_vs_Mod: mod > 0 ? (acs - mod) / mod : 0,
+          Pct_HTS_vs_Mod: mod > 0 ? (hts - mod) / mod : 0,
+          Pct_ACS_vs_HTS: hts > 0 ? (acs - hts) / hts : 0,
+          Pct_HTS_vs_ACS: acs > 0 ? (hts - acs) / acs : 0,
+        });
+      }
+    }
+  }
+  // Normalise each source by its own grand total
+  const totMod = d3.sum(rows, d => d.Model_HH);
+  const totAcs = d3.sum(rows, d => d.ACS_HH);
+  const totHts = d3.sum(rows, d => d.HTS_HH);
+  return rows.map(r => ({
+    ...r,
+    Model_Pct:  totMod > 0 ? r.Model_HH / totMod : 0,
+    ACS_Pct:    totAcs > 0 ? r.ACS_HH   / totAcs : 0,
+    HTS_Pct_vo: totHts > 0 ? r.HTS_HH   / totHts : 0,
+  }));
+}
+
+vo_xy_cfg = {
+  const fm = {
+    "ACS":     { field: "ACS_HH",   pctField: "ACS_Pct",    label: "Observed (ACS)", color: "steelblue" },
+    "HTS":     { field: "HTS_HH",   pctField: "HTS_Pct_vo", label: "Observed (HTS)", color: "#2ca02c"   },
+    "Modeled": { field: "Model_HH", pctField: "Model_Pct",  label: "Modeled",        color: "orange"    }
+  };
+  const errMap = {
+    "ACS|Modeled": "Pct_Error",       "ACS|HTS":     "Pct_HTS_vs_ACS",
+    "HTS|Modeled": "Pct_Error_HTS",   "HTS|ACS":     "Pct_ACS_vs_HTS",
+    "Modeled|ACS": "Pct_ACS_vs_Mod",  "Modeled|HTS": "Pct_HTS_vs_Mod"
+  };
+  return { xCfg: fm[vo_x_axis], yCfg: fm[vo_y_axis], errField: errMap[`${vo_x_axis}|${vo_y_axis}`] };
+}
+
+vo_vf = vo_display === "Percentages"
+  ? { xf: vo_xy_cfg.xCfg.pctField, yf: vo_xy_cfg.yCfg.pctField,
+      fmt: d3.format(".1%"), tickFmt: d3.format(".0%"), axSuffix: " (%)" }
+  : { xf: vo_xy_cfg.xCfg.field,    yf: vo_xy_cfg.yCfg.field,
+      fmt: d3.format(",.0f"), tickFmt: undefined, axSuffix: "" }
+
+vo_max_val = d3.max(vo_agg_facet, d => Math.max(d[vo_vf.xf], d[vo_vf.yf])) * 1.05
+```
+
+::: {.panel-tabset}
+
+## Scatter Plot
+
+```{ojs}
+// 2-D faceted scatter: columns = HH Size, rows = Vehicle Ownership
+Plot.plot({
+  grid: true,
+  width: 900,
+  height: 140 * vo_vehown_vals.length + 40,
+  marginRight: 60,
+  marginLeft: 50,
+  fx: { label: "HH Size",  tickFormat: d => `Size ${d}`, padding: 0.1 },
+  fy: { label: "Vehicles", tickFormat: d => `${d} Veh`,  padding: 0.1 },
+  x: {
+    label: `${vo_xy_cfg.xCfg.label}${vo_vf.axSuffix} →`,
+    domain: [0, vo_max_val],
+    tickFormat: vo_vf.tickFmt
+  },
+  y: {
+    label: `↑ ${vo_xy_cfg.yCfg.label}${vo_vf.axSuffix}`,
+    domain: [0, vo_max_val],
+    tickFormat: vo_vf.tickFmt
+  },
+  caption: html`<b>${vo_xy_cfg.yCfg.label} vs. ${vo_xy_cfg.xCfg.label}</b> — columns: HH Size &nbsp;|&nbsp; rows: Vehicle Ownership`,
+  marks: [
+    // 45-degree equal reference line in every facet panel
+    Plot.link(
+      vo_hhsize_vals.flatMap(s => vo_vehown_vals.map(v => ({ s, v }))),
+      {
+        x1: 0, y1: 0,
+        x2: vo_max_val, y2: vo_max_val,
+        fx: "s", fy: "v",
+        stroke: "gray", strokeOpacity: 0.7, strokeWidth: 1.5
+      }
+    ),
+    Plot.dot(vo_agg_facet, {
+      x: vo_vf.xf, y: vo_vf.yf,
+      fx: "HHSize", fy: "VehOwn",
+      r: 3.5, fill: vo_xy_cfg.yCfg.color, fillOpacity: 0.6,
+      tip: true,
+      title: d =>
+        `${d.GeoName}\nHH Size: ${d.HHSize}  Vehicles: ${d.VehOwn}\n` +
+        `${vo_xy_cfg.xCfg.label}: ${vo_vf.fmt(d[vo_vf.xf])}\n` +
+        `${vo_xy_cfg.yCfg.label}: ${vo_vf.fmt(d[vo_vf.yf])}`
+    }),
+    Plot.linearRegressionY(vo_agg_facet, {
+      x: vo_vf.xf, y: vo_vf.yf,
+      fx: "HHSize", fy: "VehOwn",
+      stroke: vo_xy_cfg.yCfg.color, strokeDasharray: "4 4"
+    })
+  ]
+})
+```
+
+## Interactive Map
+
+```{ojs}
+{
+  if (!document.getElementById("leaflet-css-vo")) {
+    const link  = document.createElement("link");
+    link.id     = "leaflet-css-vo";
+    link.rel    = "stylesheet";
+    link.href   = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+    document.head.appendChild(link);
+  }
+
+  const L = await require("leaflet@1.9.4");
+
+  const container = html`<div style="height:560px; width:100%; border-radius:6px; overflow:hidden;"></div>`;
+  yield container;
+
+  const map = L.map(container, {zoomControl: true});
+
+  L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ' +
+        '&copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: "abcd",
+      maxZoom: 19,
+    }
+  ).addTo(map);
+
+  // Aggregate map data across all HHSize × VehOwn combinations for selected geography
+  const mapAgg = d3.rollup(
+    vo_filtered_base,
+    v => {
+      const mod = d3.sum(v, d => d.Model_HH);
+      const acs = d3.sum(v, d => d.ACS_HH);
+      const hts = d3.sum(v, d => d.HTS_HH);
+      return {
+        Model_HH: mod, ACS_HH: acs, HTS_HH: hts,
+        Pct_Error:      acs > 0 ? (mod - acs) / acs : null,
+        Pct_Error_HTS:  hts > 0 ? (mod - hts) / hts : null,
+        Pct_ACS_vs_Mod: mod > 0 ? (acs - mod) / mod : null,
+        Pct_HTS_vs_Mod: mod > 0 ? (hts - mod) / mod : null,
+        Pct_ACS_vs_HTS: hts > 0 ? (acs - hts) / hts : null,
+        Pct_HTS_vs_ACS: acs > 0 ? (hts - acs) / acs : null,
+      };
+    },
+    d => d.GeoName
+  );
+
+  const geo_lookup = {
+    "County":          {geo: geo_counties, prop: "County"},
+    "Super District":  {geo: geo_super,    prop: "DSUP_NAME"},
+    "Large District":  {geo: geo_large,    prop: "DLRG_NAME"},
+    "Medium District": {geo: geo_medium,   prop: "DMED_NAME"},
+    "Small District":  {geo: geo_small,    prop: "DSML_NAME"},
+    "City":            {geo: geo_cities,   prop: "City"},
+  };
+  const {geo: base_geo, prop: name_prop} = geo_lookup[geo_level];
+
+  const features = base_geo.features.map(f => {
+    const prop_name = f.properties[name_prop];
+    const row = mapAgg.get(prop_name)
+      || { Model_HH: 0, ACS_HH: 0, HTS_HH: 0,
+           Pct_Error: null, Pct_Error_HTS: null,
+           Pct_ACS_vs_Mod: null, Pct_HTS_vs_Mod: null,
+           Pct_ACS_vs_HTS: null, Pct_HTS_vs_ACS: null };
+    return { ...f, properties: { ...f.properties, GeoName: prop_name, ...row } };
+  });
+  const map_features_vo = { type: "FeatureCollection", features };
+
+  const colorScale = d3.scaleDiverging(d3.interpolateRdBu).domain([0.5, 0, -0.5]);
+  function getColor(pct) {
+    if (pct === null || pct === undefined) return "#cccccc";
+    return colorScale(Math.max(-0.5, Math.min(0.5, pct)));
+  }
+
+  let geojsonLayer = L.geoJSON(map_features_vo, {
+    style: feature => ({
+      fillColor:   getColor(feature.properties[vo_xy_cfg.errField]),
+      fillOpacity: 0.72,
+      color:       "#ffffff",
+      weight:      1,
+    }),
+    onEachFeature: (feature, layer) => {
+      const p      = feature.properties;
+      const err    = p[vo_xy_cfg.errField];
+      const noData = err === null || err === undefined;
+      layer.bindPopup(
+        `<b>${p.GeoName}</b><br>` +
+        `<i style="font-size:10px;color:#666">${vo_xy_cfg.yCfg.label} vs. ${vo_xy_cfg.xCfg.label}</i><br>` +
+        `Pct Error: ${noData ? "N/A" : (err * 100).toFixed(1) + "%"}<br>` +
+        `Modeled: ${d3.format(",.0f")(p.Model_HH)}<br>` +
+        `Observed (ACS): ${d3.format(",.0f")(p.ACS_HH)}<br>` +
+        `Observed (HTS): ${d3.format(",.0f")(p.HTS_HH)}`
+      );
+      layer.on("mouseover", () => layer.setStyle({fillOpacity: 0.95, weight: 2}));
+      layer.on("mouseout",  () => geojsonLayer.resetStyle(layer));
+    }
+  }).addTo(map);
+
+  if (geojsonLayer.getBounds().isValid()) {
+    map.fitBounds(geojsonLayer.getBounds(), {padding: [10, 10]});
+  }
+
+  const resizeObserver = new ResizeObserver(() => {
+    setTimeout(() => {
+      map.invalidateSize();
+      if (geojsonLayer.getBounds().isValid()) {
+        map.fitBounds(geojsonLayer.getBounds(), {padding: [10, 10]});
+      }
+    }, 100);
+  });
+  resizeObserver.observe(container);
+  invalidation.then(() => { map.remove(); resizeObserver.disconnect(); });
+
+  const legend = L.control({position: "bottomright"});
+  legend.onAdd = () => {
+    const stops  = [-0.5, -0.25, 0, 0.25, 0.5];
+    const labels = ["≤ −50%", "−25%", "0%", "+25%", "≥ +50%"];
+    const swatches = stops.map((v, i) =>
+      `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">` +
+        `<span style="display:inline-block;width:14px;height:14px;border-radius:2px;flex-shrink:0;` +
+                     `background:${getColor(v)};border:1px solid rgba(0,0,0,0.15);"></span>` +
+        `<span style="font-size:11px;">${labels[i]}</span>` +
+      `</div>`
+    ).join("");
+    const div = L.DomUtil.create("div");
+    div.innerHTML =
+      `<div style="background:white;padding:10px 12px;border-radius:6px;` +
+                  `box-shadow:0 1px 5px rgba(0,0,0,0.25);line-height:1.5;">` +
+        `<div style="font-size:12px;font-weight:600;margin-bottom:4px;">Percent Error</div>` +
+        `<div style="font-size:10px;color:#666;margin-bottom:6px;">` +
+          `Red = Underpredict &nbsp;|&nbsp; Blue = Overpredict` +
+        `</div>` +
+        swatches +
+      `</div>`;
+    return div;
+  };
+  legend.addTo(map);
+}
+```
+
+## Data Table
+
+```{ojs}
+vo_cnt_fmt = vo_display === "Percentages" ? d3.format(".1%") : d3.format(",.0f")
+
+viewof summary_table = Inputs.table(vo_agg_facet, {
+  columns: [
+    "GeoName", "HHSize", "VehOwn",
+    vo_display === "Percentages" ? "Model_Pct"  : "Model_HH",
+    vo_display === "Percentages" ? "ACS_Pct"    : "ACS_HH",
+    vo_display === "Percentages" ? "HTS_Pct_vo" : "HTS_HH",
+    "Pct_Error", "Pct_Error_HTS", "Pct_ACS_vs_HTS"
+  ],
+  header: {
+    GeoName:        "Geography",
+    HHSize:         "HH Size",
+    VehOwn:         "Vehicles",
+    Model_HH:       "Modeled",    Model_Pct:  "Modeled (%)",
+    ACS_HH:         "ACS",        ACS_Pct:    "ACS (%)",
+    HTS_HH:         "HTS",        HTS_Pct_vo: "HTS (%)",
+    Pct_Error:      "Mod vs ACS",
+    Pct_Error_HTS:  "Mod vs HTS",
+    Pct_ACS_vs_HTS: "ACS vs HTS"
+  },
+  format: {
+    Model_HH:       vo_cnt_fmt, Model_Pct:  vo_cnt_fmt,
+    ACS_HH:         vo_cnt_fmt, ACS_Pct:    vo_cnt_fmt,
+    HTS_HH:         vo_cnt_fmt, HTS_Pct_vo: vo_cnt_fmt,
+    Pct_Error:      d3.format("+.1%"),
+    Pct_Error_HTS:  d3.format("+.1%"),
+    Pct_ACS_vs_HTS: d3.format("+.1%")
+  },
+  sort:    "Pct_Error",
+  reverse: true,
+  rows:    15,
+  width:   "100%"
+})
+```
+
+:::

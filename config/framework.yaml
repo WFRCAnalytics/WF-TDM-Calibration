@@ -1,0 +1,73 @@
+#========================================================================================
+# config/framework.yaml
+#
+# Global, repo-wide settings. Per-calibration-run values never belong here --
+# this file should change rarely (new TDM version conventions, a new default
+# size limit), not per calibration iteration.
+#========================================================================================
+
+# Path to the TDM git submodule, relative to the repository root.
+tdm_submodule_path: "tdm"
+
+# Path to the Control Center defaults library, relative to the submodule root.
+# calibration_runs/*.yaml `baseline_control_center` values are filenames
+# resolved against this directory.
+control_center_defaults_dir: "Scenarios/_default"
+
+# Convention for where a calibration run's working folder is created, relative
+# to the submodule root. Available placeholder: {calib_run_id}.
+#
+# Deliberately excludes {run_id}: raw model outputs are too large to
+# duplicate on every attempt, so re-running a calibration run reuses the same
+# on-disk folder and lets Cube overwrite files in place. runs/{calib_run_id}/
+# {run_id}/run_metadata.json still records one entry per attempt -- only the
+# TDM-side working folder itself is shared across attempts.
+scenario_folder_template: "Scenarios/{calib_run_id}"
+
+# Filename, within control_center_defaults_dir, of the driver script staged
+# into every run's working folder unless a calibration run declares its own
+# via driver_script. Its name is preserved when staged.
+#
+# Deliberately NOT __HailMary_1Subfolder_withValidationDoc.s -- that variant
+# additionally runs GenerateDocumentation.s (gated by Run_Documentation=1 in
+# the baseline), which is wired to WF-TDM-Documentation's folder/sidebar
+# conventions (DocumentationDir, ValidationQmdDir, _quarto-website.yml). This
+# repo's own tdmcalib output curation (outputs.py) + report/ Quarto
+# reports are the reporting path here instead, so that step is intentionally
+# never invoked.
+default_driver_script: "__HailMary_1Subfolder.s"
+
+# The fixed batch entry point and how the orchestrator invokes it. Kept as
+# config (not hardcoded) since the calling convention is a property of the TDM
+# version, not of this framework. {control_center_path} and {scenario_folder}
+# are filled in by the orchestrator for each run.
+#
+# Path is resolved relative to this repo's root (not the tdm/ submodule) --
+# this entry point belongs to the framework, not to any one TDM version.
+# Cube Voyager's install location is machine-local, not baked in here -- it's
+# read from config/local.yaml's Voyager_EXE and passed through as the
+# VOYAGER_EXE environment variable (see execution.invoke()).
+execution:
+  entry_point: "bin/RunModel.bat"
+  args: ["{control_center_path}", "{scenario_folder}"]
+  timeout_seconds: 86400
+
+# Output curation. An individual calibration run's config may override
+# max_file_size_mb, but never above this hard ceiling.
+outputs:
+  max_file_size_mb: 100
+
+# Run metadata schema version this version of the framework writes. Bump this,
+# and add a migration note, if the metadata shape changes.
+run_metadata_schema_version: 1
+
+# Post-run report rendering. When enabled, a successful run() or
+# import_manual_run() automatically re-renders the report/ Quarto project so
+# it reflects this run's output -- replacing the old manual "preprocess"
+# toggle that report/config.json used to gate (see report/README.md). A
+# rendering failure is recorded on the run's metadata but never fails the
+# run itself -- outputs are already safely curated regardless.
+postprocess:
+  render_validation: true
+  quarto_exe: "quarto"
+  timeout_seconds: 3600

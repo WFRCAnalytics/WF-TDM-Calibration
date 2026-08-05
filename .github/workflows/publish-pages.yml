@@ -1,0 +1,40 @@
+name: Publish calibration reports to GitHub Pages
+
+# Reports are rendered locally (Quarto needs the gitignored outputs/ data, which
+# isn't available to this runner) and the rendered _site/ folder is committed.
+# This workflow just publishes whatever _site/ contains on push to main.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "_site/**"
+  workflow_dispatch:
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Upload _site as Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

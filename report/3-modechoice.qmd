@@ -1,0 +1,1771 @@
+---
+title: Mode Choice
+echo: false
+warning: false
+message: false
+---
+
+```{python}
+# ==============================================================================
+# PHASE 1: CONFIGURATION
+# ==============================================================================
+import pandas as pd
+import geopandas as gpd
+import numpy as np
+import os
+import re
+import requests
+import json
+import openmatrix as omx
+import sys
+from pathlib import Path
+
+sys.path.insert(0, ".")
+import _validation_scripts as vs
+
+repo_root = Path("..")
+calib_runs = vs.list_available_runs(repo_root)
+
+# static reference / shared observed paths (not run-specific) -- per-run
+# filenames (RegionShares_Pk/Ok.csv, transit_brding_summary_node.csv,
+# DISTLRG_PA_AllPurp.csv, AllTrips_Pk/Ok.omx, skm_w8/d8_Pk/Ok.omx) are
+# resolved inside the per-run loader in PHASE 3 below, against each run's
+# own outputs_dir, via find_one() with a prefix-agnostic glob -- a live
+# tdmcalib run's curated copy carries a Cube-generated `___{runId}___`
+# filename prefix, an imported archived run's typically doesn't.
+config_paths = {
+    "obs"      : r"../inputs/UTA_OBS_2024_Linked_FactorAdjusted.csv",
+    "hts_trips": r"../inputs/UT_HTS_2023_Linked_Trips.csv",
+    "hts_hh"   : r"../inputs/UT_HTS_2023_Households.csv",
+    "taz_v10"  : r"data/4-assignhwy/taz/WFv1000_TAZ.shp",
+    "apc_board": r"data/3-modechoice/rail_stop_ridership_table.csv",
+    "obs_board": r"../inputs/UTA_OBS_2024_Linked_FactorAdjusted.csv",
+}
+
+# 1. File Paths (interactive)
+# config_paths = {
+#     "obs": r"inputs/UTA_OBS_2024_Linked_FactorAdjusted.csv",
+#     "hts_trips": r"inputs/UT_HTS_2023_Linked_Trips.csv",
+#     "hts_hh": r"inputs/UT_HTS_2023_Households.csv",
+#     "tdm_pk": r"v10x/v1000/validation/data/3-modechoice/RegionShares_Pk_C03.csv",
+#     "tdm_ok": r"v10x/v1000/validation/data/3-modechoice/RegionShares_Ok_C03.csv",
+#     "tdm_boardings": r"v10x/v1000/validation/data/3-modechoice/_transit_brding_summary_node.csv",
+#     "taz_v10": r"v10x/v1000/validation/data/4-assignhwy/taz/WFv1000_TAZ.shp",
+#     "tdm_distsum": r"v10x/v1000/validation/data/3-modechoice/DISTLRG_PA_AllPurp_C03.csv",
+#     "apc_board": r"v10x/v1000/validation/data/3-modechoice/rail_stop_ridership_table.csv",
+#     "obs_board": r"inputs/UTA_OBS_2024_Linked_FactorAdjusted.csv",
+# }
+
+# # 2. Calibration Targets (All Trips/Boardings)
+# config_targets = {"transit_trips": 90864, "transit_boardings": 114043}
+
+# 3. Hierarchy Mode Group Definitions (Used for charts/merging)
+config_hierarchy = {
+    "mnm": "Motorized / Non-Motorized",
+    "at": "Auto / Transit",
+    "dasr": "Drive Alone / Shared Ride",
+    "occ": "Shared Ride # of Occupants",
+    "transit": "Transit Mode",
+    "access": "Transit Access Mode",
+}
+
+# 4. Output Column Names (Standardized for consistency)
+config_output = {
+    "period": "Period",
+    "purpose": "TripPurpose",
+    "mode_group": "ModeGroup",
+    "mode_detail": "Mode",
+    "trips_model": "TripsModel",
+    "trips_obs": "TripsObserved",
+    "share_model": "ShareModel",
+    "share_obs": "ShareObserved",
+    "diff": "Difference",
+    "pct_diff": "% Difference",
+}
+
+# Master Table: (Code, Abbr, Name)
+_modes = [
+    (4, "LCL", "Local Bus"),
+    (5, "COR", "Core Bus"),
+    (6, "EXP", "Express Bus"),
+    (7, "LRT", "LRT"),
+    (8, "CRT", "CRT"),
+    (9, "BRT", "BRT"),
+    (1, "MT", "Microtransit"),
+]
+
+# Generate Map
+_mode_map = {k: n for c, a, n in _modes for k in (c, a)}
+
+# 5. OBS Specific Configuration
+config_obs = {
+    "col_map": {
+        "ID": "id",
+        "Purp5_text": "purpose",
+        "PK_OK": "period",
+        "Veh_Cat3p": "veh_own",
+        "Ac_Mode2_Model": "access_mode",
+        "Linked_Mode_txt": "transit_mode",
+        "Mode_Fin": "boarding_mode",
+        "trip_weight": "weight",
+        "boarding_weight": "weight_board",
+    },
+    # Single SQL-style query string
+    "filters": "transit_mode != 'MT' and DATE_TYPE == 'Weekday'",
+    # Map raw OBS mode codes to TDM standard names
+    "mode_map": _mode_map,
+}
+
+# 6. HTS Specific Configuration
+config_hts = {
+    "col_map": {
+        "unique_id": "id",
+        "PURP5_t": "purpose",
+        "depart_per": "period",
+        "num_vehicles_4cat": "veh_own",
+        "model_trip_mode_WFv10": "mode_raw",
+        "trip_weight": "weight",
+        "pSUBAREAID": "prod_area",
+        "aSUBAREAID": "attr_area",
+    },
+    # Single SQL-style query string
+    "filters": "prod_area == 1 and attr_area == 1 and mode_raw != 'school_bus'",
+    # Map HTS raw modes to Hierarchy Groups [MnM, AT, DASR, Occ, Transit, Access]
+    "mode_hierarchy_map": {
+        "bike": ["Non-Motorized", "", "", "", "", ""],
+        "walk": ["Non-Motorized", "", "", "", "", ""],
+        "auto-sov": ["Motorized", "Auto", "Drive Alone", "", "", ""],
+        "auto-occ2": [
+            "Motorized",
+            "Auto",
+            "Shared Ride",
+            "Shared Ride 2 Occupants",
+            "",
+            "",
+        ],
+        "auto-occ3p": [
+            "Motorized",
+            "Auto",
+            "Shared Ride",
+            "Shared Ride 3+ Occupants",
+            "",
+            "",
+        ],
+        "transit": ["Motorized", "Transit", "", "", "", ""],
+    },
+}
+
+# 7. TDM Model Category Mapping (Raw Output String -> Standard Hierarchy)
+# Format: TDM_String: [MnM, AT, DASR, Occ, Transit, Access]
+config_tdm_map = {
+    "2) Non-Motorized": ["Non-Motorized", "", "", "", "", ""],
+    "4) Auto 1 pers": ["Motorized", "Auto", "Drive Alone", "", "", ""],
+    "4) Auto 2 pers": [
+        "Motorized",
+        "Auto",
+        "Shared Ride",
+        "Shared Ride 2 Occupants",
+        "",
+        "",
+    ],
+    "4) Auto 3+pers": [
+        "Motorized",
+        "Auto",
+        "Shared Ride",
+        "Shared Ride 3+ Occupants",
+        "",
+        "",
+    ],
+    "3) Transit": ["Motorized", "Transit", "", "", "", ""],  # Summary Row
+    "LCL Walk": ["", "", "", "", "Local Bus", "Walk"],
+    "LCL Drive": ["", "", "", "", "Local Bus", "Drive"],
+    "COR Walk": ["", "", "", "", "Core Bus", "Walk"],
+    "COR Drive": ["", "", "", "", "Core Bus", "Drive"],
+    "BRT Walk": ["", "", "", "", "BRT", "Walk"],
+    "BRT Drive": ["", "", "", "", "BRT", "Drive"],
+    "EXP Walk": ["", "", "", "", "Express Bus", "Walk"],
+    "EXP Drive": ["", "", "", "", "Express Bus", "Drive"],
+    "LRT Walk": ["", "", "", "", "LRT", "Walk"],
+    "LRT Drive": ["", "", "", "", "LRT", "Drive"],
+    "CRT Walk": ["", "", "", "", "CRT", "Walk"],
+    "CRT Drive": ["", "", "", "", "CRT", "Drive"],
+}
+```
+
+```{python}
+# ==============================================================================
+# PHASE 2: DATA LOADING AND STANDARDIZATION PIPELINE
+# ==============================================================================
+
+# 2a. Load and Process HTS (Household Travel Survey)
+# --------------------------------------------------
+df_hts = pd.read_csv(config_paths["hts_trips"], low_memory=False)
+df_hh = pd.read_csv(config_paths["hts_hh"], low_memory=False)
+
+# Merge Household Variables (Vehicles)
+df_hts = df_hts.merge(df_hh[["hh_id", "num_vehicles_4cat"]], on="hh_id", how="left")
+
+# Standardize Columns
+df_hts = df_hts.rename(columns=config_hts["col_map"])
+
+# Filters
+# Apply the SQL-style query defined in config
+df_hts = df_hts.query(config_hts["filters"])
+
+# Standardize Period & Purpose
+df_hts["period"] = (
+    df_hts["period"]
+    .astype(str)
+    .replace({"AM": "PK", "PM": "PK", "MD": "OK", "EV": "OK"})
+)
+df_hts["purpose"] = df_hts["purpose"].replace({"HBSch": "HBO"})
+df_hts.loc[df_hts["purpose"] == "HBC", "period"] = "PK"  # Force HBC to Peak
+
+# Standardize Modes for Hierarchy Mapping
+df_hts["mode_raw"] = df_hts["mode_raw"].replace(
+    {"walk-to-transit": "transit", "drive-to-transit": "transit"}
+)
+
+# Apply Hierarchy Mapping
+hier_cols = list(config_hierarchy.values())
+mode_map = config_hts["mode_hierarchy_map"]
+
+# Iteratively assign hierarchy columns
+for i, col_name in enumerate(hier_cols):
+    df_hts[col_name] = df_hts["mode_raw"].map(lambda x: mode_map.get(x, [""] * 6)[i])
+
+# HYBRID APPROACH: Drop 'Transit' from HTS
+# We will rely on OBS for all transit data
+df_hts = df_hts[df_hts[config_hierarchy["at"]] != "Transit"]
+
+# Group HTS (now only Auto/Non-Motorized)
+grp_cols = ["period", "purpose"] + hier_cols
+df_hts_agg = df_hts.groupby(grp_cols, as_index=False)["weight"].sum()
+df_hts_agg.rename(columns={"weight": config_output["trips_obs"]}, inplace=True)
+```
+
+```{python}
+# 2b. Load and Process OBS (On-Board Survey)
+# --------------------------------------------------
+df_obs = pd.read_csv(config_paths["obs"], low_memory=False)
+
+# Standardize Columns
+df_obs = df_obs.rename(columns=config_obs["col_map"])
+
+# Filters
+# Apply the SQL-style query defined in config
+df_obs = df_obs.query(config_obs["filters"])
+
+# Map Values
+df_obs["transit_mode"] = df_obs["transit_mode"].map(config_obs["mode_map"])
+df_obs["boarding_mode"] = df_obs["boarding_mode"].map(config_obs["mode_map"])
+df_obs["purpose"] = df_obs["purpose"].replace({"HBSch": "HBO"})
+df_obs.loc[df_obs["purpose"] == "HBC", "period"] = "PK"
+
+# # Scale Factors
+# scale_trips = config_targets["transit_trips"] / df_obs["weight"].sum()
+# scale_boards = config_targets["transit_boardings"] / df_obs["weight_board"].sum()
+# df_obs["weight"] *= scale_trips
+# df_obs["weight_board"] *= scale_boards
+
+# OBS STRUCTURAL FIX: Generate Summary vs Detail Rows
+# ---------------------------------------------------
+# 1. Detail Rows: Specific Transit Mode, but blank High-Level columns
+df_obs_detail = df_obs.groupby(
+    ["period", "purpose", "transit_mode", "access_mode"], as_index=False
+)["weight"].sum()
+df_obs_detail.rename(
+    columns={
+        "transit_mode": config_hierarchy["transit"],
+        "access_mode": config_hierarchy["access"],
+    },
+    inplace=True,
+)
+
+# Ensure hierarchy cols are blank
+for col in [
+    config_hierarchy["mnm"],
+    config_hierarchy["at"],
+    config_hierarchy["dasr"],
+    config_hierarchy["occ"],
+]:
+    df_obs_detail[col] = ""
+
+# 2. Summary Rows: High-Level columns, but blank Transit Mode
+df_obs_summary = df_obs.groupby(["period", "purpose"], as_index=False)["weight"].sum()
+df_obs_summary[config_hierarchy["mnm"]] = "Motorized"
+df_obs_summary[config_hierarchy["at"]] = "Transit"
+
+# Ensure detail cols are blank
+for col in [
+    config_hierarchy["dasr"],
+    config_hierarchy["occ"],
+    config_hierarchy["transit"],
+    config_hierarchy["access"],
+]:
+    df_obs_summary[col] = ""
+
+# Combine OBS parts
+df_obs_agg = pd.concat([df_obs_detail, df_obs_summary], ignore_index=True)
+df_obs_agg.rename(columns={"weight": config_output["trips_obs"]}, inplace=True)
+```
+
+```{python}
+# 2c. Combine Observed Datasets (Hybrid)
+# --------------------------------------------------
+df_observed_final = pd.concat([df_hts_agg, df_obs_agg], ignore_index=True).fillna("")
+```
+
+```{python}
+# ==============================================================================
+# PHASE 3: TDM MODEL DATA PROCESSING (one calibration run at a time)
+# ==============================================================================
+
+def _load_tdm_agg(calib_run, outputs_dir):
+    tdm_dfs = []
+    for period_key, period_label in [("RegionShares_Pk.csv", "PK"), ("RegionShares_Ok.csv", "OK")]:
+        df_t = pd.read_csv(vs.find_one(outputs_dir, f"*{period_key}"))
+        df_t["period"] = period_label
+        tdm_dfs.append(df_t)
+
+    df_tdm_raw = pd.concat(tdm_dfs)
+
+    df_tdm_long = pd.melt(
+        df_tdm_raw,
+        id_vars=["period", "TripCategory"],
+        value_vars=["HBCtrip", "HBOtrip", "HBWtrip", "NHBtrip"],
+        var_name="purpose",
+        value_name="trips",
+    )
+    df_tdm_long["purpose"] = df_tdm_long["purpose"].str.replace("trip", "")
+    df_tdm_long["TripCategory"] = df_tdm_long["TripCategory"].str.strip()
+    df_tdm_long["trips"] = pd.to_numeric(df_tdm_long["trips"], errors="coerce").fillna(0)
+
+    df_tdm_long = df_tdm_long[
+        df_tdm_long["TripCategory"].isin(config_tdm_map.keys())
+    ].copy()
+
+    for i, col_name in enumerate(hier_cols):
+        df_tdm_long[col_name] = df_tdm_long["TripCategory"].map(
+            lambda x: config_tdm_map.get(x, [""] * 6)[i]
+        )
+
+    df_agg = df_tdm_long.groupby(["period", "purpose"] + hier_cols, as_index=False)["trips"].sum()
+    return df_agg.rename(columns={"trips": config_output["trips_model"]})
+
+df_tdm_agg = vs.load_per_run(repo_root, _load_tdm_agg)
+```
+
+```{python}
+# ==============================================================================
+# PHASE 4: MERGE AND CALCULATE
+# ==============================================================================
+
+# calib_run isn't a merge key -- rides along on df_tdm_agg's side, repeating
+# df_observed_final (not run-specific) across each run, same pattern as elsewhere
+merge_cols = ["period", "purpose"] + hier_cols
+df_comp = pd.merge(df_tdm_agg, df_observed_final, on=merge_cols, how="outer").fillna(0)
+
+# Prepare Data for Dashboard (Charts)
+chart_data_frames = []
+
+for grp_key, grp_col_name in config_hierarchy.items():
+    # 0. CRITICAL FIX: Filter for valid hierarchy categories ONLY
+    # This prevents double counting. For example, when calculating 'Motorized' shares,
+    # we must exclude the 'Detail' rows from OBS which have ModeGroup=""
+    df_subset = df_comp[df_comp[grp_col_name] != ""].copy()
+
+    # 1. Base Aggregation (calib_run kept in every groupby below so runs
+    #    don't get summed together -- df_comp carries multiple runs' worth
+    #    of modeled data, see PHASE 3/4 above)
+    grp_cols = [grp_col_name, "period", "purpose", "calib_run"]
+    df_view = df_subset.groupby(grp_cols, as_index=False)[
+        [config_output["trips_model"], config_output["trips_obs"]]
+    ].sum()
+
+    # 2. Add 'Daily' totals
+    df_dy = df_view.groupby([grp_col_name, "purpose", "calib_run"], as_index=False).sum(numeric_only=True)
+    df_dy["period"] = "DY"
+    df_view = pd.concat([df_view, df_dy])
+
+    # 3. Add 'All Purposes' totals
+    df_all = df_view.groupby([grp_col_name, "period", "calib_run"], as_index=False).sum(numeric_only=True)
+    df_all["purpose"] = "All"
+    df_view = pd.concat([df_view, df_all])
+
+    # 4. Calculate Percentages
+    # Now that blank rows are removed, this sum represents the True All for this hierarchy level
+    df_totals = df_view.groupby(["period", "purpose", "calib_run"], as_index=False).sum(numeric_only=True)
+    df_totals = df_totals.rename(
+        columns={
+            config_output["trips_model"]: "AllModel",
+            config_output["trips_obs"]: "AllObs",
+        }
+    )
+
+    df_view = df_view.merge(df_totals, on=["period", "purpose", "calib_run"], how="left")
+
+    df_view[config_output["share_model"]] = df_view[
+        config_output["trips_model"]
+    ] / df_view["AllModel"].replace(0, np.nan)
+    df_view[config_output["share_obs"]] = df_view[config_output["trips_obs"]] / df_view[
+        "AllObs"
+    ].replace(0, np.nan)
+
+    # Formatting
+    df_view[config_output["mode_group"]] = grp_col_name
+    df_view.rename(columns={grp_col_name: config_output["mode_detail"]}, inplace=True)
+
+    # We don't need to filter != "" here anymore because we did it at step 0,
+    # but keeping it doesn't hurt.
+    chart_data_frames.append(df_view)
+
+# Combine and Finalize
+df_long = pd.concat(chart_data_frames, ignore_index=True)
+
+# OJS HANDSHAKE:
+df_long = df_long.rename(
+    columns={
+        "period": "Period",
+        "purpose": "TripPurpose",
+        config_output["mode_detail"]: "Mode",
+    }
+)
+
+
+# Select columns using the config names
+final_cols = [
+    "Period",
+    "TripPurpose",
+    config_output["mode_group"],  # Preserves 'ModeGroup'
+    "Mode",
+    config_output["share_model"],
+    config_output["share_obs"],
+]
+df_final = df_long.copy()
+
+df_final.rename(
+    columns={
+        config_output["share_model"]: "Model",
+        config_output["share_obs"]: "Observed",
+    },
+    inplace=True,
+)
+df_final["Difference"] = df_final["Model"] - df_final["Observed"]
+
+# Melt for OJS
+df_final_melt = pd.melt(
+    df_final,
+    id_vars=[
+        "Period",
+        "TripPurpose",
+        config_output["mode_group"],
+        "Mode",
+    ],
+    value_vars=["Model", "Observed"],
+    var_name="DataSource",
+    value_name="Percent",
+)
+```
+
+```{python}
+# ==============================================================================
+# PHASE 5: BOARDINGS VALIDATION
+# ==============================================================================
+
+# Explicitly define the columns to sum
+skim_cols = [
+    "Board_FromSkim_LCL",
+    "Board_FromSkim_COR",
+    "Board_FromSkim_EXP",
+    "Board_FromSkim_BRT",
+    "Board_FromSkim_LRT",
+    "Board_FromSkim_CRT",
+]
+
+# CRITICAL FIX: RECLASSIFY MICROTRANSIT FOR VALIDATION
+# We treat Surveyed Microtransit (Mode 1) as "Local Bus" for these charts only.
+# This ensures they are counted in the "Local Bus" row during the loop below.
+# (One-time, not run-specific -- df_obs itself isn't run-specific.)
+df_obs["boarding_mode"] = df_obs["boarding_mode"].replace("Microtransit", "Local Bus")
+
+# Mode Label | Skim Code (Col) | Mode ID (Row)
+validation_config = [
+    ("Local Bus", "LCL", 4),
+    ("Core Bus", "COR", 5),
+    ("Express Bus", "EXP", 6),
+    ("BRT", "BRT", 9),
+    ("LRT", "LRT", 7),
+    ("CRT", "CRT", 8),
+]
+
+
+def _load_boardings(calib_run, outputs_dir):
+    df_tdm_brd_raw = pd.read_csv(vs.find_one(outputs_dir, "*transit_brding_summary_node.csv"))
+    df_tdm_agg_run = df_tdm_agg[df_tdm_agg["calib_run"] == calib_run]
+
+    def get_tdm_hier_boardings(skim_code):
+        target_col = f"Board_FromSkim_{skim_code}"
+        if target_col in df_tdm_brd_raw.columns:
+            return df_tdm_brd_raw[target_col].sum()
+        return 0
+
+    def get_tdm_surv_boardings(mode_id):
+        subset = df_tdm_brd_raw[df_tdm_brd_raw["Mode"] == mode_id]
+        return subset[skim_cols].sum().sum()
+
+    validation_rows = []
+    for mode_label, skim_code, mode_id in validation_config:
+        trips_mod = df_tdm_agg_run[df_tdm_agg_run[config_hierarchy["transit"]] == mode_label][
+            config_output["trips_model"]
+        ].sum()
+        trips_obs = df_obs_agg[df_obs_agg[config_hierarchy["transit"]] == mode_label][
+            config_output["trips_obs"]
+        ].sum()
+        brd_mod_hier = get_tdm_hier_boardings(skim_code)
+        brd_obs_hier = df_obs[df_obs["transit_mode"] == mode_label]["weight_board"].sum()
+        brd_mod_surv = get_tdm_surv_boardings(mode_id)
+        brd_obs_surv = df_obs[df_obs["boarding_mode"] == mode_label]["weight_board"].sum()
+        validation_rows.append(
+            {
+                "Mode": mode_label,
+                "Trips_Mod": trips_mod,
+                "Trips_Obs": trips_obs,
+                "Board_Mod": brd_mod_hier,
+                "Board_Obs": brd_obs_hier,
+                "Board_Surv_Mod": brd_mod_surv,
+                "Board_Surv_Obs": brd_obs_surv,
+            }
+        )
+
+    df_val = pd.DataFrame(validation_rows)
+
+    system_trips_obs = df_obs["weight"].sum()
+    system_board_obs = df_obs["weight_board"].sum()
+    system_board_mod = df_val["Board_Mod"].sum()
+    total_row = {
+        "Mode": "All",
+        "Trips_Mod": df_val["Trips_Mod"].sum(),
+        "Trips_Obs": system_trips_obs,
+        "Board_Mod": system_board_mod,
+        "Board_Obs": system_board_obs,
+        "Board_Surv_Mod": system_board_mod,
+        "Board_Surv_Obs": system_board_obs,
+    }
+    df_val = pd.concat([df_val, pd.DataFrame([total_row])], ignore_index=True)
+
+    def make_view_df(title, col_mod, col_obs):
+        df = df_val[["Mode", col_mod, col_obs]].copy()
+        df.columns = ["Mode", "Model", "Observed"]
+        df["Title"] = title
+        df["Difference"] = df["Model"] - df["Observed"]
+        df["% Difference"] = (df["Difference"] / df["Observed"]).fillna(0)
+        return df
+
+    df_v1 = make_view_df("Trips by Hierarchical Mode", "Trips_Mod", "Trips_Obs")
+    df_v2 = make_view_df("Boardings by Hierarchical Mode", "Board_Mod", "Board_Obs")
+    df_v3 = make_view_df("Boardings by Mode Surveyed", "Board_Surv_Mod", "Board_Surv_Obs")
+
+    df_v4 = df_val[["Mode"]].copy()
+    df_v4["Model"] = df_val["Board_Mod"] / df_val["Trips_Mod"].replace(0, np.nan)
+    df_v4["Observed"] = df_val["Board_Obs"] / df_val["Trips_Obs"].replace(0, np.nan)
+    df_v4["Title"] = "Transfer Ratio"
+    df_v4["Difference"] = df_v4["Model"] - df_v4["Observed"]
+    df_v4["% Difference"] = (df_v4["Difference"] / df_v4["Observed"]).fillna(0)
+
+    return pd.concat([df_v1, df_v2, df_v3, df_v4], ignore_index=True)
+
+
+df_boardings_long = vs.load_per_run(repo_root, _load_boardings)
+
+# OJS HANDSHAKE
+df_step1 = pd.melt(
+    df_boardings_long,
+    id_vars=["Mode", "Title", "Difference", "% Difference", "calib_run"],
+    value_vars=["Model", "Observed"],
+    var_name="DataSource",
+    value_name="Value",
+)
+
+df_boardings_viz = pd.melt(
+    df_step1,
+    id_vars=["Mode", "Title", "DataSource", "calib_run"],
+    value_vars=["Value", "Difference", "% Difference"],
+    var_name="View",
+    value_name="ViewValue",
+)
+
+# Remove totals for charts
+df_boardings_viz = df_boardings_viz[df_boardings_viz["Mode"] != "All"]
+```
+
+```{python}
+# ==============================================================================
+# PHASE 6: DYNAMIC TEXT VARIABLES
+# ==============================================================================
+
+# Helper to grab a specific % Difference from our results
+def get_stat(title, mode):
+    try:
+        val = df_boardings_long[
+            (df_boardings_long["Title"] == title) & (df_boardings_long["Mode"] == mode)
+        ]["% Difference"].values[0]
+        return f"{val:.1%}"  # Formats as percentage with 1 decimal (e.g., "-1.3%")
+    except IndexError:
+        return "ERR"
+
+
+# Dictionary holding all the dynamic text values
+txt = {
+    # All System Stats
+    "trips_tot": get_stat("Trips by Hierarchical Mode", "All"),
+    "board_tot": get_stat("Boardings by Hierarchical Mode", "All"),
+    # BRT Stats
+    "brt_trips": get_stat("Trips by Hierarchical Mode", "BRT"),
+    "brt_board": get_stat("Boardings by Hierarchical Mode", "BRT"),
+    # Core Bus Stats
+    "cor_trips": get_stat("Trips by Hierarchical Mode", "Core Bus"),
+    "cor_board": get_stat("Boardings by Hierarchical Mode", "Core Bus"),
+    "cor_surv": get_stat(
+        "Boardings by Mode Surveyed", "Core Bus"
+    ),  # The overprediction stat
+    # Express Bus Stats
+    "exp_trips": get_stat("Trips by Hierarchical Mode", "Express Bus"),
+    "exp_board": get_stat("Boardings by Hierarchical Mode", "Express Bus"),
+    "exp_surv": get_stat(
+        "Boardings by Mode Surveyed", "Express Bus"
+    ),  # The underprediction stat
+}
+```
+
+```{python}
+# ==============================================================================
+# EXPORT TO OJS
+# ==============================================================================
+
+ojs_define(dataLong=df_final_melt)
+ojs_define(dataTable=df_final)
+ojs_define(boardChart=df_boardings_viz)
+ojs_define(boardTable=df_boardings_long)
+
+# Define hierarchy names for OJS dropdowns
+for key, val in config_hierarchy.items():
+    var_name = (
+        f"nameMode{key.upper()}Share"
+        if key in ["at", "mnm"]
+        else f"nameMode{key.capitalize()}"
+    )
+
+    if key == "mnm":
+        ojs_name = "nameModeMnMShare"
+    elif key == "at":
+        ojs_name = "nameModeATShare"
+    elif key == "dasr":
+        ojs_name = "nameModeDAShare"
+    elif key == "occ":
+        ojs_name = "nameMode23Share"
+    elif key == "transit":
+        ojs_name = "nameModeTransit"
+    elif key == "access":
+        ojs_name = "nameModeAccess"
+
+    ojs_define(**{ojs_name: val})
+
+ojs_define(namePeriod="Period")
+ojs_define(nameGroup="ModeGroup")
+```
+
+```{python}
+# ======================================================================
+# CROSS-RUN COMPARISON: emit headline metrics for report/compare.qmd
+# one file per calibration run
+# ======================================================================
+for _calib_run in calib_runs:
+    _at_daily = df_final[
+        (df_final["ModeGroup"] == "Auto / Transit")
+        & (df_final["Period"] == "DY")
+        & (df_final["calib_run"] == _calib_run)
+    ]
+    _transit_row = _at_daily[_at_daily["Mode"] == "Transit"]
+    _system_row = df_boardings_long[
+        (df_boardings_long["Mode"] == "All")
+        & (df_boardings_long["Title"] == "Trips by Hierarchical Mode")
+        & (df_boardings_long["calib_run"] == _calib_run)
+    ]
+
+    _summary_metrics = {
+        "calib_run": _calib_run,
+        "stage": "modechoice",
+        "metrics": {
+            "transit_mode_share_model": float(_transit_row["Model"].iloc[0]) if len(_transit_row) else None,
+            "transit_mode_share_observed": float(_transit_row["Observed"].iloc[0]) if len(_transit_row) else None,
+            "transit_trips_pct_diff": float(_system_row["% Difference"].iloc[0]) if len(_system_row) else None,
+        },
+    }
+    with open(f"summary_metrics_modechoice_{_calib_run}.json", "w") as f:
+        json.dump(_summary_metrics, f, indent=2)
+```
+
+## Mode Share
+
+The mode choice model was calibrated to observed mode shares from the 2023 Utah Household Travel Survey and the 2024 Transit On-Board Survey. The results of this calibration effort are shown in @fig-mode-share. All mode shares were calibrated to within 5% of observed data.
+
+```{ojs}
+html`<br/>`
+mcRunsAvailable = Array.from(new Set(transpose(dataLong).map(d => d.calib_run))).sort()
+
+viewof mcCalibRunSelect = Inputs.select(mcRunsAvailable, {
+  value: mcRunsAvailable[mcRunsAvailable.length - 1],
+  label: "Calibration Run:"
+})
+
+viewof plotSelect = Inputs.select(
+  [
+    "Motorized / Non-Motorized",
+    "Auto / Transit",
+    "Drive Alone / Shared Ride",
+    "Shared Ride # of Occupants",
+    "Transit Mode",
+    "Transit Access Mode"
+  ],
+  {value: "Motorized / Non-Motorized", label: "Mode Group:"}
+)
+viewof periodSelect = Inputs.select(
+  new Map([['Daily', 'DY'], ['Peak', 'PK'], ['Off-Peak', 'OK']]),
+  {value: 'DY', label: "Time Period:"}
+)
+
+// Removed: viewof purposeSelect
+
+dataLT = transpose(dataLong)
+dataTT = transpose(dataTable)
+
+// All purposes including "All" for the facet
+facetPurposes = ["All", "HBW", "HBC", "HBO", "NHB"]
+facetLabels   = new Map([
+  ["All", "All Purposes"],
+  ["HBW", "Home-Based Work"],
+  ["HBC", "Home-Based College"],
+  ["HBO", "Home-Based Other"],
+  ["NHB", "Non-Home Based"]
+])
+
+// Build one filtered dataset per purpose facet
+filtered_data = facetPurposes.flatMap(purp =>
+  dataLT
+    .filter(d =>
+      plotSelect === d.ModeGroup &&
+      periodSelect === d.Period &&
+      purp === d.TripPurpose &&
+      d.Mode !== "Core Bus" &&
+      d.calib_run === mcCalibRunSelect
+    )
+    .map(d => ({...d, PurposeLabel: facetLabels.get(purp)}))
+)
+
+table_filtered_data = dataTT.filter(d =>
+  plotSelect === d.ModeGroup &&
+  periodSelect === d.Period &&
+  d.Mode !== "Core Bus" &&
+  d.calib_run === mcCalibRunSelect
+)
+
+import {GroupedBarChart} from "@d3/grouped-bar-chart"
+import {Legend, Swatches} from "@d3/color-legend"
+import {howto, altplot} from "@d3/example-components"
+
+formatPercent = d3.format(".1%")
+
+xDomain = {
+  const sources = ["Model", "Observed"]
+  switch(plotSelect) {
+    case "Motorized / Non-Motorized":
+      return ['Motorized', 'Non-Motorized'].flatMap(m => sources.map(s => `${m}||${s}`))
+    case "Auto / Transit":
+      return ['Auto', 'Transit'].flatMap(m => sources.map(s => `${m}||${s}`))
+    case "Drive Alone / Shared Ride":
+      return ['Drive Alone', 'Shared Ride'].flatMap(m => sources.map(s => `${m}||${s}`))
+    case "Shared Ride # of Occupants":
+      return ['Shared Ride 2 Occupants', 'Shared Ride 3+ Occupants'].flatMap(m => sources.map(s => `${m}||${s}`))
+    case "Transit Mode":
+      return ['Local Bus', 'Express Bus', 'BRT', 'LRT', 'CRT'].flatMap(m => sources.map(s => `${m}||${s}`))
+    case "Transit Access Mode":
+      return ['Walk', 'Drive'].flatMap(m => sources.map(s => `${m}||${s}`))
+    default: return []
+  }
+}
+
+```
+
+::: {.panel-tabset}
+
+###### Chart
+
+```{ojs}
+//| label: fig-mode-share
+//| fig-cap: "Mode Share Calibration Results by Trip Purpose"
+
+{
+  const legend = Legend(
+    d3.scaleOrdinal(["Model", "Observed"], ["#376092", "#77933c"]),
+    {title: "Data Source"}
+  )
+
+  const chart = Plot.plot({
+    height : 300,
+    width  : 950,
+    marginLeft  : 55,
+    marginBottom: 80,
+    marginTop : 40,
+    facetMarginTop: 30,
+
+    style: { backgroundColor: "transparent", fontSize: "0.85em" },
+
+    fx: {
+      domain: ["All Purposes", "Home-Based Work", "Home-Based College", "Home-Based Other", "Non-Home Based"],
+      label: null,
+      tickSize: 0,
+      axis: "top",
+    },
+
+    x: {
+      domain: xDomain,
+      axis: null,
+      padding: 0.2,
+      label: null,
+    },
+
+    y: {
+      grid: true,
+      label: "Share",
+      tickFormat: ".0%",
+      domain: [0, 1],
+    },
+
+    color: {
+      domain: ["Model", "Observed"],
+      range:  ["#376092", "#77933c"],
+    },
+
+    marks: [
+      Plot.barY(filtered_data, {
+        fx   : "PurposeLabel",
+        x    : d => `${d.Mode}||${d.DataSource}`,
+        y    : "Percent",
+        fill : "DataSource",
+        sort : { x: null },
+        tip  : {
+          format: {
+            x    : d => d.split("||")[0],
+            y    : d => d3.format(".1%")(d),
+            fill : true,
+          }
+        }
+      }),
+      Plot.text(filtered_data, {
+        fx         : "PurposeLabel",
+        x          : d => `${d.Mode}||${d.DataSource}`,
+        y          : "Percent",
+        text       : d => d3.format(".1%")(d.Percent),
+        textAnchor : "middle",
+        lineAnchor : "bottom",
+        dy         : -4,
+        fontSize   : 9,
+      }),
+      Plot.text(
+        xDomain.filter(d => d.endsWith("||Model")),
+        {
+          x          : d => d,
+          text       : d => d.split("||")[0].replace(/ /g, "\n"),
+          frameAnchor: "bottom",
+          lineAnchor : "top",
+          dy         : 6,
+          fontSize   : 11,
+          lineHeight : 1.2,
+        }
+      ),
+      Plot.ruleY([0]),
+    ],
+  })
+
+  return html`${legend}${chart}`
+}
+```
+
+###### Table
+
+```{ojs}
+html`
+<br/>
+<table>
+    <thead>
+    <tr>
+        ${["Mode", "Purpose", "Model", "Observed", "Difference"].map((d, i) =>
+        html`<th style='text-align: ${i <= 1 ? "left" : "right"}; padding: 5px; ${i <= 1 ? "width: 140px;" : ""}'>${d}</th>`)}
+    </tr>
+    </thead>
+    <tbody>
+    ${table_filtered_data.map(row => html`
+        <tr style='border-bottom: 1px solid lightgrey;'>
+        ${["Mode", "TripPurpose", "Model", "Observed", "Difference"].map((d, i) => {
+            const val = (i <= 1) ? row[d] : formatPercent(row[d]);
+            return html`<td style='text-align: ${i <= 1 ? "left" : "right"}; padding: 5px; ${i <= 1 ? "width: 140px;" : ""}'>${val}</td>`
+        })}
+        </tr>`)}
+    </tbody>
+</table>`
+```
+
+:::
+
+```{ojs}
+html`<br/><br/>`
+```
+
+## Transit Trips and Boardings
+
+Transit trips were validated to the 2024 Transit On-Board Survey and 2023 observed boarding data. To facilitate model calibration, transit trips, boardings, and transfers were validated by the model’s hierarchical mode. Boardings were also validated based on the mode where the boarding was actually observed. Transit validation results are shown in @fig-mc-boardings.
+
+Total transit trips and boardings were calibrated to within 5% of observed data (trips `{python} txt['trips_tot']`, boardings `{python} txt['board_tot']`). Overall transfers were all within an acceptable range.
+
+Transit trips and boardings by mode were calibrated to acceptable ranges for modes with significant ridership. Modes with low ridership were allowed to have a higher difference when compared to observed data if calibrating to increase base year accuracy resulted in too large alternative specific constants (i.e. over calibrating these modes). However, the following suggestions may help guide when using the model and interpreting model results:
+
+ - BRT validation results were low (between `{python} txt['brt_trips']` and `{python} txt['brt_board']`). However, only one BRT route (UVX) was available in 2019 to calibrate this mode. Partly due to this, additional rounds of calibration to improve BRT resulted in large constants. This in turn would have the effect of making the base year validation better but overpredicting BRT in future forecasts, particularly as there is significantly more BRT in future plan phases. The decision was made to allow BRT to show lower than expected ridership in the earlier years of the model in favor of more reasonable BRT future-year forecasts.
+ - Core Route validation statistics are not applicable because the only Core Route operational in the base year (3500 S) was reclassified as a Local Bus. This adjustment removed all observed ridership from this category, resulting in undefined validation metrics. Consequently, the model is predicting trips for a mode structure preserved for future phases, while the observed dataset for this specific category is empty.
+ - Express Bus trip and boarding validation results are higher than desired (`{python} txt['exp_trips']` and `{python} txt['exp_board']`, respectively). However, Express Bus ridership in 2019 is not significant and Express Bus service is expected to decrease in future plan phases. Note that the model underpredicts overall boardings (`{python} txt['exp_surv']`) largely due to the observed data showing trips in the downtown area are transferring from other modes (e.g. CRT) to use Express Bus more as a local downtown circulator. The model does not capture this behavior.
+
+
+```{ojs}
+html`<br/>`
+viewof bPlotSelect = Inputs.select(new Map([['Trips by Hierarchical Mode', 'Trips by Hierarchical Mode'], ['Boardings by Hierarchical Mode', 'Boardings by Hierarchical Mode'], ['Transfer Ratio by Hierarchical Mode','Transfer Ratio'], ['Boardings by Observed Mode','Boardings by Mode Surveyed']]), {value: 'Trips by Hierarchical Mode', label: "Category"})
+
+// reuses mcCalibRunSelect (defined above, "Mode Share" section)
+dataBLC = transpose(boardChart)
+filtered_bDataC = dataBLC.filter(function(dataBLC) {
+    return bPlotSelect == dataBLC.Title &&
+           "Value" == dataBLC.View &&
+           dataBLC.calib_run === mcCalibRunSelect &&
+           dataBLC.Mode !== "Core Bus"; // <--- EXCLUDE CORE BUS
+})
+dataBTT = transpose(boardTable)
+filtered_bDataT = dataBTT.filter(function(dataBTT) {
+    return bPlotSelect == dataBTT.Title &&
+           dataBTT.calib_run === mcCalibRunSelect &&
+           dataBTT.Mode !== "Core Bus"; // <--- EXCLUDE CORE BUS
+})
+
+// Define Formatters
+formatInt = d3.format(",.0f")  // 1,234
+formatRatio = d3.format(".2f") // 1.25
+formatPct = d3.format(".1%")   // 12.5%
+
+// Helper to choose format based on context
+function getFormat(col, val, title) {
+    if (col === "Mode") return val;
+    if (col === "% Difference") return formatPct(val);
+
+    // For Model, Observed, Difference: check if we are looking at Ratios or Trips
+    if (title === "Transfer Ratio") return formatRatio(val);
+
+    return formatInt(val);
+}
+```
+
+:::: {.columns}
+::: {.column width="43%"}
+
+```{ojs}
+html`
+<br/>
+<table>
+    <thead>
+    <tr>
+        ${["Mode", "Model", "Observed", "Difference", "% Difference"].map((d, i) => {
+            const widths = ['90px', '60px', '70px', '75px', '90px'];
+            return html`<th style='text-align: ${i === 0 ? "left" : "right"}; padding: 5px; width: ${widths[i]};'>${d}</th>`;
+        })}
+    </tr>
+    </thead>
+    <tbody>
+        ${filtered_bDataT.map(row => {
+            const isBold = row['Mode'] === 'All';
+            return html`<tr style='border-bottom: 1px solid lightgrey;'>
+                ${["Mode", "Model", "Observed", "Difference", "% Difference"].map((d, i) => {
+                    const widths = ['90px', '60px', '70px', '75px', '90px'];
+                    // Apply conditional formatting
+                    const val = getFormat(d, row[d], bPlotSelect);
+                    return html`<td style='text-align: ${i === 0 ? "left" : "right"}; padding: 5px; width: ${widths[i]}; font-weight: ${isBold ? 'bold' : 'normal'};'>${val}</td>`;
+                })}
+            </tr>`;
+        })}
+    </tbody>
+</table>`
+```
+
+:::
+::: {.column width="57%"}
+
+```{ojs}
+key2 = Legend(bChart.scales.color, {title: "Data Source"})
+
+bChart = GroupedBarChart(filtered_bDataC, {
+    x: d => d.Mode,
+    y: d => d.ViewValue,
+    z: d => d.DataSource,
+    // REMOVED 'Core Bus' from this list
+    xDomain: ['Local Bus', 'Express Bus', 'BRT', 'LRT', 'CRT'],
+    yLabel: "Value",
+    // Conditionally format Y axis based on selection
+    yFormat: (bPlotSelect === "Transfer Ratio") ? ".2f" : "s",
+    zDomain: ['Model','Observed'],
+    width: 500,
+    height: 225,
+    colors: ["#376092", "#77933c"]
+})
+
+filtered_bData2 = dataBLC.filter(function(dataBLC) {
+    return bPlotSelect == dataBLC.Title  &&
+           metric == dataBLC.View &&
+           dataBLC.calib_run === mcCalibRunSelect &&
+           dataBLC.Mode !== "Core Bus"; // <--- EXCLUDE CORE BUS
+})
+
+viewof metric = Inputs.radio(new Map([["% Difference", "% Difference"],["Difference", "Difference"]]), {value: "% Difference", label: "View:"})
+
+//https://observablehq.com/@d3/diverging-bar-chart
+import {DivergingBarChart} from "@d3/diverging-bar-chart"
+
+html`<br/>`
+chart3 = {
+  const maxAbs = d3.max(filtered_bData2, d => Math.abs(d.ViewValue)) ?? 0;
+  const domainMax = Math.max(0.05, maxAbs);
+
+  return DivergingBarChart(filtered_bData2, {
+    x: d => d.ViewValue,
+    y: d => d.Mode,
+    xDomain: [-domainMax, domainMax],
+    xFormat: metric === "Difference" ? "+,d" : "+.1%",
+    xLabel: "Model vs Observed Differences",
+    height: 200,
+    colors: d3.schemeRdBu[3]
+  });
+}
+```
+
+:::
+::::
+
+```{ojs}
+//|label: fig-mc-boardings
+//|fig-cap: Trips and Boardings by Mode Surveyed - Model vs. Observed Comparison
+tbEmptyCell = 1
+```
+
+```{ojs}
+html`<br/>`
+```
+
+
+#### Commuter Rail Station Boardings
+The comparison of base year (2019) station-level boardings for commuter-rail transit (CRT) is found in @fig-fr-brd. CRT boardings were found to be higher than observed for Davis County and lower than observed for Utah County. An adjustment of 5 additional minutes to in-vehicle-time for trips to/from Davis County and 5 fewer minute to in-vehicle-time for Utah County was made to attempt to bring the model more in-line with observations.
+
+Additional investigation was conducted into why Provo and Lehi were particularly low in the model. The findings did not turn up any obvious errors in the transit or model network. So, the conclusion is that further adjustments to CRT will be possible in the Mode Choice Update project that is currently being undertaken for the next release of the model.
+
+```{python}
+# | label: stop-sequence
+
+# Define FrontRunner Stops in NorthBound Direction
+df_station_master = pd.DataFrame(
+    {
+        "Stop_Name": [
+            "Provo Central",
+            "Orem Central",
+            "Vineyard",
+            "American Fork",
+            "Lehi",
+            "Draper",
+            "South Jordan",
+            "Murray Central",
+            "Salt Lake Central",
+            "North Temple",
+            "Woods Cross",
+            "Farmington",
+            "Layton",
+            "Clearfield",
+            "Roy",
+            "Ogden Central",
+        ],
+        "Model_N": [
+            50024,
+            50029,
+            50030,
+            50035,
+            50040,
+            10008,
+            10010,
+            10016,
+            10019,
+            10021,
+            10025,
+            10031,
+            10035,
+            10036,
+            10042,
+            10046,
+        ],
+        "UTA_Stops": [
+            "Provo Central Station",
+            "Orem Central Station",
+            "Vineyard Station",
+            "American Fork Station",
+            "Lehi Station",
+            "Draper Station",
+            "South Jordan Station",
+            "Murray Central Station",
+            "Salt Lake Central Station",
+            "North Temple Station",
+            "Woods Cross Station",
+            "Farmington Station",
+            "Layton Station",
+            "Clearfield Station",
+            "Roy Station",
+            "Ogden Central Station",
+        ],
+    }
+)
+
+# Define the Sort Order based on South-to-North direction
+crt_stops_order = df_station_master["Stop_Name"].tolist()
+```
+
+```{python}
+# | label: modeled-boarding
+
+# 1. Filter for Mode 8 (CRT), Sum Board & Alight, then Average the totals
+# (one calibration run at a time)
+def _load_mod_boarding(calib_run, outputs_dir):
+    df = (
+        pd.read_csv(vs.find_one(outputs_dir, "*transit_brding_summary_node.csv"))
+        .query("Mode == 8")
+        .groupby(["N", "AccessMode"])[["Board", "Alight"]]
+        .sum()
+        .mean(axis=1)
+        .reset_index(name="Boardings")
+    )
+    # 2. Merge with station names
+    df = df.merge(
+        df_station_master[["Stop_Name", "Model_N"]],
+        left_on="N",
+        right_on="Model_N",
+        how="left",
+    )
+    # 3. Clean up columns
+    df["Access_Type"] = df["AccessMode"].str.title()
+    df["Source"] = "Modeled"
+    return df
+
+df_mod_boarding = vs.load_per_run(repo_root, _load_mod_boarding)
+```
+
+```{python}
+df_obs_raw = pd.read_csv(config_paths["obs_board"]).query(
+    "Mode_Fin == 8 and DATE_TYPE == 'Weekday'"
+)
+
+# 1. Dynamic regex and mapping from master list
+stop_pattern = (
+    "^(" + "|".join(map(re.escape, df_station_master["UTA_Stops"].tolist())) + ")"
+)
+name_map = dict(zip(df_station_master["UTA_Stops"], df_station_master["Stop_Name"]))
+
+# 1. Vectorized Directional Logic (Board/Alight and Access Mode)
+pa_mask = df_obs_raw["PA_AP"] == "PA"
+df_obs_raw["B_Stop"] = np.where(
+    pa_mask, df_obs_raw["STOP_ON_ADDR"], df_obs_raw["STOP_OFF_ADDR"]
+).astype(str)
+df_obs_raw["A_Stop"] = np.where(
+    pa_mask, df_obs_raw["STOP_OFF_ADDR"], df_obs_raw["STOP_ON_ADDR"]
+).astype(str)
+df_obs_raw["Access_Type"] = np.where(
+    pa_mask, df_obs_raw["Ac_Mode2_Model"], df_obs_raw["Eg_Mode2_Model"]
+)
+
+# 2. Standardize Names
+df_obs_raw["S_B"] = (
+    df_obs_raw["B_Stop"].str.extract(stop_pattern, expand=False).map(name_map)
+)
+df_obs_raw["S_A"] = (
+    df_obs_raw["A_Stop"].str.extract(stop_pattern, expand=False).map(name_map)
+)
+
+# 3. Combine Events and Average (Sum / 2)
+df_obs_boarding = pd.concat(
+    [
+        df_obs_raw[["S_B", "Access_Type", "boarding_weight"]].rename(
+            columns={"S_B": "Stop_Name"}
+        ),
+        df_obs_raw[["S_A", "Access_Type", "boarding_weight"]].rename(
+            columns={"S_A": "Stop_Name"}
+        ),
+    ]
+).dropna(subset=["Stop_Name"])
+
+df_obs_boarding = (
+    df_obs_boarding.groupby(["Stop_Name", "Access_Type"], as_index=False)[
+        "boarding_weight"
+    ]
+    .sum()
+    .assign(Boardings=lambda x: x["boarding_weight"] / 2, Source="On-Board Survey")[
+        ["Stop_Name", "Access_Type", "Boardings", "Source"]
+    ]
+)
+```
+
+```{python}
+# | eval: false
+# | echo: false
+# | include: false
+
+# Reference: https://maps.rideuta.com/portal/apps/sites/#/uta-open-data/datasets/6eb88701ef9741f7a19f0b5b84f66770/api
+
+# 1. Flexible parameters dictionary
+query_params = {
+    "mode": "Commuter Rail",
+    "route": "FrontRunner",
+    "year_": 2023,
+    "servicetype": "WKD",
+    "month_": ["September", "October", "November"],
+}
+
+# 2. Build the WHERE clause dynamically
+clauses = []
+for key, value in query_params.items():
+    if isinstance(value, list):
+        # Handle lists with IN ('A', 'B')
+        list_str = ", ".join([f"'{v}'" for v in value])
+        clauses.append(f"{key} IN ({list_str})")
+    elif isinstance(value, str):
+        # Handle strings with single quotes
+        clauses.append(f"{key} = '{value}'")
+    else:
+        # Handle numbers/booleans
+        clauses.append(f"{key} = {value}")
+
+where_clause = " AND ".join(clauses)
+
+# 3. Setup API and Fetch
+url = "https://maps.rideuta.com/server/rest/services/Hosted/RAIL_STOP_RIDERSHIP_TABLE_SINCE_2017/FeatureServer/0/query"
+api_params = {"where": where_clause, "outFields": "*", "f": "json"}
+
+df_apc_boarding = (
+    pd.json_normalize(requests.get(url, params=api_params).json()["features"])
+    .rename(columns=lambda x: x.replace("attributes.", "").lower())
+    .groupby("stopname")[["avgboardings", "avgalightings"]]
+    .mean()
+    .assign(Boardings=lambda x: x.mean(axis=1))  # Average of board and alight
+    .reset_index()
+)
+
+# 2. Merge with station names
+df_apc_boarding = df_apc_boarding.merge(
+    df_station_master[["Stop_Name", "UTA_Stops"]],
+    left_on="stopname",
+    right_on="UTA_Stops",
+    how="left",
+)
+
+# 3. Clean up columns
+df_apc_boarding["Access_Type"] = "All"
+df_apc_boarding["Source"] = "Passenger Counts"
+```
+
+```{python}
+# | label: apc-boarding
+
+# Data Source: https://maps.rideuta.com/portal/apps/sites/#/uta-open-data/datasets/6eb88701ef9741f7a19f0b5b84f66770/explore
+df_apc_boarding = (
+    pd.read_csv(config_paths["apc_board"])
+    .query(
+        "`mode` == 'Commuter Rail' and "
+        "`route` == 'FrontRunner' and "
+        "`month_` in ['September', 'October', 'November'] and "
+        "`year_` == 2023 and "
+        "`servicetype` == 'WKD'"
+    )
+    .groupby("stopname")[["avgboardings", "avgalightings"]]
+    .mean()
+    .assign(Boardings=lambda x: x.mean(axis=1))  # Average of board and alight
+    .reset_index()
+)
+
+# 2. Merge with station names
+df_apc_boarding = df_apc_boarding.merge(
+    df_station_master[["Stop_Name", "UTA_Stops"]],
+    left_on="stopname",
+    right_on="UTA_Stops",
+    how="left",
+)
+
+# 3. Clean up columns
+df_apc_boarding["Access_Type"] = "All"
+df_apc_boarding["Source"] = "Passenger Counts"
+```
+
+```{python}
+boardings_barchart = pd.concat(
+    [df_mod_boarding, df_obs_boarding, df_apc_boarding], ignore_index=True
+)
+
+# Ensure strict categorical ordering based on our Master List
+boardings_barchart = boardings_barchart[
+    boardings_barchart["Stop_Name"].notna()
+]  # Safety filter
+boardings_barchart["Stop_Name"] = pd.Categorical(
+    boardings_barchart["Stop_Name"], categories=crt_stops_order, ordered=True
+)
+boardings_barchart = boardings_barchart.sort_values(["Stop_Name", "Source"])
+
+# 7. Export to OJS
+# We pass the dataframe and the explicit sort order list
+ojs_define(data_py=boardings_barchart, sort_order=crt_stops_order)
+```
+
+```{ojs}
+//| panel: input
+//| label: ojs-data-prep
+
+// 1. Transpose data from Column-format (Python) to Row-format (OJS)
+data = transpose(data_py)
+crtRunsAvailable = Array.from(new Set(data.map(d => d.calib_run).filter(r => r != null))).sort()
+
+// 2. Create the Inputs
+viewof crtCalibRunSelect = Inputs.select(crtRunsAvailable, {
+  value: crtRunsAvailable[crtRunsAvailable.length - 1],
+  label: "Calibration Run:"
+})
+
+viewof access_select = Inputs.radio(
+  ["All", "Walk", "Drive"],
+  {label: "Access Mode", value: "All"}
+)
+
+// 3. Filter Data based on selection -- keep observed rows (calib_run == null,
+// e.g. On-Board Survey / Passenger Counts) always visible, only the selected
+// run's Modeled rows
+filtered_data_boarding = data.filter(d => {
+  if (d.calib_run != null && d.calib_run !== crtCalibRunSelect) return false;
+  if (access_select === "All") return true;
+  return d.Access_Type === access_select;
+})
+```
+
+:::{.panel-tabset}
+
+###### Chart
+
+```{ojs}
+//| label: fig-fr-brd
+//| fig-cap: "2023 Average Daily CRT Boardings by Station - Model vs Observed"
+
+// 4. Render Plot
+Plot.plot({
+  height: 450,
+  width: 900,
+  marginLeft: 50,
+  marginBottom: 100, // Extra space for rotated labels
+
+  // Global Style Adjustment
+  style: {
+    backgroundColor: 'transparent',
+    fontSize: "0.85em" // Increases base font size by ~1.4-1.5x
+  },
+
+  // Facet X: The Station Names
+  fx: {
+    padding: 0.2, // Space between Station groups
+    label: null,
+    tickRotate: -45, // Inclined labels (bottom-up)
+    tickSize: 6,
+    domain: sort_order // Enforce geographic sort order
+  },
+
+  // Inner X: The Source (Hidden axis labels)
+  x: {
+    axis: null,
+    paddingOuter: 0.1
+  },
+
+  y: {
+    grid: true,
+    label: "Average Boardings",
+    tickFormat: "s"
+  },
+
+  color: {
+    legend: true,
+    domain: ["On-Board Survey", "Passenger Counts", "Modeled"],
+    range: ["#f28e2b", "#59a14f", "#4e79a7"]
+  },
+  marks: [
+    Plot.barY(filtered_data_boarding,
+      Plot.groupX(
+        { y: "sum" }, // Sum boardings if multiple rows exist (e.g. Walk+Drive when 'Any')
+        {
+          x: "Source", // Separates by Source within Station
+          y: "Boardings",
+          fill: "Source",
+          fx: "Stop_Name", // Groups by Station
+          // --- CUSTOM TOOLTIP CONFIGURATION ---
+          tip: {
+            format: {
+              // 1. Format numbers with commas, no decimals
+              y: (d) => d.toLocaleString("en-US", {maximumFractionDigits: 0}),
+              // 2. Hide redundant fields
+              fx: false,   // Hide "Stop_Name" (it's already in the header)
+              fill: false, // Hide "fill" (redundant with x/Source)
+              x: true      // Keep "Source"
+            }
+          }
+        }
+      )
+    ),
+    Plot.ruleY([0])
+  ]
+})
+```
+
+###### Table
+
+```{ojs}
+// 1. Prepare data for the table: Pivot from Long to Wide format
+pivoted_table_data = {
+  const current_sources = Array.from(new Set(filtered_data_boarding.map(d => d.Source))).sort();
+
+  const rollup = new Map();
+  for (const d of filtered_data_boarding) {
+    if (!rollup.has(d.Stop_Name)) rollup.set(d.Stop_Name, new Map());
+    const stopMap = rollup.get(d.Stop_Name);
+    const currentVal = stopMap.get(d.Source) || 0;
+    stopMap.set(d.Source, currentVal + d.Boardings);
+  }
+
+  const tableRows = sort_order.map(stop => {
+    const row = { "Station Name": stop };
+    for (const src of current_sources) {
+      const stopMap = rollup.get(stop);
+      row[src] = stopMap ? (stopMap.get(src) || 0) : 0;
+    }
+    return row;
+  });
+
+  // Create All Row (Keep as plain strings/numbers for now)
+  const totalRow = { "Station Name": "All" };
+  for (const src of current_sources) {
+    totalRow[src] = d3.sum(tableRows, d => d[src]);
+  }
+
+  return [...tableRows, totalRow];
+}
+
+// 2. Render the Table
+Inputs.table(pivoted_table_data, {
+  columns: [
+    "Station Name",
+    ...Object.keys(pivoted_table_data[0] || {}).filter(k => k !== "Station Name")
+  ],
+  format: {
+    // Bold the "Station Name" if it is the All row
+    "Station Name": d => d === "All" ? html`<b>${d}</b>` : d,
+
+    // Apply formatting and bolding to all dynamic source columns
+    ...Object.fromEntries(
+      Object.keys(pivoted_table_data[0] || {}).filter(k => k !== "Station Name").map(k => [
+        k, (val, i, data) => {
+          const isAll = data[i]["Station Name"] === "All";
+          const formatted = val.toLocaleString("en-US", {maximumFractionDigits: 0});
+          return isAll ? html`<b>${formatted}</b>` : formatted;
+        }
+      ])
+    )
+  },
+  layout: "auto",
+  rows: 21
+})
+```
+
+:::
+
+#### Commuter Rail Distance Travelled
+
+```{python}
+# ==============================================================================
+# PHASE 7: CRT TRIP DISTANCE FREQUENCY
+# ==============================================================================
+
+# NOTE: alltrips_pk/ok and skm_w8/d8_pk/ok aren't yet declared in
+# calibration_runs/*.yaml's outputs.include (CONVERTMAT tab names
+# unconfirmed) -- this whole section will raise until that's added.
+#
+# Distance is looked up from the MODELED skim even for "Observed" trips (an
+# observed trip's O-D pair positioned onto the model's distance skim), so
+# both Modeled and Observed chunks are run-dependent here -- the whole
+# computation runs once per calibration run.
+
+def _load_skm(outputs_dir, filename):
+    with omx.open_file(outputs_dir / filename) as f:
+        return np.array(f["D8"])
+
+
+def _load_trips(outputs_dir, filename, matrix):
+    # values are trips x 100, so divide
+    with omx.open_file(outputs_dir / filename) as f:
+        return np.array(f[matrix]) / 100.0
+
+
+def _load_crt_dist(calib_run, outputs_dir):
+    # --- 7a/7b. Load Distance Skims + Trip Matrices ---
+    skm_w8_pk = _load_skm(outputs_dir, "skm_w8_Pk.omx")
+    skm_w8_ok = _load_skm(outputs_dir, "skm_w8_Ok.omx")
+    skm_d8_pk = _load_skm(outputs_dir, "skm_d8_Pk.omx")
+    skm_d8_ok = _load_skm(outputs_dir, "skm_d8_Ok.omx")
+
+    trp_w8_pk = _load_trips(outputs_dir, "AllTrips_Pk.omx", "wCRT")
+    trp_w8_ok = _load_trips(outputs_dir, "AllTrips_Ok.omx", "wCRT")
+    trp_d8_pk = _load_trips(outputs_dir, "AllTrips_Pk.omx", "dCRT")
+    trp_d8_ok = _load_trips(outputs_dir, "AllTrips_Ok.omx", "dCRT")
+
+    # --- 7c. Build Modeled Records ---
+    _model_chunks = []
+    for trips, skm, period, access in [
+        (trp_w8_pk, skm_w8_pk, "PK", "Walk"),
+        (trp_w8_ok, skm_w8_ok, "OK", "Walk"),
+        (trp_d8_pk, skm_d8_pk, "PK", "Drive"),
+        (trp_d8_ok, skm_d8_ok, "OK", "Drive"),
+    ]:
+        mask = trips > 0
+        _model_chunks.append(
+            pd.DataFrame(
+                {
+                    "Distance": skm[mask],
+                    "Trips": trips[mask],
+                    "Period": period,
+                    "AccessMode": access,
+                    "Source": "Modeled",
+                }
+            )
+        )
+    df_crt_model = pd.concat(_model_chunks, ignore_index=True)
+
+    # --- 7d. Build Observed Records ---
+    df_crt_obs_raw = df_obs[df_obs["transit_mode"] == "CRT"].copy()
+
+    _skim_map = {
+        ("PK", "Walk"): skm_w8_pk,
+        ("PK", "Drive"): skm_d8_pk,
+        ("OK", "Walk"): skm_w8_ok,
+        ("OK", "Drive"): skm_d8_ok,
+    }
+
+    _obs_chunks = []
+    for (period, access), grp in df_crt_obs_raw.groupby(["period", "access_mode"]):
+        skm = _skim_map.get((period, access))
+        if skm is None:
+            continue
+        grp = grp.dropna(subset=["p_TAZID", "a_TAZID"])
+        if grp.empty:
+            continue
+        r = grp["p_TAZID"].astype(int).values - 1
+        c = grp["a_TAZID"].astype(int).values - 1
+        valid = (r >= 0) & (r < skm.shape[0]) & (c >= 0) & (c < skm.shape[1])
+        _obs_chunks.append(
+            pd.DataFrame(
+                {
+                    "Distance": skm[r[valid], c[valid]],
+                    "Trips": grp["weight"].values[valid],
+                    "Period": period,
+                    "AccessMode": access,
+                    "Source": "Observed",
+                }
+            )
+        )
+
+    df_crt_obs = pd.concat(_obs_chunks, ignore_index=True) if _obs_chunks else pd.DataFrame(
+        columns=["Distance", "Trips", "Period", "AccessMode", "Source"]
+    )
+
+    # --- 7e. Combine ---
+    return (
+        pd.concat([df_crt_model, df_crt_obs], ignore_index=True)
+        .query("Distance > 0 and Distance < 200")  # guard against skim fill-values
+        .round({"Distance": 2, "Trips": 4})
+    )
+
+
+df_crt_dist = vs.load_per_run(repo_root, _load_crt_dist)
+ojs_define(crtDistFreq_py=df_crt_dist)
+```
+
+```{ojs}
+// 1. Transpose Python data into row-oriented JS objects
+crtData = transpose(crtDistFreq_py)
+```
+
+```{ojs}
+//| label: ojs-crt-dist-inputs
+//| panel: input
+// layout-ncol deliberately omitted: combined with a "panel: input" OJS cell,
+// it trips a Quarto 1.8.27 bug (makeSubFigures throws "Cannot read
+// properties of undefined (reading 'info')") -- panel: input already flows
+// multiple viewof inputs horizontally on its own without it.
+
+// 2. Controls
+viewof crtPeriodSel = Inputs.select(
+  ["Peak", "Off-Peak", "All"],
+  {label: "Period", value: "All"}
+)
+
+viewof crtAccessSel = Inputs.select(
+  ["Walk", "Drive", "All"],
+  {label: "Access Mode", value: "All"}
+)
+
+viewof crtBinSize = Inputs.range([1, 25], {
+  step: 1, value: 5,
+  label: "Bin size (miles)"
+})
+
+viewof crtViewSel = Inputs.radio(
+  ["Share (%)", "Trip Count"],
+  {label: "View", value: "Share (%)"}
+)
+
+crtDistRunsAvailable = Array.from(new Set(crtData.map(d => d.calib_run))).sort()
+
+viewof crtDistCalibRunSelect = Inputs.select(crtDistRunsAvailable, {
+  value: crtDistRunsAvailable[crtDistRunsAvailable.length - 1],
+  label: "Calibration Run:"
+})
+```
+
+```{ojs}
+// ── 1. Filter by Period, Access Mode, and Calibration Run ────────────────────
+_periodCode = crtPeriodSel === "Peak" ? "PK" : crtPeriodSel === "Off-Peak" ? "OK" : null
+_accessCode = crtAccessSel === "All" ? null : crtAccessSel
+
+crtFiltered = crtData.filter(d =>
+  d.calib_run === crtDistCalibRunSelect &&
+  (_periodCode === null || d.Period     === _periodCode) &&
+  (_accessCode === null || d.AccessMode === _accessCode)
+)
+
+// ── 2. Build histogram bins for each Source ──────────────────────────────────
+crtBinned = {
+  const rawMax = d3.max(crtFiltered, d => d.Distance);
+  const maxDist = rawMax ? Math.ceil(rawMax / crtBinSize) * crtBinSize : 120;
+  const thresholds = d3.range(0, maxDist + crtBinSize, crtBinSize);
+
+  const rows = [];
+  for (const source of ["Observed", "Modeled"]) {
+    const src = crtFiltered.filter(d => d.Source === source);
+    const totalTrips = d3.sum(src, d => d.Trips);
+
+    for (let i = 0; i < thresholds.length - 1; i++) {
+      const lo = thresholds[i];
+      const hi = thresholds[i + 1];
+      const trips = d3.sum(
+        src.filter(d => d.Distance >= lo && d.Distance < hi),
+        d => d.Trips
+      );
+      rows.push({
+        BinLo  : lo,
+        BinHi  : hi,
+        BinMid : (lo + hi) / 2,
+        Trips  : trips,
+        Share  : totalTrips > 0 ? trips / totalTrips : 0,
+        Source : source,
+      });
+    }
+  }
+  return rows;
+}
+```
+
+```{ojs}
+//| label: fig-crt-dist-freq
+//| fig-cap: "CRT Trip Distance Frequency — Model vs Observed"
+
+// ── 3. Render chart ───────────────────────────────────────────────────────────
+Plot.plot({
+  height : 420,
+  width  : 860,
+  marginLeft  : 65,
+  marginBottom: 55,
+
+  style: {
+    backgroundColor: "transparent",
+    fontSize: "0.85em",
+  },
+
+  caption: [
+    crtPeriodSel,
+    crtAccessSel === "All" ? "All Access Modes" : `${crtAccessSel} Access`,
+    `${crtBinSize}-mile bins`
+  ].join("  ·  "),
+
+  x: {
+    label: "CRT Trip Distance (miles) →",
+    tickSpacing: 60,
+  },
+
+  y: {
+    label: crtViewSel === "Trip Count" ? "↑ Number of Trips" : "↑ Share of Trips",
+    grid: true,
+    tickFormat: crtViewSel === "Trip Count"
+      ? d => d.toLocaleString("en-US", {maximumFractionDigits: 0})
+      : d3.format(".1%"),
+  },
+
+  color: {
+    legend : true,
+    domain : ["Observed", "Modeled"],
+    range  : ["#77933c", "#376092"],
+  },
+
+  marks: [
+    // Modeled (blue) — drawn first so Observed sits on top where they overlap
+    Plot.areaY(crtBinned.filter(d => d.Source === "Modeled"), {
+      x          : "BinLo",
+      y          : crtViewSel === "Trip Count" ? "Trips" : "Share",
+      fill       : "#376092",
+      stroke     : "#376092",
+      fillOpacity: 0.35,
+      strokeWidth: 1.5,
+      curve      : "step-after",
+    }),
+
+    // Observed (green)
+    Plot.areaY(crtBinned.filter(d => d.Source === "Observed"), {
+      x          : "BinLo",
+      y          : crtViewSel === "Trip Count" ? "Trips" : "Share",
+      fill       : "#77933c",
+      stroke     : "#77933c",
+      fillOpacity: 0.35,
+      strokeWidth: 1.5,
+      curve      : "step-after",
+    }),
+
+    Plot.tip(crtBinned, Plot.pointerX({
+      x    : "BinMid",
+      y    : crtViewSel === "Trip Count" ? "Trips" : "Share",
+      title: d => {
+        const val = crtViewSel === "Trip Count"
+          ? d.Trips.toLocaleString("en-US", {maximumFractionDigits: 0})
+          : d3.format(".1%")(d.Share);
+        return `${d.Source}\n${d.BinLo}–${d.BinHi} mi\n${val}`;
+      },
+    })),
+
+    Plot.ruleY([0]),
+  ],
+})
+```

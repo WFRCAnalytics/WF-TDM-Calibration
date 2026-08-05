@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tdmcalib"
+version = "0.1.0"
+description = "Orchestration framework for a series of WF-TDM calibration runs (ported from WF-TDM-Runs' tdmruns, flattened for a single calibration-run axis instead of run_set/scenario nesting)"
+requires-python = ">=3.10"
+dependencies = [
+    "pyyaml>=6.0",
+    "jsonschema>=4.0",
+    "click>=8.0",
+    "openmatrix>=0.3.5",
+    "geopandas>=0.13",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+# Everything the report/ Quarto reports need beyond the base dependencies
+# above (pandas/plotly/etc.) -- see report/README.md.
+reports = [
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "plotly>=5.0",
+    "jupyter>=1.0",
+    "ipykernel>=6.0",
+    "dbfread>=2.0",
+]
+
+[project.scripts]
+tdmcalib = "tdmcalib.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

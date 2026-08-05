@@ -1,0 +1,436 @@
+---
+title: Compare Model Results
+execute:
+    echo: false
+    message: false
+    warning: false
+---
+
+```{python}
+# | label: drive-distance-setup
+
+import pandas as pd
+import numpy as np
+from pathlib import Path
+import sys
+
+sys.path.insert(0, ".")
+import _validation_scripts as vs
+
+repo_root = Path("..")
+calib_runs = vs.list_available_runs(repo_root)
+
+# static reference / shared observed path (not run-specific) -- per-run
+# in_rider_summary (carries a Cube-generated `___{runId}___` filename prefix --
+# see 3-modechoice.qmd's note) is resolved inside the per-run loader below,
+# against each run's own outputs_dir
+config_paths = {
+    "in_obs_processed": r"../inputs/UTA_OBS_2024_Linked_FactorAdjusted.csv",
+}
+```
+
+## Access to CRT Stations
+
+```{python}
+# | label: crt-stops
+
+# Define FrontRunner Stops in NorthBound Direction
+df_station_master = pd.DataFrame(
+    {
+        "Model_N": [
+            50024,
+            50029,
+            50030,
+            50035,
+            50040,
+            10008,
+            10010,
+            10016,
+            10019,
+            10021,
+            10025,
+            10031,
+            10035,
+            10036,
+            10042,
+            10046,
+        ],
+        "UTA_Stops": [
+            "Provo Central Station",
+            "Orem Central Station",
+            "Vineyard Station",
+            "American Fork Station",
+            "Lehi Station",
+            "Draper Station",
+            "South Jordan Station",
+            "Murray Central Station",
+            "Salt Lake Central Station",
+            "North Temple Station",
+            "Woods Cross Station",
+            "Farmington Station",
+            "Layton Station",
+            "Clearfield Station",
+            "Roy Station",
+            "Ogden Central Station",
+        ],
+    }
+)
+```
+
+```{python}
+# | label: drive-obs-process
+
+df_crt_access = (
+    pd.read_csv(config_paths["in_obs_processed"], low_memory=False)
+    # 1. Filter for CRT trips accessed by Drive OR Walk
+    .query("FirstMode == 'CRT'")
+    # 2. Assign the raw boarding address based on PA/AP direction
+    .assign(
+        STOP_ADDR=lambda x: np.where(
+            x["PA_AP"] == "PA", x["STOP_ON_ADDR"], x["STOP_OFF_ADDR"]
+        )
+    )
+    # 3. Extract the clean Stop_Name using your station list
+    .assign(
+        Stop_Name=lambda x: x["STOP_ADDR"].str.extract(
+            f"({'|'.join(df_station_master['UTA_Stops'])})", expand=False
+        )
+    )
+)
+
+# Filter out rows with missing stop names or distances for a clean plot
+df_plot = df_crt_access.dropna(subset=["Stop_Name", "boarding_weight"])
+```
+
+```{python}
+# | label: crt-model-process
+
+# 1. Setup Mapping
+station_nodes = df_station_master["Model_N"].tolist()
+node_map = dict(zip(df_station_master["Model_N"], df_station_master["UTA_Stops"]))
+
+# 2. Read, Filter, and Process Modeled Data (one calibration run at a time)
+def _load_crt_model(calib_run, outputs_dir):
+    in_rider_summary = vs.find_one(outputs_dir, "*transit_rider_summary_link.csv")
+    df_rider_summary = pd.read_csv(in_rider_summary).query(
+        "Mode.isin([11, 12, 80]) and A < 10000 and B in @station_nodes"
+    )
+
+    df_model_plot = (
+        df_rider_summary.assign(Stop_Name=lambda x: x["B"].map(node_map))
+        .query("FromSkim_CRT > 0")
+        .dropna(subset=["Stop_Name"])
+        .rename(
+            columns={
+                "Distance": "access_dist",
+                "Time": "access_time",
+                "FromSkim_CRT": "boarding_weight",
+                "AccessMode": "Ac_Mode2_Model",
+            }
+        )
+        .assign(
+            Ac_Mode2_Model=lambda x: x["Ac_Mode2_Model"].str.title(),
+            access_dist=lambda x: pd.to_numeric(x["access_dist"], errors="coerce"),
+            access_time=lambda x: pd.to_numeric(x["access_time"], errors="coerce"),
+            # If your data is x100 (e.g. 1500 = 15 trips), uncomment the line below:
+            # boarding_weight = lambda x: x['boarding_weight'] / 100
+        )
+    )
+    return df_model_plot[
+        ["Stop_Name", "access_dist", "access_time", "boarding_weight", "Ac_Mode2_Model"]
+    ]
+
+df_model_plot = vs.load_per_run(repo_root, _load_crt_model)
+
+# 3. Export Both Datasets to OJS
+ojs_define(
+    crt_plot_data=df_plot[
+        ["Stop_Name", "access_dist", "access_time", "boarding_weight", "Ac_Mode2_Model"]
+    ],
+    crt_model_data=df_model_plot,
+    station_list=df_station_master["UTA_Stops"].tolist(),
+)
+```
+
+```{python}
+# | label: debug-crt-access-validation
+# | eval: true
+# | echo: false
+
+# ==============================================================================
+# DEBUG: VALIDATE CRT ACCESS COUNTS (OBSERVED VS MODELED)
+# ==============================================================================
+print("--- STARTING CRT ACCESS VALIDATION ---\n")
+
+# 1. Define Station Map (Model Node -> Station Name)
+station_map = {
+    50024: "Provo Central Station",
+    50029: "Orem Central Station",
+    50030: "Vineyard Station",
+    50035: "American Fork Station",
+    50040: "Lehi Station",
+    10008: "Draper Station",
+    10010: "South Jordan Station",
+    10016: "Murray Central Station",
+    10019: "Salt Lake Central Station",
+    10021: "North Temple Station",
+    10025: "Woods Cross Station",
+    10031: "Farmington Station",
+    10035: "Layton Station",
+    10036: "Clearfield Station",
+    10042: "Roy Station",
+    10046: "Ogden Central Station",
+}
+
+# ------------------------------------------------------------------------------
+# A. ANALYZE OBSERVED DATA
+# ------------------------------------------------------------------------------
+print(f"Loading Observed Data from: {config_paths['in_obs_processed']}")
+df_obs_debug = pd.read_csv(config_paths["in_obs_processed"], low_memory=False)
+
+# Filter: First Mode is CRT (Access trips only, no transfers)
+obs_crt_debug = df_obs_debug[df_obs_debug["FirstMode"] == "CRT"].copy()
+
+# Map Station Names (PA/AP Logic)
+obs_crt_debug["STOP_ADDR"] = np.where(
+    obs_crt_debug["PA_AP"] == "PA",
+    obs_crt_debug["STOP_ON_ADDR"],
+    obs_crt_debug["STOP_OFF_ADDR"],
+)
+obs_crt_debug["Station"] = obs_crt_debug["STOP_ADDR"].str.extract(
+    f"({'|'.join(station_map.values())})", expand=False
+)
+
+# Group by Mode and Station
+print("\n>>> OBSERVED: Total Boardings by Access Mode")
+print(obs_crt_debug.groupby("Ac_Mode2_Model")["boarding_weight"].sum().round(1))
+
+print("\n>>> OBSERVED: Boardings by Station & Mode")
+obs_station_stats = (
+    obs_crt_debug.groupby(["Station", "Ac_Mode2_Model"])["boarding_weight"]
+    .sum()
+    .unstack(fill_value=0)
+    .round(1)
+)
+# Show only relevant columns if they exist
+cols_to_show = [c for c in ["Walk", "Bike", "Drive"] if c in obs_station_stats.columns]
+print(obs_station_stats[cols_to_show])
+
+
+# ------------------------------------------------------------------------------
+# B. ANALYZE MODELED DATA (one calibration run at a time)
+# ------------------------------------------------------------------------------
+for _calib_run in calib_runs:
+    _outputs_dir = vs.resolve_latest_run_outputs(repo_root, _calib_run)
+    _in_rider_summary = vs.find_one(_outputs_dir, "*transit_rider_summary_link.csv")
+    print(f"\nLoading Modeled Data ({_calib_run}) from: {_in_rider_summary}")
+    df_model_debug = pd.read_csv(_in_rider_summary)
+
+    # Filter: Mode 11/12 (Walk), 80 (Drive); Centroid (A<10000) -> Station (B in map)
+    model_crt_debug = df_model_debug[
+        (df_model_debug["Mode"].isin([11, 12, 80]))
+        & (df_model_debug["A"] < 10000)
+        & (df_model_debug["B"].isin(station_map.keys()))
+    ].copy()
+
+    # Map Columns
+    model_crt_debug["Station"] = model_crt_debug["B"].map(station_map)
+    model_crt_debug["Access_Mode"] = model_crt_debug["Mode"].map(
+        {11: "Walk", 12: "Walk", 80: "Drive"}
+    )
+
+    # Group by Mode and Station
+    print(f"\n>>> MODELED ({_calib_run}): Total Boardings by Access Mode")
+    print(model_crt_debug.groupby("Access_Mode")["FromSkim_CRT"].sum().round(1))
+
+    print(f"\n>>> MODELED ({_calib_run}): Boardings by Station & Mode")
+    model_station_stats = (
+        model_crt_debug.groupby(["Station", "Access_Mode"])["FromSkim_CRT"]
+        .sum()
+        .unstack(fill_value=0)
+        .round(1)
+    )
+    print(model_station_stats)
+
+print("\n--- VALIDATION COMPLETE ---")
+```
+
+```{ojs}
+//| panel: input
+
+// 2. Define Inputs with Custom Layout
+crtRunsAvailable = Array.from(new Set(transpose(crt_model_data).map(d => d.calib_run))).sort()
+
+viewof crtCalibRunSelect = Inputs.select(crtRunsAvailable, {
+  value: crtRunsAvailable[crtRunsAvailable.length - 1],
+  label: "Calibration Run"
+});
+viewof modeInput = Inputs.select(["Drive", "Walk"], {label: "Access Mode", value: "Drive"});
+viewof metricInput = Inputs.select(["Access Distance (mi)", "Access Time (min)"], {label: "Metric", value: "Access Distance (mi)"});
+viewof layersInput = Inputs.checkbox(["Observed", "Modeled"], {label: "Show Data:", value: ["Observed", "Modeled"]});
+```
+
+```{ojs}
+//| label: merged-violin-plot
+
+// 1. Prepare Data
+dataObs = transpose(crt_plot_data)
+dataMod = transpose(crt_model_data).filter(d => d.calib_run === crtCalibRunSelect)
+
+// 2. Reactive Filtering
+metricInfo = metricInput === "Access Distance (mi)"
+  ? { col: "access_dist", label: "Distance (miles)", max: 10 }
+  : { col: "access_time", label: "Time (minutes)", max: 30 };
+
+filteredObs = dataObs.filter(d => d.Ac_Mode2_Model === modeInput);
+filteredMod = dataMod.filter(d => d.Ac_Mode2_Model === modeInput);
+
+// Calculate dynamic max domain
+domainMax = Math.max(
+  d3.max(filteredObs, d => d[metricInfo.col]) || 0,
+  d3.max(filteredMod, d => d[metricInfo.col]) || 0
+) * 1.05;
+
+// 3. Render Merged Plot
+Plot.plot({
+  height: 900,
+  marginLeft: 160,
+  marginTop: 40,
+  style: { fontFamily: "Inter, sans-serif", fontSize: "13px", color: "#374151" },
+
+  x: {
+    label: metricInfo.label,
+    labelOffset: 40,
+    domain: [0, domainMax],
+    grid: true,
+    tickSize: 0,
+    line: true
+  },
+
+  fy: {
+    label: null,
+    domain: station_list,
+    padding: 0.1,
+    tickFormat: d => d.replace(" Station", "")
+  },
+
+  y: {
+    axis: "right",          // Move axis to the right side
+    label: "Weighted Count", // Label what the height represents
+    grid: true,             // Add horizontal grid lines to help compare peaks
+    tickFormat: "s"         // Short format (e.g., 200, 1.5k) to save space
+  },
+
+  color: {
+    domain: ["Observed", "Modeled"],
+    range: ["#77933c", "#376092"],
+    legend: true
+  },
+
+  marks: [
+    // --- MODELED LAYER (Blue) ---
+    layersInput.includes("Modeled") ? Plot.areaY(filteredMod, Plot.binX(
+      { y: "sum" },
+      {
+        x: metricInfo.col,
+        fy: "Stop_Name",
+        weight: "boarding_weight",
+        thresholds: 50,
+        curve: "basis",
+        fill: "#376092",
+        fillOpacity: 0.5,
+        sort: { fy: null }
+      }
+    )) : null,
+
+    layersInput.includes("Modeled") ? Plot.lineY(filteredMod, Plot.binX(
+      { y: "sum" },
+      {
+        x: metricInfo.col,
+        fy: "Stop_Name",
+        weight: "boarding_weight",
+        thresholds: 50,
+        curve: "basis",
+        stroke: "#376092",
+        strokeWidth: 1.5
+      }
+    )) : null,
+
+    // --- OBSERVED LAYER (Green) ---
+    layersInput.includes("Observed") ? Plot.areaY(filteredObs, Plot.binX(
+      { y: "sum" },
+      {
+        x: metricInfo.col,
+        fy: "Stop_Name",
+        weight: "boarding_weight",
+        thresholds: 50,
+        curve: "basis",
+        fill: "#77933c",
+        fillOpacity: 0.5,
+        sort: { fy: null }
+      }
+    )) : null,
+
+    layersInput.includes("Observed") ? Plot.lineY(filteredObs, Plot.binX(
+      { y: "sum" },
+      {
+        x: metricInfo.col,
+        fy: "Stop_Name",
+        weight: "boarding_weight",
+        thresholds: 50,
+        curve: "basis",
+        stroke: "#77933c",
+        strokeWidth: 1.5
+      }
+    )) : null,
+
+    // --- SHARED BASELINE ---
+    Plot.ruleY([0], { stroke: "#e5e7eb", strokeWidth: 1 }),
+
+    // --- MEDIANS ---
+    layersInput.includes("Modeled") ? Plot.ruleX(filteredMod, Plot.groupZ(
+      { x: "median" },
+      {
+        x: metricInfo.col,
+        fy: "Stop_Name",
+        weight: "boarding_weight",
+        stroke: "#376092",
+        strokeWidth: 2,
+        strokeDasharray: "4,2",
+        tip: {
+          format: {
+            x: (d) => `Median: ${d.toFixed(2)} ${metricInput.includes("Time") ? "min" : "mi"}`,
+            fy: false,
+            weight: false
+          },
+          fill: "white",
+          stroke: "#374151",
+          anchor: "bottom"
+      }
+      }
+    )) : null,
+
+    layersInput.includes("Observed") ? Plot.ruleX(filteredObs, Plot.groupZ(
+      { x: "median" },
+      {
+        x: metricInfo.col,
+        fy: "Stop_Name",
+        weight: "boarding_weight",
+        stroke: "#77933c",
+        strokeWidth: 2,
+        strokeDasharray: "4,2",
+        tip: {
+          format: {
+            x: (d) => `Median: ${d.toFixed(2)} ${metricInput.includes("Time") ? "min" : "mi"}`,
+            fy: false,
+            weight: false
+          },
+          fill: "white",
+          stroke: "#374151",
+          anchor: "bottom"
+      }
+      }
+    )) : null
+  ]
+})
+```

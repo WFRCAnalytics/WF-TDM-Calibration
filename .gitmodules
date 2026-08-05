@@ -1,0 +1,4 @@
+[submodule "tdm"]
+	path = tdm
+	url = https://github.com/WFRCAnalytics/WF-TDM-Development.git
+	branch = main

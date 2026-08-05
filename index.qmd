@@ -1,0 +1,16 @@
+---
+title: TDM Calibration Reports
+---
+
+Calibration validation reports comparing modeled results against observed data
+(HTS, ACS, OBS, and count data). Each report covers every available calibration
+run — use the in-page "Calibration Run" selector to pick which run's modeled
+results to view against observed data.
+
+- [Household Disaggregation & Auto Ownership](report/0-hhdisag-autoown.qmd)
+- [Trip Generation](report/1-tripgen.qmd)
+- [Trip Distribution & HBW Destination Choice](report/2-distribution.qmd)
+- [Mode Choice](report/3-modechoice.qmd)
+- [Highway Assignment](report/4-assignhwy.qmd)
+- [Compare Model Results](report/7-modelresults.qmd)
+- [Compare Calibration Runs](report/compare.qmd)

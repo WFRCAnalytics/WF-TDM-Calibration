@@ -1,0 +1,818 @@
+---
+title: Trip Generation
+echo: false
+warning: false
+message: false
+---
+
+```{python}
+# ==============================================================================
+# CONFIGURATION
+# ==============================================================================
+import pandas as pd
+import numpy as np
+from dbfread import DBF
+import plotly.express as px
+from tabulate import tabulate
+from IPython.display import Markdown
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, ".")
+import _validation_scripts as vs
+
+# repo root, and every calibration run with at least one successful tdmcalib
+# run to load and compare -- no single "calib_run" anymore (see
+# report/README.md's "one report per stage, not per run" note)
+repo_root = Path("..")
+calib_runs = vs.list_available_runs(repo_root)
+
+# static reference paths (not run-specific)
+config_paths = {
+    "taz_dbf": r"data/0-hhdisag-autoown/WFv1000_TAZ.dbf",
+}
+
+# variables
+debug = False
+nameMod = "Model"
+```
+
+```{python}
+#| echo: false
+#| include: false
+
+# import global TDM functions
+sys.path.insert(0, '../../Resources/2-Python/global-functions')
+import BigQuery
+
+client = BigQuery.getBigQueryClient_Confidential2023UtahHTS()
+```
+
+```{python}
+# read in county data
+counties_df = client.query("SELECT CO_FIPS, CO_NAME FROM `wfrc-modeling-data.prd_boundary.county_geo`").to_dataframe()
+counties_df['County'] = counties_df['CO_NAME'].str.title()
+if debug: display(counties_df)
+```
+
+```{python}
+# read in TAZ data
+taz_df = pd.DataFrame(DBF(config_paths["taz_dbf"], load=True))
+
+if debug: display(taz_df)
+```
+
+```{python}
+# import + process model outputs, one calibration run at a time
+# (see _validation_scripts.load_per_run -- results get concatenated with a
+# 'calib_run' column below, once every run is loaded)
+
+def _load_modeled_tripgen(calib_run, outputs_dir):
+    # from tdm 2_TripGen output
+    mod_pa_wide_df = pd.read_csv(outputs_dir / "pa_final.csv")
+
+    # from tdm 0_InputProcessing output
+    mod_se_df = pd.DataFrame(DBF(outputs_dir / "SE_File.dbf", load=True))
+    mod_se_df = mod_se_df[['Z','TOTHH','HHPOP']].rename(columns={'Z':'TAZID'})
+    mod_se_county_df = mod_se_df.merge(taz_df[['TAZID','CO_FIPS']], on='TAZID').groupby(['CO_FIPS'], as_index=False).agg(TOTHH=('TOTHH','sum'),HHPOP=('HHPOP','sum'))
+
+    # calculate the total number of trip end productions for the modeled data
+    mod_p_wide_df = mod_pa_wide_df.filter(regex='^(TAZID|.*_P)$').copy()
+    mod_p_wide_df['HBSCH_P'] = mod_p_wide_df['HBSCHPR_P'] + mod_p_wide_df['HBSCHSC_P']
+
+    # filter to only columns to compare here, including removing college which is not part of trip gen
+    mod_p_wide_df = mod_p_wide_df[['TAZID','HBW_P','HBSHP_P','HBOTH_P','HBSCH_P','NHBW_P','NHBNW_P','IX_P']]
+    mod_p_wide_df = mod_p_wide_df.rename(columns=lambda x: x.rstrip('_P'))
+    mod_p_wide_df = mod_p_wide_df.rename(columns={'HBSH':'HBShp', 'HBOTH':'HBOth','HBSCH':'HBSch'})
+
+    # make the data long
+    mod_p_df = mod_p_wide_df.melt(id_vars=['TAZID'], var_name='Purpose', value_name='Trips')
+
+    # summarize by county
+    mod_p_county_df = mod_p_df.merge(taz_df[['TAZID','CO_FIPS']], on='TAZID').groupby(['CO_FIPS','Purpose'],as_index=False).agg(Trips=('Trips','sum'))
+    mod_p_se_county_df = mod_p_county_df.merge(mod_se_county_df, on='CO_FIPS')
+    mod_p_se_county_df = mod_p_se_county_df.merge(counties_df[['CO_FIPS','County']], on='CO_FIPS').drop(columns='CO_FIPS')
+
+    # add total row for all counties (region)
+    totals_by_year = (mod_p_se_county_df.groupby(['Purpose'], as_index=False).sum(numeric_only=True))
+    totals_by_year['County'] = 'Region'
+    mod_p_se_county_reg_df = pd.concat([mod_p_se_county_df, totals_by_year],ignore_index=True)
+
+    mod_p_se_county_reg_df['Trips per Person'] = mod_p_se_county_reg_df['Trips'] / mod_p_se_county_reg_df['HHPOP']
+    mod_p_se_county_reg_df['Trips per Household'] = mod_p_se_county_reg_df['Trips'] / mod_p_se_county_reg_df['TOTHH']
+    mod_p_se_county_reg_df['Data Source'] = nameMod
+
+    return mod_p_se_county_reg_df.drop(columns=['Trips','TOTHH','HHPOP'])
+```
+
+```{python}
+# household travel survey (hts) data from bigquery
+# union multiple sources to get single table for ease of queries
+# make sure each year field names translate to same resulting names
+
+hts_hh_df = client.query("""
+  SELECT
+    2023                          AS hts_year,
+    CAST(hh_id AS STRING)         AS hh_id,
+    hh_weight                     AS hh_weight,
+    CAST(taz_v4.CO_TAZID AS INT)  AS hCO_TAZID,
+    CAST(taz_v4.CO_FIPS AS INT)   AS hCO_FIPS,
+    CAST(taz_v4.SUBAREAID AS INT) AS hSAID
+  FROM `wfrc-modeling-data.prd_tdm_hts_2023.hh` AS hh
+  JOIN `wfrc-modeling-data.prd_tdm_taz.ustm_v4_taz_2025_07_29_geo_enhanced` AS taz_v4
+    ON hh.hCO_TAZID_USTMv4 = taz_v4.CO_TAZID
+  WHERE hh_weight > 0
+
+  UNION ALL
+
+  SELECT
+    2012                          AS hts_year,
+    password                      AS hh_id,
+    weight                        AS hh_weight,
+    CAST(taz_v3.CO_TAZID AS INT)  AS hCO_TAZID,
+    CAST(taz_v3.CO_FIPS AS INT)   AS hCO_FIPS,
+    CAST(taz_v3.SUBAREAID AS INT) AS hSAID
+  FROM `wfrc-modeling-data.prd_tdm_hts_2012.household` AS hh
+  JOIN `wfrc-modeling-data.prd_tdm_taz.ustm_v3_taz_2021_09_22_geo` AS taz_v3
+    ON hh.h_CoTAZID_v30 = taz_v3.CO_TAZID
+  WHERE weight > 0
+
+  ORDER BY hts_year, hCO_TAZID
+""").to_dataframe()
+
+if debug: display(hts_hh_df)
+
+# display results by county and subarea
+
+if debug:
+    # --- Build + display pivot by hSAID, hCO_FIPS (years as columns) ---
+    hh_pivot_cfips = (
+        hts_hh_df
+        .groupby(['hts_year', 'hSAID', 'hCO_FIPS'], as_index=False)['hh_weight']
+        .sum()
+        .pivot_table(
+            index=['hSAID', 'hCO_FIPS'],
+            columns='hts_year',
+            values='hh_weight',
+            fill_value=0
+        )
+        .reset_index()
+    )
+
+    # remove the columns index name
+    hh_pivot_cfips.columns.name = None
+
+    # format only pivoted hh_weight columns (the year columns)
+    year_cols = [c for c in hh_pivot_cfips.columns if isinstance(c, int)]
+    display(hh_pivot_cfips.style.format({c: "{:,.0f}" for c in year_cols}))
+
+
+    # --- Build + display pivot by hSAID only (years as columns) ---
+    # --- Build pivot ---
+    hh_pivot_subarea = (
+        hts_hh_df
+        .groupby(['hts_year', 'hSAID'], as_index=False)['hh_weight']
+        .sum()
+        .pivot_table(
+            index=['hSAID'],
+            columns='hts_year',
+            values='hh_weight',
+            fill_value=0
+        )
+        .reset_index()
+    )
+
+    # remove the columns index name
+    hh_pivot_subarea.columns.name = None
+
+    # --- Add TOTAL row ---
+    year_cols = [c for c in hh_pivot_subarea.columns if isinstance(c, int)]
+
+    total_row = (
+        hh_pivot_subarea[year_cols]
+        .sum()
+        .to_frame()
+        .T
+    )
+
+    total_row['hSAID'] = 'TOTAL'
+
+    # align column order
+    total_row = total_row[hh_pivot_subarea.columns]
+
+    hh_pivot_subarea = pd.concat(
+        [hh_pivot_subarea, total_row],
+        ignore_index=True
+    )
+
+    # --- Display with formatting ---
+    display(
+        hh_pivot_subarea.style.format(
+            {c: "{:,.0f}" for c in year_cols}
+        )
+    )
+
+```
+
+```{python}
+# household travel survey (hts) person data from bigquery
+# make sure each year field names translate to same resulting names
+hts_person_df = client.query(f"""
+  SELECT
+    2023                          AS hts_year,
+    CAST(hh_id AS STRING)         AS hh_id,
+    CAST(person_id AS STRING)     AS person_id,
+    person_weight                 AS person_weight
+  FROM `wfrc-modeling-data.prd_tdm_hts_2023.person`
+  WHERE
+    person_weight > 0
+
+  UNION ALL
+
+  SELECT
+    2012                          AS hts_year,
+    password                      AS hh_id,
+    HHMemberID                    AS person_id,
+    weight                        AS person_weight
+  FROM `wfrc-modeling-data.prd_tdm_hts_2012.person`
+  WHERE
+    weight > 0
+  
+  ORDER BY hts_year
+""").to_dataframe()
+
+hts_person_df = hts_person_df.merge(hts_hh_df[['hts_year','hh_id','hCO_TAZID','hCO_FIPS','hSAID']], on=['hts_year','hh_id'])
+
+if debug: display(hts_person_df)
+
+# display results by county and subarea
+
+if debug:
+    # --- Build + display pivot by hSAID, hCO_FIPS (years as columns) ---
+    person_pivot_cfips = (
+        hts_person_df
+        .groupby(['hts_year', 'hSAID', 'hCO_FIPS'], as_index=False)['person_weight']
+        .sum()
+        .pivot_table(
+            index=['hSAID', 'hCO_FIPS'],
+            columns='hts_year',
+            values='person_weight',
+            fill_value=0
+        )
+        .reset_index()
+    )
+
+    # remove the columns index name
+    person_pivot_cfips.columns.name = None
+
+    # format only pivoted person_weight columns (the year columns)
+    year_cols = [c for c in person_pivot_cfips.columns if isinstance(c, int)]
+    display(person_pivot_cfips.style.format({c: "{:,.0f}" for c in year_cols}))
+
+
+    # --- Build + display pivot by hSAID only (years as columns) ---
+    # --- Build pivot ---
+    person_pivot_subarea = (
+        hts_person_df
+        .groupby(['hts_year', 'hSAID'], as_index=False)['person_weight']
+        .sum()
+        .pivot_table(
+            index=['hSAID'],
+            columns='hts_year',
+            values='person_weight',
+            fill_value=0
+        )
+        .reset_index()
+    )
+
+    # remove the columns index name
+    person_pivot_subarea.columns.name = None
+
+    # --- Add TOTAL row ---
+    year_cols = [c for c in person_pivot_subarea.columns if isinstance(c, int)]
+
+    total_row = (
+        person_pivot_subarea[year_cols]
+        .sum()
+        .to_frame()
+        .T
+    )
+
+    total_row['hSAID'] = 'TOTAL'
+
+    # align column order
+    total_row = total_row[person_pivot_subarea.columns]
+
+    person_pivot_subarea = pd.concat(
+        [person_pivot_subarea, total_row],
+        ignore_index=True
+    )
+
+    # --- Display with formatting ---
+    display(
+        person_pivot_subarea.style.format(
+            {c: "{:,.0f}" for c in year_cols}
+        )
+    )
+```
+
+```{python}
+
+# household travel survey (hts) trip data from bigquery
+# make sure each year field names translate to same resulting names
+# CO_FIPS and SUBAREA should be consistent no matter the TAZ version structure
+# HBC college trips are produced as a special trip table, so remove here
+
+hts_trip_df = client.query(f"""
+  SELECT
+    2023                          AS hts_year,
+    CAST(hh_id AS STRING)         AS hh_id,
+    PURP7_t                       AS trip_purpose_7,
+    trip_weight                   AS trip_weight,
+    pCO_FIPS                      AS pCO_FIPS,
+    aCO_FIPS                      AS aCO_FIPS,
+    pSUBAREAID                    AS pSAID,
+    aSUBAREAID                    AS aSAID
+  FROM `wfrc-modeling-data.prd_tdm_hts_2023.trip_linked`
+  WHERE
+    PURP7_t != 'HBC' AND
+    trip_weight > 0
+
+  UNION ALL
+
+  SELECT
+    2012                          AS hts_year,
+    password                      AS hh_id,
+    PURP7_t                       AS trip_purpose_7,
+    weight                        AS trip_weight,
+    p_CO_FIPS_v30                 AS pCO_FIPS,
+    a_CO_FIPS_v30                 AS aCO_FIPS,
+    p_SUBAREA_v30                 AS pSAID,
+    a_SUBAREA_v30                 AS aSAID
+  FROM `wfrc-modeling-data.prd_tdm_hts_2012.trip`
+  WHERE
+    PURP7_t != 'HBC' AND
+    weight > 0
+  
+  ORDER BY hts_year
+""").to_dataframe()
+
+hts_trip_df = hts_trip_df.merge(hts_hh_df[['hts_year','hh_id','hCO_TAZID','hCO_FIPS','hSAID']], on=['hts_year','hh_id'])
+
+if debug: display(hts_trip_df)
+
+# display results by county and subarea
+
+if debug:
+    # --- Build + display pivot by hSAID, hCO_FIPS (years as columns) ---
+    trip_pivot_cfips = (
+        hts_trip_df
+        .groupby(['hts_year', 'hSAID', 'hCO_FIPS'], as_index=False)['trip_weight']
+        .sum()
+        .pivot_table(
+            index=['hSAID', 'hCO_FIPS'],
+            columns='hts_year',
+            values='trip_weight',
+            fill_value=0
+        )
+        .reset_index()
+    )
+
+    # remove the columns index name
+    trip_pivot_cfips.columns.name = None
+
+    # format only pivoted trip_weight columns (the year columns)
+    year_cols = [c for c in trip_pivot_cfips.columns if isinstance(c, int)]
+    display(trip_pivot_cfips.style.format({c: "{:,.0f}" for c in year_cols}))
+
+
+    # --- Build + display pivot by hSAID only (years as columns) ---
+    # --- Build pivot ---
+    trip_pivot_subarea = (
+        hts_trip_df
+        .groupby(['hts_year', 'hSAID'], as_index=False)['trip_weight']
+        .sum()
+        .pivot_table(
+            index=['hSAID'],
+            columns='hts_year',
+            values='trip_weight',
+            fill_value=0
+        )
+        .reset_index()
+    )
+
+    # remove the columns index name
+    trip_pivot_subarea.columns.name = None
+
+    # --- Add TOTAL row ---
+    year_cols = [c for c in trip_pivot_subarea.columns if isinstance(c, int)]
+
+    total_row = (
+        trip_pivot_subarea[year_cols]
+        .sum()
+        .to_frame()
+        .T
+    )
+
+    total_row['hSAID'] = 'TOTAL'
+
+    # align column order
+    total_row = total_row[trip_pivot_subarea.columns]
+
+    trip_pivot_subarea = pd.concat(
+        [trip_pivot_subarea, total_row],
+        ignore_index=True
+    )
+
+    # --- Display with formatting ---
+    display(
+        trip_pivot_subarea.style.format(
+            {c: "{:,.0f}" for c in year_cols}
+        )
+    )
+    
+```
+
+
+## Trip Production Rates
+
+The sources of the data include the most recent Utah Household Travel Survey (HTS) from 2023, the HTS from 2012, and the base year model (BY 2023 Model).
+
+
+```{python}
+# calculate the total number of houses in the household travel survey in WF model area
+
+# r = resident
+# v = visitor
+# a = all = resident + visitor
+# t = trip
+# tr = trip rate
+
+wf_hh_sum_df = hts_hh_df[(hts_hh_df['hSAID']==1)].groupby(['hts_year'], as_index=False)['hh_weight'].agg('sum')
+if debug:
+    print('HTS WF Resident Households:')
+    display(wf_hh_sum_df.style.format( {"hh_weight": "{:,.0f}"}))
+
+# calculate thte total number of people in the household travel survey
+wf_pop_sum_df = hts_person_df[(hts_person_df['hSAID']==1)].groupby(['hts_year'], as_index=False)['person_weight'].agg('sum')
+if debug:
+    print('HTS WF Resident Population:')
+    display(wf_pop_sum_df.style.format( {"person_weight": "{:,.0f}"}))
+
+# calculate the number of II productions in the Household Travel Survey
+wf_r_ii_t_df = hts_trip_df[(hts_trip_df['hSAID']==1) & 
+                           (hts_trip_df['pSAID']==1) &
+                           (hts_trip_df['aSAID']==1) ]
+
+wf_r_ii_t_sum_df = wf_r_ii_t_df.groupby(['hts_year'], as_index=False)['trip_weight'].agg('sum')
+if debug:
+    print('HTS WF Resident II Trips:')
+    display(wf_r_ii_t_sum_df.style.format( {"trip_weight": "{:,.0f}"}))
+
+# calculate rates
+wf_r_tr_df = pd.merge(wf_r_ii_t_sum_df, wf_hh_sum_df, on=('hts_year'))
+wf_r_tr_df['trips_per_hh'] = wf_r_tr_df['trip_weight'] / wf_r_tr_df['hh_weight']
+wf_r_tr_df = pd.merge(wf_r_tr_df, wf_pop_sum_df, on=('hts_year'))
+wf_r_tr_df['trips_per_person'] = wf_r_tr_df['trip_weight'] / wf_r_tr_df['person_weight']
+
+if debug:
+    print('HTS WF Resident II Trips Rates:')
+    display(wf_r_tr_df.drop(columns=['trip_weight','person_weight','hh_weight']).style.format( {"trips_per_hh": "{:.2f}", "trips_per_person": "{:.2f}"}))
+
+# calculate visitor II Trip Ends and add to resident II trips visitor has hh not in SUBAREAID 1
+wf_v_ii_t_df = hts_trip_df[(hts_trip_df['hSAID'] != 1) &
+                           (hts_trip_df['pSAID'] == 1) &
+                           (hts_trip_df['aSAID'] == 1) ]
+
+wf_v_ii_t_df
+
+wf_v_ii_t_sum_df = wf_v_ii_t_df.groupby(['hts_year'], as_index=False)['trip_weight'].agg('sum')
+if debug:
+    print('HTS WF Visitor II Trips:')
+    display(wf_v_ii_t_sum_df.style.format( {"trip_weight": "{:,.0f}"}))
+
+
+# combine resident and visitor II trips
+wf_a_ii_t_df = pd.concat([wf_r_ii_t_df, wf_v_ii_t_df])
+
+wf_a_ii_t_sum_df = wf_a_ii_t_df.groupby(['hts_year'], as_index=False)['trip_weight'].agg('sum')
+if debug:
+    print('HTS WF Resident + Visitor II Trips:')
+    display(wf_a_ii_t_sum_df.style.format( {"trip_weight": "{:,.0f}"}))
+
+
+# calculate the number of IX productions in the Household Travel Survey
+wf_a_ix_t_df = hts_trip_df[(hts_trip_df['pSAID'] == 1) &
+                           (hts_trip_df['aSAID'] != 1) ].copy()
+
+# change all purpose for ix trips to IX, since model doesn't breakdown ix by ii purposes
+wf_a_ix_t_df['trip_purpose_7'] = 'IX'
+
+wf_a_ix_t_sum_df = wf_a_ix_t_df.groupby(['hts_year'], as_index=False)['trip_weight'].agg('sum')
+
+if debug:
+    print('HTS WF Resident + Visitor IX Trips:')
+    display(wf_a_ix_t_sum_df.style.format( {"trip_weight": "{:,.0f}"}))
+
+# calculate the total number of production in Household Travel Survey
+wf_a_ii_ix_t_df = pd.concat([wf_a_ii_t_df,wf_a_ix_t_df])
+wf_a_ii_ix_t_sum_df = wf_a_ii_ix_t_df.groupby(['hts_year'], as_index=False)['trip_weight'].agg('sum')
+
+if debug:
+    print('HTS WF Resident + Visitor II and IX Productions:')
+    display(wf_a_ii_ix_t_sum_df.style.format( {"trip_weight": "{:,.0f}"}))
+
+# calculate rates
+wf_a_ii_ix_tr_df = pd.merge(wf_a_ii_ix_t_sum_df, wf_hh_sum_df, on=('hts_year'))
+wf_a_ii_ix_tr_df = pd.merge(wf_a_ii_ix_tr_df, wf_pop_sum_df, on=('hts_year'))
+wf_a_ii_ix_tr_df['trips_per_hh'    ] = wf_a_ii_ix_tr_df['trip_weight'] / wf_a_ii_ix_tr_df['hh_weight'    ]
+wf_a_ii_ix_tr_df['trips_per_person'] = wf_a_ii_ix_tr_df['trip_weight'] / wf_a_ii_ix_tr_df['person_weight']
+
+if debug:
+    print('HTS WF Resident II and IX Trip Rates (including visitor trips):')
+    display(wf_a_ii_ix_tr_df.drop(columns=['trip_weight','person_weight','hh_weight']).style.format( {"trips_per_hh": "{:.2f}", "trips_per_person": "{:.2f}"}))
+```
+
+```{python}
+#### prepare by purpose and by county ####
+
+# aggregate by county
+wf_pop_co_df = hts_person_df[(hts_person_df['hSAID']==1)].groupby(['hts_year','hCO_FIPS'], as_index=False)['person_weight'].agg('sum').rename(columns={'hCO_FIPS':'CO_FIPS'})
+wf_hh_co_df = hts_hh_df[(hts_hh_df['hSAID']==1)].groupby(['hts_year','hCO_FIPS'], as_index=False)['hh_weight'].agg('sum').rename(columns={'hCO_FIPS':'CO_FIPS'})
+wf_a_ii_ix_t_co_df = wf_a_ii_ix_t_df.groupby(['hts_year','pCO_FIPS','trip_purpose_7'], as_index=False)['trip_weight'].agg('sum').rename(columns={'pCO_FIPS':'CO_FIPS'})
+
+# start prepping for rates
+wf_a_ii_ix_tr_p_df = wf_a_ii_ix_t_co_df.copy()
+
+# add total row for all purpose
+totals_by_year = (wf_a_ii_ix_tr_p_df.groupby('hts_year', as_index=False).sum(numeric_only=True))
+totals_by_year['trip_purpose_7'] = 'Total'
+wf_a_ii_ix_tr_p_tot_df = pd.concat([wf_a_ii_ix_tr_p_df, totals_by_year],ignore_index=True)
+
+# join with hh and pop
+wf_a_ii_ix_tr_p_tot_df = pd.merge(wf_a_ii_ix_tr_p_tot_df, wf_hh_co_df, on=(['hts_year','CO_FIPS']))
+wf_a_ii_ix_tr_p_tot_df = pd.merge(wf_a_ii_ix_tr_p_tot_df, wf_pop_co_df, on=(['hts_year','CO_FIPS']))
+
+# add county name
+wf_a_ii_ix_tr_p_tot_df = wf_a_ii_ix_tr_p_tot_df.merge(counties_df[['CO_FIPS','County']], on='CO_FIPS').drop(columns='CO_FIPS')
+
+# add total row for all counties (region)
+totals_by_year = (wf_a_ii_ix_tr_p_tot_df.groupby(['hts_year','trip_purpose_7'], as_index=False).sum(numeric_only=True))
+totals_by_year['County'] = 'Region'
+wf_a_ii_ix_tr_p_tot_reg_df = pd.concat([wf_a_ii_ix_tr_p_tot_df, totals_by_year],ignore_index=True)
+
+
+# calculate rates
+wf_a_ii_ix_tr_p_tot_reg_df['Trips per Household'] = wf_a_ii_ix_tr_p_tot_reg_df['trip_weight'] / wf_a_ii_ix_tr_p_tot_reg_df['hh_weight']
+wf_a_ii_ix_tr_p_tot_reg_df['Trips per Person'] = wf_a_ii_ix_tr_p_tot_reg_df['trip_weight'] / wf_a_ii_ix_tr_p_tot_reg_df['person_weight']
+
+wf_a_ii_ix_tr_p_tot_reg_df['Data Source'] = 'HTS ' + wf_a_ii_ix_tr_p_tot_reg_df['hts_year'].astype(str)
+wf_a_ii_ix_tr_p_tot_reg_df.drop(columns=['hts_year'], inplace=True)
+wf_a_ii_ix_tr_p_tot_reg_df.rename(columns={'trip_weight':'Trips',
+                                           'trip_purpose_7':'Purpose',
+                                           'hh_weight':'Households',
+                                           'person_weight':'Population'
+                                          }, inplace=True)
+
+wf_a_ii_ix_tr_p_tot_reg_df.drop(columns=['Trips','Population','Households'], inplace=True)
+
+if debug:
+    print('HTS WF Resident II and IX Trip Rates (including visitor trips):')
+    display(wf_a_ii_ix_tr_p_tot_reg_df.style.format( {"Trips per Household": "{:.2f}", "Trips per Person": "{:.2f}"}))
+
+```
+
+
+
+```{python}
+# load every calibration run's modeled trip rates and tag each row with
+# 'calib_run' -- lets the OJS run selector filter which run's Model bars show
+mod_p_se_county_reg_df = vs.load_per_run(repo_root, _load_modeled_tripgen)
+
+if debug: display(mod_p_se_county_reg_df)
+```
+
+```{python}
+# concat hts and mod and add total row.
+# HTS rows have no calib_run (not tied to any one run) -- dropna=False keeps
+# them as their own group instead of pandas silently dropping NaN groups.
+
+trip_rates_county_purp_df = pd.concat([wf_a_ii_ix_tr_p_tot_reg_df, mod_p_se_county_reg_df])
+if 'calib_run' not in trip_rates_county_purp_df.columns:
+    trip_rates_county_purp_df['calib_run'] = None
+
+# add total row for all purposes
+totals_by_year = (
+    trip_rates_county_purp_df
+    .groupby(['Data Source', 'County', 'calib_run'], as_index=False, dropna=False)
+    .sum(numeric_only=True)
+)
+totals_by_year['Purpose'] = 'All'
+trip_rates_county_purp_df = pd.concat([trip_rates_county_purp_df, totals_by_year],ignore_index=True)
+
+if debug:
+    print('Model trip rates by County:')
+    display(trip_rates_county_purp_df.style.format( {"Trips per Household": "{:.2f}", "Trips per Person": "{:.2f}"}))
+
+```
+
+
+
+```{python}
+#| include: False
+if debug: 
+    colors2 = {
+        'HTS 2023': 'steelblue',
+        nameMod: 'forestgreen',
+        'HTS 2012': 'gray'
+    }
+
+    fig = px.bar(
+        trip_rates_county_purp_df,
+        x="Purpose",
+        y="Trips per Household",
+        text="Trips per Household",
+        color="Data Source",
+        barmode="group",
+        facet_col="County",
+        facet_col_wrap=3,          # adjust layout as needed
+        height=1200,
+        color_discrete_map=colors2
+    )
+
+    fig.update_yaxes(title='Production to Household Ratio')
+    fig.update_xaxes(
+        title=None,
+        tickangle=0,
+        showticklabels=True,
+        ticks='inside',
+        ticklen=10
+    )
+
+    fig.update_traces(
+        textfont_size=12,
+        textangle=0,
+        textposition="outside",
+        cliponaxis=False,
+        texttemplate='%{y:.2f}'
+    )
+
+    # Optional: clean up facet labels ("County=Salt Lake" → "Salt Lake")
+    fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
+
+    fig
+
+```
+```{python}
+#| include: False
+if debug: 
+    colors2 = {'HTS 2023':'steelblue', nameMod:'forestgreen', 'HTS 2012': 'gray'}
+
+    _plot_df = trip_rates_county_purp_df[(trip_rates_county_purp_df['County']=='Region')]
+
+    fig = px.bar(_plot_df, x="Purpose", y="Trips per Household", text="Trips per Household", color='Data Source', barmode='group', height=500, color_discrete_map=colors2)
+
+    fig.update_xaxes(title=None, tickangle=0, showticklabels=True, ticks='inside', ticklen=10)
+
+    fig.update_traces(textfont_size=12, textangle=0, textposition="outside", cliponaxis=False, texttemplate='%{y:.2f}')
+    fig
+```
+
+
+
+```{python}
+# ======================================================================
+# EXPORT TO OJS
+# ======================================================================
+tripRates = trip_rates_county_purp_df.to_dict(orient="records")
+ojs_define(tripRates=tripRates)
+
+```
+
+```{python}
+# ======================================================================
+# CROSS-RUN COMPARISON: emit headline metrics for report/compare.qmd
+# one file per calibration run (HTS reference rows repeated in each, so
+# compare.qmd can show Model vs. HTS for whichever run it's looking at)
+# ======================================================================
+for _calib_run in calib_runs:
+    _region_all = trip_rates_county_purp_df[
+        (trip_rates_county_purp_df["County"] == "Region")
+        & (trip_rates_county_purp_df["Purpose"] == "All")
+        & (trip_rates_county_purp_df["calib_run"].isna() | (trip_rates_county_purp_df["calib_run"] == _calib_run))
+    ]
+    _summary_metrics = {
+        "calib_run": _calib_run,
+        "stage": "tripgen",
+        "metrics": {
+            row["Data Source"]: {
+                "trips_per_household": row["Trips per Household"],
+                "trips_per_person": row["Trips per Person"],
+            }
+            for _, row in _region_all.iterrows()
+        },
+    }
+    with open(f"summary_metrics_tripgen_{_calib_run}.json", "w") as f:
+        json.dump(_summary_metrics, f, indent=2)
+```
+
+```{ojs}
+//| echo: false
+//| include: false
+
+areas = ["Region","Box Elder","Weber","Davis","Salt Lake","Utah"]
+areasAvailable = areas.filter(a => tripRates.some(d => d.County === a))
+
+metricMap = new Map([
+  ["Trips per Household", "Trips per Household"],
+  ["Trips per Person", "Trips per Person"]
+])
+
+// every calibration run present in the data (Model rows only -- HTS rows
+// have calib_run == null), for the run selector below
+runsAvailable = Array.from(new Set(
+  tripRates.filter(d => d.calib_run != null).map(d => d.calib_run)
+)).sort()
+
+viewof calibRunSelect = Inputs.select(runsAvailable, {
+  value: runsAvailable[runsAvailable.length - 1],
+  label: "Calibration Run"
+})
+
+viewof countySelect = Inputs.select(areasAvailable, {
+  value: "Region",
+  label: "Area"
+})
+
+viewof metricSelect = Inputs.select(metricMap, {
+  value: "Trips per Household",
+  label: "Metric:"
+})
+```
+
+```{ojs}
+//| label: fig-prod-hh
+//| fig-cap: "Trip Generation Rates (II + IX) by Purpose"
+//| echo: false
+
+import {GroupedBarChart} from "@d3/grouped-bar-chart"
+import {Swatches} from "@d3/color-legend"
+
+{
+  const container = html`
+    <div style="display:flex; flex-direction:column; gap:10px;"></div>
+  `;
+
+  // Controls
+  const controls = html`
+    <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;"></div>
+  `;
+  controls.append(viewof calibRunSelect);
+  controls.append(viewof countySelect);
+  controls.append(viewof metricSelect);
+  container.append(controls);
+
+  // Reactive data -- always keep HTS reference rows (calib_run == null),
+  // but only the selected calibration run's Model rows
+  const filtered_data = tripRates
+    .filter(d => d.County === countySelect)
+    .filter(d => d.calib_run == null || d.calib_run === calibRunSelect)
+    .map(d => ({ ...d, "Data Source": String(d["Data Source"]).trim() }));
+
+  const purposeOrder = ["All","HBW","HBShp","HBOth","HBSch","NHBW","NHBNW","IX"];
+  const purposes = purposeOrder.filter(p =>
+    filtered_data.some(d => d.Purpose === p)
+  );
+
+  // Title
+  container.append(html`
+    <div style="font-size:18px; font-weight:600; margin-top:8px;">
+      ${metricSelect} — ${countySelect} — ${calibRunSelect}
+    </div>
+  `);
+
+  // Chart
+  const chart = GroupedBarChart(filtered_data, {
+    x: d => d.Purpose,
+    y: d => d[metricSelect],
+    z: d => d["Data Source"],
+    xDomain: purposes,
+    zDomain: ["HTS 2012", "HTS 2023", "Model"],
+    colors: ["lightgray", "steelblue", "forestgreen"],
+    width: 900
+  });
+
+  chart.querySelectorAll("text").forEach(t => (t.style.fontSize = "18px"));
+  container.append(chart);
+
+  // Legend
+  const color = d3.scaleOrdinal(
+    ["HTS 2012", "HTS 2023", "BY 2023 Model"],
+    ["lightgray", "steelblue", "forestgreen"]
+  );
+  container.append(Swatches(color, { label: "Data Source" }));
+
+  return container;
+}
+```

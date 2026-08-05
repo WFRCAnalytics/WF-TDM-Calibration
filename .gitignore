@@ -1,0 +1,40 @@
+# Raw model output lives inside the tdm/ submodule's own working tree
+# (tdm/Scenarios/{calib_run_id}/, already gitignored by tdm/.gitignore) or,
+# curated and size-capped, under runs/{calib_run_id}/{run_id}/outputs/ (which
+# IS committed — see report/README.md and config/framework.yaml).
+# config/local.yaml holds machine-specific values (Voyager_EXE, etc.).
+config/local.yaml
+
+# Exceeds GitHub's 100MB hard file-size limit -- fetch manually, see
+# README.md's "Setup" section. Everything else under inputs/ (HTS
+# households, OBS, CCS counts, station files, trips_output_CVM_PVM.omx) is
+# comfortably under the limit and stays committed.
+inputs/UT_HTS_2023_Linked_Trips.csv
+
+# Common data/analysis junk
+*.pyc
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store
+*.log
+
+# Environments
+.venv/
+venv/
+env/
+.conda/
+
+# Quarto calibration reports (report/) — local build state only.
+# _site/ (the rendered HTML) is intentionally NOT ignored: it's committed so the
+# publish-pages workflow can deploy it without re-rendering (rendering needs
+# tdm/ + Cube Voyager, which aren't available to the Actions runner).
+/.quarto/
+/_freeze/
+report/**/.quarto_ipynb
+report/**/*.quarto_ipynb
+
+# Python package build/test artifacts
+*.egg-info/
+.pytest_cache/
+
+**/*.quarto_ipynb

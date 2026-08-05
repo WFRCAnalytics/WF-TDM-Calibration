@@ -1,0 +1,135 @@
+#========================================================================================
+# calibration_runs/C33.yaml
+#
+# Historical calibration run, imported (not executed through this repo's
+# tdmcalib pipeline) from its archived, already-converted output at
+# F:\SHARED\Chris\large_files_calibration\v1000\v1000-C33\ -- the same
+# per-stage-subfolder layout WF-TDM-Documentation's own copy of this run
+# used. Curate with:
+#
+#   tdmcalib import-manual-run --run C33 ^
+#     --scenario-folder "F:\SHARED\Chris\large_files_calibration\v1000\v1000-C33"
+#
+# tdm_ref/baseline_control_center below are best-effort record-keeping, not
+# verified fact -- the exact TDM commit and baseline Control Center C33 was
+# actually run against predates this repo and isn't recorded anywhere
+# checked so far. import-manual-run does not check them out or otherwise act
+# on them (see execution.import_manual_run()'s docstring) -- it only records
+# the TDM submodule's current (unrelated) checkout state alongside this
+# string for context.
+#========================================================================================
+calib_run_id: C33
+author: ""
+description: >
+  Historical calibration iteration C33, imported from archived output
+  (F:\SHARED\Chris\large_files_calibration\v1000\v1000-C33\) rather than
+  executed through tdmcalib.
+
+tdm_ref: "unknown-historical"
+baseline_control_center: "_ControlCenter-Calib - BY_2023.block"
+
+outputs:
+  max_file_size_mb: 95
+  include:
+    - datafile: "0-hhdisag-autoown/Joint_HHSize_Income_Worker.dbf"
+    - datafile: "0-hhdisag-autoown/VO_HHSize_VehOwn.dbf"
+    - datafile: "1-tripgen/SE_File.dbf"
+    - datafile: "1-tripgen/pa_final.csv"
+    - datafile: "2a-distribute/DISTLRG_PA_Gravity_AllPurp.csv"
+    - datafile: "2a-distribute/TLF_Cost.csv"
+    - datafile: "2a-distribute/TLF_Dist.csv"
+    - datafile: "2a-distribute/TLF_Time.csv"
+    - datafile: "2b-hbwdestchoice/DISTLRG_PA_AllPurp.csv"
+    - datafile: "2b-hbwdestchoice/VO_HH1_IncLoHi_Worker_VehOwn.dbf"
+    - datafile: "2b-hbwdestchoice/VO_HH2_IncLoHi_Worker_VehOwn.dbf"
+    - datafile: "2b-hbwdestchoice/VO_HH3_IncLoHi_Worker_VehOwn.dbf"
+    - datafile: "2b-hbwdestchoice/VO_HH4_IncLoHi_Worker_VehOwn.dbf"
+    - datafile: "2b-hbwdestchoice/VO_HH5_IncLoHi_Worker_VehOwn.dbf"
+    - datafile: "2b-hbwdestchoice/VO_HH6_IncLoHi_Worker_VehOwn.dbf"
+    - datafile: "3-modechoice/IMZ_TripTotals.csv"
+    - datafile: "3-modechoice/RegionShares_Ok.csv"
+    - datafile: "3-modechoice/RegionShares_Pk.csv"
+    - datafile: "3-modechoice/_transit_brding_summary_node.csv"
+    - datafile: "4-assignhwy/Summary_SEGID.csv"
+    - datafile: "4-assignhwy/Summary_SEGID_Detailed.csv"
+    - datafile: "7-modelresults/_transit_rider_summary_link.csv"
+    # Already OMX (archived pre-converted, unlike a live tdmcalib run's raw
+    # .MTX -- see calibration_runs/C50.yaml's comment) -- trimmed directly,
+    # no Voyager needed. Tab names match calibration_runs/C50.yaml's
+    # (verified against this exact archived data).
+    - matrix: "2a-distribute/PA_AllPurp_GRAVITY.omx"
+      tabs: [HBW, HBShp, HBOth, HBSch_Pr, HBSch_Sc, HBC, NHBW, NHBNW]
+      format: omx
+      source_format: omx
+    - matrix: "2a-distribute/skm_DY_GC.omx"
+      tabs: [HBW, HBShp, HBOth, NHBW, NHBNW, HBS, LT, MD, HV, Ext]
+      format: omx
+      source_format: omx
+    - matrix: "2a-distribute/skm_DY_Dist.omx"
+      tabs: [HBW, HBShp, HBOth, NHBW, NHBNW, HBS, LT, MD, HV, Ext]
+      format: omx
+      source_format: omx
+    - matrix: "4-assignhwy/Skm_AM.omx"
+      tabs: [GP_Dist, GP_IVT]
+      format: omx
+      source_format: omx
+    - matrix: "4-assignhwy/Skm_MD.omx"
+      tabs: [GP_Dist, GP_IVT]
+      format: omx
+      source_format: omx
+    - matrix: "4-assignhwy/Skm_PM.omx"
+      tabs: [GP_Dist, GP_IVT]
+      format: omx
+      source_format: omx
+    - matrix: "4-assignhwy/Skm_EV.omx"
+      tabs: [GP_Dist, GP_IVT]
+      format: omx
+      source_format: omx
+    - matrix: "2b-hbwdestchoice/pa_HBW_0veh_hi.omx"
+      tabs: [trips]
+      format: omx
+      source_format: omx
+    - matrix: "2b-hbwdestchoice/pa_HBW_0veh_lo.omx"
+      tabs: [trips]
+      format: omx
+      source_format: omx
+    - matrix: "2b-hbwdestchoice/pa_HBW_1veh_hi.omx"
+      tabs: [trips]
+      format: omx
+      source_format: omx
+    - matrix: "2b-hbwdestchoice/pa_HBW_1veh_lo.omx"
+      tabs: [trips]
+      format: omx
+      source_format: omx
+    - matrix: "2b-hbwdestchoice/pa_HBW_2veh_hi_noXI.omx"
+      tabs: [trips]
+      format: omx
+      source_format: omx
+    - matrix: "2b-hbwdestchoice/pa_HBW_2veh_lo_noXI.omx"
+      tabs: [trips]
+      format: omx
+      source_format: omx
+    - matrix: "3-modechoice/AllTrips_Pk.omx"
+      tabs: [wCRT, dCRT]
+      format: omx
+      source_format: omx
+    - matrix: "3-modechoice/AllTrips_Ok.omx"
+      tabs: [wCRT, dCRT]
+      format: omx
+      source_format: omx
+    - matrix: "3-modechoice/skm_w8_Pk.omx"
+      tabs: [D8]
+      format: omx
+      source_format: omx
+    - matrix: "3-modechoice/skm_w8_Ok.omx"
+      tabs: [D8]
+      format: omx
+      source_format: omx
+    - matrix: "3-modechoice/skm_d8_Pk.omx"
+      tabs: [D8]
+      format: omx
+      source_format: omx
+    - matrix: "3-modechoice/skm_d8_Ok.omx"
+      tabs: [D8]
+      format: omx
+      source_format: omx

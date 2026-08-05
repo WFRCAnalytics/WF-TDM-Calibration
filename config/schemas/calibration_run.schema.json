@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "calibration_run.schema.json",
+  "title": "Calibration run",
+  "type": "object",
+  "required": ["calib_run_id", "tdm_ref", "baseline_control_center"],
+  "additionalProperties": false,
+  "properties": {
+    "calib_run_id": {
+      "type": "string",
+      "pattern": "^C[0-9]{2,3}$",
+      "description": "Unique, stable ID for this calibration run (e.g. C50). Never reuse after retiring a run."
+    },
+    "description": {
+      "type": "string"
+    },
+    "author": {
+      "type": "string"
+    },
+    "tdm_ref": {
+      "type": "string",
+      "description": "Git tag, branch, or commit SHA in the TDM submodule this calibration run runs against."
+    },
+    "baseline_control_center": {
+      "type": "string",
+      "description": "Filename of the default Control Center template in the TDM's Scenarios/_default/ library this run diffs against."
+    },
+    "input_files": {
+      "type": "object",
+      "description": "Input file paths for this run, relative to the calibration_runs/ directory. Resolved to absolute paths by the framework before writing the Control Center -- keeps this file machine-independent.",
+      "additionalProperties": { "type": "string" }
+    },
+    "overrides": {
+      "type": "object",
+      "description": "Control Center key/value overrides for this calibration run.",
+      "additionalProperties": true
+    },
+    "variables": {
+      "type": "object",
+      "description": "Documentation-only parameters (e.g. a custom driver/step script's inputs) that are not Control Center keys and are not applied by the framework.",
+      "additionalProperties": true
+    },
+    "driver_script": {
+      "type": "string",
+      "description": "Path to a custom driver script (a _HailMary_1Subfolder.s variant), relative to the calibration_runs/ directory. When declared, this one file is staged (copied, keeping its own filename) into the run's working folder before execution, in place of the framework default (config/framework.yaml's default_driver_script). Companion/modified step scripts are NOT auto-staged and stay in place, referenced from this file by a relative path back to their location. Must reference default TDM step scripts as '..\\..\\..\\2_ModelScripts\\...' (three levels up, matching the working folder's depth)."
+    },
+    "start_from_copy": {
+      "type": "string",
+      "description": "calib_run_id of another calibration run whose most recent successful run's raw working folder should be copied (in full) into this run's folder before execution -- lets a run whose change only affects a later model step skip recomputing everything upstream. Resolved via that run's run_metadata.json, skipping past any newer failed attempts to find the most recent success. Only used by `run`/`run-all` -- has no effect on manual execution."
+    },
+    "lock_down_copy": {
+      "type": "boolean",
+      "description": "When true, suppresses the start_from_copy copy for this run, leaving its raw working folder untouched by seeding -- use once the folder already holds the seeded state it needs. Has no effect unless start_from_copy is also declared."
+    },
+    "prep_script": {
+      "type": "string",
+      "description": "Path to a Python prep script, relative to the calibration_runs/ directory. Run once before model execution. Receives --calib-run-dir and --calib-run-id as arguments."
+    },
+    "report_snapshot_script": {
+      "type": "string",
+      "description": "Reserved for a future retirement/snapshot mechanism (not implemented by this version of tdmcalib). Path to a Python script, relative to the calibration_runs/ directory."
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "required": ["datafile"],
+                "properties": {
+                  "datafile": { "type": "string", "description": "Glob pattern, evaluated against each output file's path relative to the run's working folder." },
+                  "columns": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "minItems": 1,
+                    "description": "Column names (matched against the CSV's header row) to keep. The matched file is written as a column-filtered copy named '<stem>_filtered.csv' instead of a byte-for-byte copy. Omit to copy the matched file(s) byte-for-byte."
+                  }
+                }
+              },
+              {
+                "additionalProperties": false,
+                "required": ["matrix", "tabs"],
+                "properties": {
+                  "matrix": { "type": "string", "description": "Glob pattern matching a matrix file -- Cube's native .mtx by default (see source_format), or an already-OMX file." },
+                  "tabs": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "minItems": 1,
+                    "description": "Table/core names to extract from the matched matrix file."
+                  },
+                  "source_format": {
+                    "type": "string",
+                    "enum": ["mtx", "omx"],
+                    "default": "mtx",
+                    "description": "Format of the matched source file. 'mtx' (default) is Cube's native TPP format and requires Voyager to be available at curation time (config/local.yaml's Voyager_EXE). 'omx' means the source is already OMX -- e.g. importing a calibration run whose raw output was archived pre-converted -- and is trimmed directly with no Voyager dependency; only format 'omx' is valid alongside it."
+                  },
+                  "format": {
+                    "type": "string",
+                    "enum": ["omx", "mtx"],
+                    "default": "omx",
+                    "description": "Output format for the extracted tables, written as '<stem>.<format>'. Must be 'omx' when source_format is 'omx'."
+                  }
+                }
+              },
+              {
+                "additionalProperties": false,
+                "required": ["network", "fields"],
+                "properties": {
+                  "network": { "type": "string", "description": "Glob pattern matching a Cube Voyager .net network file." },
+                  "fields": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "minItems": 1,
+                    "description": "Link attribute field names to keep from the matched .net file (plus geometry, for shp/geojson formats). Requires Voyager to be available at curation time."
+                  },
+                  "format": {
+                    "type": "string",
+                    "enum": ["net", "shp", "geojson"],
+                    "default": "geojson",
+                    "description": "Output format for the field-filtered network, written as '<stem>.<format>' ('shp' zipped as '<stem>.shp.zip')."
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "max_file_size_mb": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "manual_scenario_folder": {
+      "type": "string",
+      "description": "Path to this run's raw output folder, relative to the TDM submodule root, when it was run manually outside `run`/`run-all`. Read by import-manual-run(-all) to locate outputs to curate; unused by a CLI-driven run."
+    }
+  }
+}

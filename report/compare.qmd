@@ -1,0 +1,108 @@
+---
+title: Compare Calibration Runs
+echo: false
+warning: false
+message: false
+---
+
+Select any set of calibration runs to compare their headline validation
+metrics side by side. Data comes from each run's `summary_metrics_*.json`
+(one per stage, written by that stage's `.qmd` at render time — see
+`report/README.md`), not from re-reading raw model output, so this page
+stays fast regardless of how many calibration runs accumulate.
+
+```{python}
+# ==============================================================================
+# LOAD ALL PER-RUN, PER-STAGE SUMMARY METRICS
+# ==============================================================================
+import json
+from pathlib import Path
+
+import pandas as pd
+
+rows = []
+for f in sorted(Path(".").glob("summary_metrics_*.json")):
+    with open(f) as fh:
+        doc = json.load(fh)
+    calib_run = doc.get("calib_run", "unknown")
+    stage = doc.get("stage", f.stem.removeprefix("summary_metrics_"))
+    for metric, value in doc.get("metrics", {}).items():
+        if value is None:
+            continue
+        rows.append({"calib_run": calib_run, "stage": stage, "metric": metric, "value": value})
+
+compare_df = pd.DataFrame(rows, columns=["calib_run", "stage", "metric", "value"])
+ojs_define(compare_data=compare_df)
+```
+
+```{ojs}
+data = transpose(compare_data)
+runsAvailable = Array.from(new Set(data.map(d => d.calib_run))).sort()
+stagesAvailable = Array.from(new Set(data.map(d => d.stage))).sort()
+```
+
+::: {.panel-tabset}
+
+## Compare
+
+```{ojs}
+//| panel: input
+
+viewof selectedRuns = Inputs.checkbox(runsAvailable, {
+  label: "Calibration Runs:",
+  value: runsAvailable
+})
+
+viewof selectedStage = Inputs.select(stagesAvailable, {
+  label: "Stage:",
+  value: stagesAvailable[0]
+})
+```
+
+```{ojs}
+filtered = data.filter(d =>
+  selectedRuns.includes(d.calib_run) && d.stage === selectedStage
+)
+
+metricsInStage = Array.from(new Set(filtered.map(d => d.metric)))
+```
+
+```{ojs}
+//| label: fig-compare-runs
+//| fig-cap: "Headline metrics by calibration run"
+
+filtered.length
+  ? Plot.plot({
+      grid: true,
+      height: Math.max(260, metricsInStage.length * 220),
+      marginLeft: 70,
+      fy: { label: null, domain: metricsInStage },
+      x: { label: "Calibration Run" },
+      y: { label: "Value" },
+      color: { legend: true, label: "Calibration Run" },
+      marks: [
+        Plot.barY(filtered, {
+          x: "calib_run",
+          y: "value",
+          fy: "metric",
+          fill: "calib_run",
+          tip: true
+        }),
+        Plot.ruleY([0])
+      ]
+    })
+  : html`<p><em>No calibration runs have a summary_metrics_*.json for stage "${selectedStage}" yet.</em></p>`
+```
+
+## Data Table
+
+```{ojs}
+Inputs.table(filtered, {
+  columns: ["calib_run", "stage", "metric", "value"],
+  header: { calib_run: "Run", stage: "Stage", metric: "Metric", value: "Value" },
+  sort: "calib_run",
+  rows: 20
+})
+```
+
+:::
