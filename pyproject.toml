@@ -33,6 +33,10 @@ reports = [
     "plotly>=5.0",
     "jupyter>=1.0",
     "ipykernel>=6.0",
+    "tabulate>=0.9",
+    "google-cloud-bigquery>=3.0",
+    "google-auth>=2.0",
+    "db-dtypes>=1.0",
 ]
 
 [project.scripts]
