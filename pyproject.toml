@@ -44,3 +44,11 @@ tdmcalib = "tdmcalib.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+# tests/test_report_preprocess.py imports `report` (the repo-root Quarto
+# report package, not installed as a dependency) -- `python -m pytest` puts
+# the repo root on sys.path implicitly, but invoking the pytest console
+# script directly (e.g. `uv run pytest`) doesn't, so it's added explicitly
+# here instead of relying on invocation style.
+pythonpath = ["."]
