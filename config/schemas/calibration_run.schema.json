@@ -3,7 +3,7 @@
   "$id": "calibration_run.schema.json",
   "title": "Calibration run",
   "type": "object",
-  "required": ["calib_run_id", "tdm_ref", "baseline_control_center"],
+  "required": ["calib_run_id", "tdm_ref", "baseline_control_center", "driver_script", "start_at_label"],
   "additionalProperties": false,
   "properties": {
     "calib_run_id": {
@@ -42,7 +42,12 @@
     },
     "driver_script": {
       "type": "string",
-      "description": "Path to a custom driver script (a _HailMary_1Subfolder.s variant), relative to the calibration_runs/ directory. When declared, this one file is staged (copied, keeping its own filename) into the run's working folder before execution, in place of the framework default (config/framework.yaml's default_driver_script). Companion/modified step scripts are NOT auto-staged and stay in place, referenced from this file by a relative path back to their location. Must reference default TDM step scripts as '..\\..\\..\\2_ModelScripts\\...' (three levels up, matching the working folder's depth)."
+      "description": "Path to the driver script to stage for this run. Required -- always resolved explicitly, never silently defaulted. Resolved first relative to the calibration_runs/ directory (a fully custom file, e.g. 'hail-mary/__HailMary_1Subfolder_c50.s' -- companion/modified step scripts are NOT auto-staged and stay in place, referenced from this file by a relative path back to their location; must reference default TDM step scripts as '..\\..\\..\\2_ModelScripts\\...', three levels up, matching the working folder's depth). If no such file exists, resolved instead as a bare filename against the TDM's own Scenarios/_default/ library (e.g. '__HailMary.s' or '__HailMary_resumable.s' -- same two-levels-up path convention, no rewriting needed)."
+    },
+    "start_at_label": {
+      "type": "string",
+      "pattern": "^STEP[0-9]+(_[0-9]+)?$",
+      "description": "STEPn or STEPn_nn label to start execution from. Required -- every calibration run declares explicitly where it starts, so a resumed run is never mistaken for a fresh one (or vice versa). 'STEP0' means a normal full run from the beginning and is the default for all new calibration runs; no rewrite is performed against the staged driver script in that case. Any other value (matching a driver_script resumable variant's own labels, e.g. STEP4_12) skips everything before it, and is only valid alongside a driver_script that contains a 'RESUME POINT' GOTO marker -- its target is rewritten to this label in the staged copy at run time (the source file itself, and tdm/, are never modified). Relies on the raw working folder not being wiped between run attempts (see CLAUDE.md) -- whatever an earlier crashed attempt already wrote is still there for the resumed steps to pick up. Set back to 'STEP0' once no longer resuming, so the next run starts fresh."
     },
     "start_from_copy": {
       "type": "string",

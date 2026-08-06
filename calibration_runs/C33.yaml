@@ -28,6 +28,14 @@ description: >
 tdm_ref: "unknown-historical"
 baseline_control_center: "_ControlCenter-Calib - BY_2023.block"
 
+# driver_script/start_at_label are required by calibration_run.schema.json
+# but, like tdm_ref above, are best-effort record-keeping here, not verified
+# fact -- import-manual-run() never stages a driver script or rewrites a
+# RESUME POINT (see execution.import_manual_run()'s docstring), so neither
+# value is actually acted on for this historical import.
+driver_script: "__HailMary.s"
+start_at_label: "STEP0"
+
 outputs:
   max_file_size_mb: 95
   include:

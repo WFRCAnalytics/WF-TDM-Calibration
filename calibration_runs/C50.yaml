@@ -5,7 +5,7 @@
 # pp_ValidationDocumentation.py's own copy_files list (the TDM's existing,
 # working post-processing step, which normally copies these same raw files
 # into WF-TDM-Documentation -- this repo's own pipeline never runs that
-# script itself, see config/framework.yaml's default_driver_script comment,
+# script itself, see config/framework.yaml's scenario_folder_template comment,
 # but its copy_files list is still the best record of where the TDM actually
 # writes each file within a run's working folder). Filenames/paths/matrix
 # tab names have been cross-checked against a real archived calibration
@@ -20,19 +20,15 @@ description: >
   Calibration iteration C50, base year 2023.
 
 tdm_ref: "calib/C50-start"
-baseline_control_center: "_ControlCenter-Calib - BY_2023.block"
+baseline_control_center: "_ControlCenter - BY_2023.block"
+
+driver_script: "__HailMary_resumable.s"
+start_at_label: "STEP4_11"
 
 overrides:
-  # Baseline defaults CalibrationCode to 'C08' -- override per calibration run.
-  CalibrationCode: "C50"
-  # Baseline defaults this to 1, which additionally runs
-  # GenerateDocumentation.s (wired to WF-TDM-Documentation's folders/sidebar
-  # YAML) *if* the __HailMary_1Subfolder_withValidationDoc.s driver script
-  # variant is used. This repo doesn't use that variant (see
-  # config/framework.yaml's default_driver_script comment), so this is
-  # already inert -- set explicitly anyway, so intent is documented here
-  # rather than left implicit.
-  Run_Documentation: 0
+  UserName: "Bill Hereth"
+  UserCompany: "WFRC"
+  runIdPrfx: ""
 
 outputs:
   max_file_size_mb: 95
@@ -56,17 +52,17 @@ outputs:
     # These carry a Cube-generated `___{runId}___` filename prefix (see
     # GlobalVars.runId in pp_ValidationDocumentation.py) -- wildcarded since
     # the exact runId text depends on ModelVersion/ScenarioName/RunYear.
-    - datafile: "4_ModeChoice/3_TransitAssign/___*___transit_brding_summary_node.csv"
-    - datafile: "4_ModeChoice/3_TransitAssign/___*___transit_rider_summary_link.csv"
-    - datafile: "4_ModeChoice/4_Shares/___*___RegionShares_Ok.csv"
-    - datafile: "4_ModeChoice/4_Shares/___*___RegionShares_Pk.csv"
-    - datafile: "5_AssignHwy/4_Summaries/___*___Summary_SEGID.csv"
-    - datafile: "5_AssignHwy/4_Summaries/___*___Summary_SEGID_Detailed.csv"
+    - datafile: "4_ModeChoice/3_TransitAssign/*_transit_brding_summary_node.csv"
+    - datafile: "4_ModeChoice/3_TransitAssign/*_transit_rider_summary_link.csv"
+    - datafile: "4_ModeChoice/4_Shares/*_RegionShares_Ok.csv"
+    - datafile: "4_ModeChoice/4_Shares/*_RegionShares_Pk.csv"
+    - datafile: "5_AssignHwy/4_Summaries/*_Summary_SEGID.csv"
+    - datafile: "5_AssignHwy/4_Summaries/*_Summary_SEGID_Detailed.csv"
     # Matrix conversions (Cube .MTX -> .omx). source_format defaults to "mtx"
     # (Cube's native format, the real Scenarios/C50/ working folder's actual
     # output -- this repo's pipeline deliberately never runs
     # pp_ValidationDocumentation.py's own CONVERTMAT step, see
-    # config/framework.yaml's default_driver_script comment) -- requires
+    # config/framework.yaml's scenario_folder_template comment) -- requires
     # config/local.yaml's Voyager_EXE to be set at curation time. format is
     # the destination format written to runs/; explicit here even though
     # "omx" is also the default, so intent isn't left implicit.

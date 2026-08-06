@@ -80,11 +80,12 @@ def list_calibration_run_ids(repo_root: Path) -> list:
     return sorted(p.stem for p in d.glob("*.yaml"))
 
 
-def resolved_driver_script(calib_run: dict) -> str | None:
-    """Path (relative to calibration_runs/) to a custom _HailMary.s driver
-    script, or None if the calibration run doesn't declare one -- in which
-    case the TDM's own default driver script is used unmodified."""
-    return calib_run.get("driver_script")
+def resolved_driver_script(calib_run: dict) -> str:
+    """Path to the calibration run's declared _HailMary.s driver script.
+    driver_script is required by calibration_run.schema.json -- there is no
+    framework-default fallback, so this is never None for a validated
+    calibration run."""
+    return calib_run["driver_script"]
 
 
 def resolved_output_spec(framework: dict, calib_run: dict) -> dict:

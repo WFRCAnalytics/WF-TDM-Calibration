@@ -23,27 +23,28 @@ control_center_defaults_dir: "Scenarios/_default"
 # runs/{calib_run_id}/run_metadata.json (the curated, committed side) keeps
 # only the latest attempt -- a new run replaces it rather than adding another
 # one alongside.
-scenario_folder_template: "Scenarios/{calib_run_id}"
-
-# Filename, within control_center_defaults_dir, of the driver script staged
-# into every run's working folder unless a calibration run declares its own
-# via driver_script. Its name is preserved when staged.
 #
-# Must be __HailMary.s, not __HailMary_1Subfolder.s or
-# __HailMary_1Subfolder_withValidationDoc.s: those two variants' READ FILE
-# paths are '..\..\..\1_Inputs\...' (three levels up to the tdm/ root),
-# which assumes an extra folder level (e.g. Scenarios/{group}/{run}/) that
-# this repo's scenario_folder_template ("Scenarios/{calib_run_id}", only two
-# levels below tdm/) doesn't have -- confirmed by a live C50 run failing at
-# the very first READ FILE step (VOYAGER ReturnCode=2, "cannot find the path
-# specified") until switched to __HailMary.s, whose paths are '..\..\...'
-# (two levels up), matching this template exactly. The _withValidationDoc
-# variant would also additionally run GenerateDocumentation.s (gated by
-# Run_Documentation=1 in the baseline), wired to WF-TDM-Documentation's
-# folder/sidebar conventions (DocumentationDir, ValidationQmdDir,
-# _quarto-website.yml) -- this repo's own tdmcalib output curation
-# (outputs.py) + report/ Quarto reports are the reporting path here instead.
-default_driver_script: "__HailMary.s"
+# Every calibration run declares its own driver_script (required by
+# calibration_run.schema.json -- there is no framework-wide default here, so
+# which driver script ran is always explicit in the run's own config). A
+# bare-filename driver_script value is resolved against
+# control_center_defaults_dir below and must be __HailMary.s or a variant
+# shipped alongside it (e.g. __HailMary_resumable.s), not
+# __HailMary_1Subfolder.s or __HailMary_1Subfolder_withValidationDoc.s: those
+# two variants' READ FILE paths are '..\..\..\1_Inputs\...' (three levels up
+# to the tdm/ root), which assumes an extra folder level (e.g.
+# Scenarios/{group}/{run}/) that this template ("Scenarios/{calib_run_id}",
+# only two levels below tdm/) doesn't have -- confirmed by a live C50 run
+# failing at the very first READ FILE step (VOYAGER ReturnCode=2, "cannot
+# find the path specified") until switched to __HailMary.s, whose paths are
+# '..\..\...' (two levels up), matching this template exactly. The
+# _withValidationDoc variant would also additionally run
+# GenerateDocumentation.s (gated by Run_Documentation=1 in the baseline),
+# wired to WF-TDM-Documentation's folder/sidebar conventions
+# (DocumentationDir, ValidationQmdDir, _quarto-website.yml) -- this repo's
+# own tdmcalib output curation (outputs.py) + report/ Quarto reports are the
+# reporting path here instead.
+scenario_folder_template: "Scenarios/{calib_run_id}"
 
 # The fixed batch entry point and how the orchestrator invokes it. Kept as
 # config (not hardcoded) since the calling convention is a property of the TDM

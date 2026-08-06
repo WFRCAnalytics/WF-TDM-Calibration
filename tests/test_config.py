@@ -11,6 +11,8 @@ def _write_calib_run(repo_root, calib_run_id, data=None):
         "calib_run_id": calib_run_id,
         "tdm_ref": "calib/C50-start",
         "baseline_control_center": "TestBaseline.block",
+        "driver_script": "TestBaseline.block",
+        "start_at_label": "STEP0",
         **(data or {}),
     }
     path = repo_root / "calibration_runs" / f"{calib_run_id}.yaml"
@@ -35,6 +37,8 @@ def test_load_calibration_run_id_mismatch_raises(repo_root):
                 "calib_run_id": "C51",
                 "tdm_ref": "x",
                 "baseline_control_center": "TestBaseline.block",
+                "driver_script": "TestBaseline.block",
+                "start_at_label": "STEP0",
             },
             f,
         )
@@ -65,6 +69,8 @@ def test_load_calibration_run_id_pattern_enforced(repo_root):
                 "calib_run_id": "fifty",
                 "tdm_ref": "x",
                 "baseline_control_center": "TestBaseline.block",
+                "driver_script": "TestBaseline.block",
+                "start_at_label": "STEP0",
             },
             f,
         )

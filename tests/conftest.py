@@ -72,7 +72,6 @@ def repo_root(tmp_path):
         "tdm_submodule_path": "tdm",
         "control_center_defaults_dir": "Scenarios/_default",
         "scenario_folder_template": "Scenarios/{calib_run_id}",
-        "default_driver_script": "TestBaseline.block",  # unused by these tests
         "execution": {
             "entry_point": "bin/RunModel.bat",
             "args": ["{control_center_path}", "{scenario_folder}"],

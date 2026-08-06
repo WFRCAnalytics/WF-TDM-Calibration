@@ -209,12 +209,11 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
     control_center_path = folder / "_ControlCenter.block"
     cc.write_block_file(baseline_path, rendered, control_center_path)
 
-    # --- stage the driver script: declared custom one, or the TDM's default ---
+    # --- stage the driver script: driver_script is required, no framework default ---
     driver_script_path = ds.stage(
         cr_dir,
         tdm_path,
         framework["control_center_defaults_dir"],
-        framework["default_driver_script"],
         calib_run,
         folder,
     )
