@@ -19,6 +19,10 @@ rule in practice: it's automatic regardless of what outputs.include
 declares, not something that depends on getting every pattern/tab
 selection exactly right ahead of time.
 
+Curated files land directly in runs/{calib_run_id}/ (siblings of that run's
+run_info/ history -- see metadata.py) -- flattened, not nested under an
+outputs/ subfolder.
+
 Each outputs.include entry is one of three shapes (config/schemas/
 calibration_run.schema.json enforces exactly one): {"datafile": <glob
 pattern>, "columns": [...]}, "columns" optional, {"matrix": <glob pattern>,
@@ -307,7 +311,7 @@ def curate(
             curated = copy_selected(
                 scenario_folder,
                 selected,
-                run_dir / "outputs",
+                run_dir,
                 output_spec["max_file_size_mb"],
                 repo_root,
                 voyager_exe=voyager_exe,

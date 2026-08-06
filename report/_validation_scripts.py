@@ -6,21 +6,24 @@ import numpy as np
 
 
 def resolve_latest_run_outputs(repo_root: Path, calib_run: str) -> Path:
-    """Finds this calibration run's curated outputs/ dir
-    (runs/{calib_run}/outputs/) -- mirrors
-    tdmcalib.metadata.latest_successful_run() without importing the package,
-    since these reports may be rendered in an environment that doesn't have
-    it installed (e.g. the "reports" Jupyter kernel vs. the "dev" venv).
-    Only the latest attempt is ever kept on disk for a calib_run_id, so a
-    failed re-run makes this raise even if an earlier attempt once
-    succeeded."""
+    """Finds this calibration run's curated output dir (runs/{calib_run}/,
+    where curated files land directly -- no outputs/ subfolder) -- mirrors
+    tdmcalib.metadata.latest_run() without importing the package, since
+    these reports may be rendered in an environment that doesn't have it
+    installed (e.g. the "reports" Jupyter kernel vs. the "dev" venv). Only
+    the latest attempt's outputs are ever kept on disk for a calib_run_id
+    (though every attempt's metadata is kept forever under run_info/ -- see
+    tdmcalib's metadata.py), so a failed re-run makes this raise even if an
+    earlier attempt once succeeded. run_id sorts chronologically (a UTC
+    timestamp prefix), so the lexicographically-last run_info/*.json is the
+    latest attempt."""
     calib_run_dir = repo_root / "runs" / calib_run
-    metadata_path = calib_run_dir / "run_metadata.json"
-    if metadata_path.is_file():
-        with open(metadata_path) as f:
+    attempts = sorted((calib_run_dir / "run_info").glob("*.json"))
+    if attempts:
+        with open(attempts[-1]) as f:
             metadata = json.load(f)
         if metadata.get("status") == "success":
-            return calib_run_dir / "outputs"
+            return calib_run_dir
     raise FileNotFoundError(
         f"No successful tdmcalib run found under {calib_run_dir} -- "
         f"run `tdmcalib run --run {calib_run}` (or import-manual-run) first."

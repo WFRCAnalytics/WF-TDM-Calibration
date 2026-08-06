@@ -1,7 +1,8 @@
 # Raw model output lives inside the tdm/ submodule's own working tree
 # (tdm/Scenarios/{calib_run_id}/, already gitignored by tdm/.gitignore) or,
-# curated and size-capped, under runs/{calib_run_id}/{run_id}/outputs/ (which
-# IS committed — see report/README.md and config/framework.yaml).
+# curated and size-capped, directly under runs/{calib_run_id}/ (which IS
+# committed — see report/README.md and config/framework.yaml). Per-attempt
+# metadata lives alongside it in runs/{calib_run_id}/run_info/.
 # config/local.yaml holds machine-specific values (Voyager_EXE, etc.).
 config/local.yaml
 
@@ -35,7 +36,7 @@ report/**/*.quarto_ipynb
 
 # Per-run report data cache (runs/{calib_run_id}/cache/*.parquet, written by
 # report/preprocess/build_cache.py) -- a disposable build accelerator, always
-# reproducible from runs/{calib_run_id}/outputs/ (the real source of truth).
+# reproducible from runs/{calib_run_id}/ (the real source of truth).
 # See report/README.md's "Report data caching" section.
 runs/*/cache/
 

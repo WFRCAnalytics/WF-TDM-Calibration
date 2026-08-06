@@ -144,9 +144,11 @@ def import_manual_run_cmd(ctx, calib_run_id, scenario_folder):
     """Curate outputs for a calibration run that was run manually, outside
     `run`/`run-all`. Applies the run's outputs.include glob selection and
     size ceiling exactly as a CLI-driven run would, copies the result into
-    runs/<calib-run-id>/outputs/, and records run_metadata.json with
-    execution_mode "manual". Does not touch the TDM submodule. Replaces
-    whatever was previously recorded for this calibration run."""
+    runs/<calib-run-id>/, and records this attempt's metadata into
+    runs/<calib-run-id>/run_info/ with execution_mode "manual". Does not
+    touch the TDM submodule. Replaces whatever outputs were previously
+    curated for this calibration run (the run_info/ attempt history is
+    never replaced -- see metadata.py)."""
     repo_root = ctx.obj["repo_root"]
     try:
         result = ex.import_manual_run(repo_root, calib_run_id, scenario_folder)
@@ -155,7 +157,7 @@ def import_manual_run_cmd(ctx, calib_run_id, scenario_folder):
         sys.exit(1)
     click.echo(f"[{result['status'].upper()}] {calib_run_id} run {result['run_id']} (manual)")
     n_curated = len(result["outputs"]["curated"])
-    click.echo(f"  {n_curated} file(s) curated to runs/{calib_run_id}/outputs/")
+    click.echo(f"  {n_curated} file(s) curated to runs/{calib_run_id}/")
     if result["status"] != "success":
         click.echo(f"  {result.get('error')}", err=True)
         sys.exit(1)

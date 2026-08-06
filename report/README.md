@@ -34,8 +34,8 @@ uses:
   recorded run succeeded (only the latest attempt is ever kept on disk for a
   calib_run_id — see `src/tdmcalib/metadata.py`).
 - `resolve_latest_run_outputs(repo_root, calib_run)` — that run's
-  `runs/<calib_run>/outputs/` folder (a flat, curated set of model output — see
-  `src/tdmcalib/outputs.py`).
+  `runs/<calib_run>/` folder (a flat, curated set of model output, sibling of
+  that run's `run_info/` attempt history — see `src/tdmcalib/outputs.py`).
 - `load_per_run(repo_root, load_fn)` — calls `load_fn(calib_run, outputs_dir)` for
   every available run, tags each result with a `calib_run` column, and concatenates
   into one DataFrame. This is the pattern every stage report uses to build its modeled
@@ -70,11 +70,11 @@ of the render's critical path:
 - `report/preprocess/build_cache.py` — `python -m report.preprocess.build_cache --run C50`
   builds every registered dataset for one calibration run, writing
   `runs/<calib_run_id>/cache/<name>.parquet` (gitignored — a disposable build accelerator,
-  always reproducible from `runs/<calib_run_id>/outputs/`, never a source of truth).
+  always reproducible from `runs/<calib_run_id>/`, never a source of truth).
 - `tdmcalib.postprocess.build_report_cache()` shells out to that CLI automatically, right
   after a run's outputs are curated and **before** the report re-renders (so the fresh
   cache exists by render time) — see `src/tdmcalib/execution.py`. Failure is recorded on
-  `run_metadata.json`'s `preprocess` key but doesn't fail the run itself.
+  that attempt's `run_info/{run_id}.json`'s `preprocess` key but doesn't fail the run itself.
 - The `.qmd` side: `vs.load_per_run(repo_root, _load_x)` becomes
   `vs.load_cached_per_run(repo_root, "x")`, and the `_load_x` def moves to
   `report/preprocess/`. Shared/observed reference data that isn't per-`calib_run` (HTS via
@@ -103,7 +103,8 @@ loader that needs it recomputing it independently rather than restructuring
 1. Add `calibration_runs/C5N.yaml` (copy an existing one as a starting point) and run
    it through `tdmcalib` (see repo root `README.md`) — `tdmcalib run --run C5N` (or
    `import-manual-run` if the model was run outside the CLI) populates
-   `runs/C5N/outputs/` with a curated set of model output, and automatically re-renders
+   `runs/C5N/` with a curated set of model output (plus a new
+   `runs/C5N/run_info/{run_id}.json` attempt record), and automatically re-renders
    this Quarto project so the new run shows up.
 2. Nothing under `report/` needs to change — every `.qmd` discovers `C5N` on its own
    via `_validation_scripts.list_available_runs()`.
@@ -118,8 +119,8 @@ loader that needs it recomputing it independently rather than restructuring
 `tdmcalib.postprocess.render_validation()` after a successful curation, which runs
 `quarto render` against the repo root project (`config/framework.yaml`'s `postprocess`
 section controls this — `render_validation: false` to disable, plus the Quarto
-executable path and a timeout). A rendering failure is logged into the run's
-`run_metadata.json` under `postprocess` but does **not** fail the run itself — the
+executable path and a timeout). A rendering failure is logged into the attempt's
+`run_info/{run_id}.json` under `postprocess` but does **not** fail the run itself — the
 curated outputs are already safely on disk regardless of whether the report
 re-rendered cleanly. Commit the resulting `_site/` to publish.
 

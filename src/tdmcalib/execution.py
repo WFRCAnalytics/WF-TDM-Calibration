@@ -41,6 +41,23 @@ def generate_run_id() -> str:
     return f"{ts}-{suffix}"
 
 
+def _reset_run_outputs(run_dir: Path):
+    """Clears everything under run_dir except run_info/ (see metadata.py) --
+    curated outputs and the report cache are wiped and rebuilt fresh on
+    every attempt (only the latest is ever kept, per CLAUDE.md's "never
+    commit large binary outputs" rule), but run_info/'s per-attempt metadata
+    history is permanent and must survive this reset."""
+    if not run_dir.exists():
+        return
+    for child in run_dir.iterdir():
+        if child.name == "run_info":
+            continue
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+
+
 def run_folder_path(tdm_path: Path, framework: dict, calib_run_id: str) -> Path:
     rel = framework["scenario_folder_template"].format(calib_run_id=calib_run_id)
     return tdm_path / rel
@@ -98,23 +115,31 @@ def invoke(command: list, cwd: Path, log_path: Path, timeout_seconds: int, env: 
 def decide_status(
     exit_code: int, model_log_result: dict | None, log_path: Path, scenario_folder: Path
 ) -> tuple:
-    r"""Decides run status/error from Voyager's exit code and, when available,
-    the model's own _Log\_RunTime.txt completion report -- preferring the
-    latter, since it can disagree with the exit code (a clean "TOTAL MODEL
-    RUN TIME" entry with a non-zero exit code, and vice versa -- the driver
-    script never calls Exit after :ONERROR). Falls back to the exit code
-    alone when no recognizable log entry exists yet (e.g. Cube never
-    started, or was killed before writing anything).
+    r"""Decides run status/error from the model's own _Log\_RunTime.txt
+    completion report alone -- the only check trusted here, and the only one
+    that gates whether run() extracts outputs. It applies uniformly across
+    every Hail Mary driver variant (plain, resumable, 1-subfolder, ...),
+    since they all funnel through the same _TimeStamp_ModelSuccess.block /
+    _TimeStamp_ModelCrashed.block pair. Voyager's own process exit code is
+    not reliable on its own -- WF-TDM-Runs recorded real runs completing
+    cleanly (a "TOTAL MODEL RUN TIME" entry, no crash marker) while Voyager
+    still returned a non-zero exit code, and the driver script never calls
+    Exit after :ONERROR, so the reverse (a crash -- or an unresolved,
+    superseded checkpoint, see model_log.py -- that still exits 0) is
+    plausible too. No resolved model-log entry is therefore treated as
+    failed rather than falling back to the exit code: a run is never called
+    "success" without the model's own confirmation. exit_code is still
+    folded into the error text for diagnostics.
 
     Returns (status, error, status_source, model_log_result) -- the last one
     is the input dict with exit_code_mismatch filled in (or None, unchanged).
     """
     if model_log_result is None:
-        status = "success" if exit_code == 0 else "failed"
+        status = "failed"
         error = (
-            None
-            if exit_code == 0
-            else f"TDM batch entry point exited with code {exit_code}. See {log_path}."
+            f"No resolved model completion report in "
+            f"{scenario_folder / '_Log' / '_RunTime.txt'} (see {log_path}). "
+            f"Voyager exit code: {exit_code}."
         )
         return status, error, "exit_code", None
 
@@ -233,19 +258,26 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
         exit_code, model_log_result, log_path, folder
     )
 
-    # --- inventory + curate outputs (best effort even on failure) ---
+    # --- inventory always (for run_metadata's inventory_count/bytes), but
+    # only curate/extract outputs once decide_status's model-log check above
+    # -- the only check trusted for this -- has confirmed a clean finish. No
+    # more "best effort on failure": a run that didn't unambiguously
+    # complete doesn't get its outputs pulled into runs/, partial or not.
     full_inventory = out.inventory(folder)
     run_dir = repo_root / "runs" / calib_run_id
-    # Only the latest attempt is ever kept on disk for a calib_run_id -- wipe
-    # whatever a previous attempt left (metadata + outputs) before this
-    # attempt's own curate()/write() recreate it, so a narrowed
-    # outputs.include or a failed re-run can't leave stale files behind.
-    if run_dir.exists():
-        shutil.rmtree(run_dir)
-    status, error, curated = out.curate(
-        folder, full_inventory, output_spec, run_dir, status, error, repo_root,
-        voyager_exe=local_layer.get("Voyager_EXE"),
-    )
+    # Only the latest attempt's outputs are ever kept on disk for a
+    # calib_run_id -- wipe whatever a previous attempt left (everything but
+    # run_info/'s permanent history) before this attempt's own curate()
+    # recreates it, so a narrowed outputs.include or a failed re-run can't
+    # leave stale files behind.
+    _reset_run_outputs(run_dir)
+    if status == "success":
+        status, error, curated = out.curate(
+            folder, full_inventory, output_spec, run_dir, status, error, repo_root,
+            voyager_exe=local_layer.get("Voyager_EXE"),
+        )
+    else:
+        curated = []
 
     run_metadata = md.build(
         schema_version=framework["run_metadata_schema_version"],
@@ -337,8 +369,7 @@ def import_manual_run(repo_root: Path, calib_run_id: str, scenario_folder: Path 
     full_inventory = out.inventory(scenario_folder)
     run_dir = repo_root / "runs" / calib_run_id
     # Same "latest attempt only" wipe as run() -- see its comment.
-    if run_dir.exists():
-        shutil.rmtree(run_dir)
+    _reset_run_outputs(run_dir)
     status, error, curated = out.curate(
         scenario_folder, full_inventory, output_spec, run_dir, "success", None, repo_root,
         voyager_exe=local_layer.get("Voyager_EXE"),

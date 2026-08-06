@@ -1,15 +1,20 @@
 """Run metadata: the framework's source of truth. One JSON document per
-calibration run, schema-versioned, committed to the repo. Reporting reads
-only this -- never the TDM submodule or the gitignored working folders
-directly.
+attempt, schema-versioned, committed to the repo. Reporting reads only this
+-- never the TDM submodule or the gitignored working folders directly.
 
-Only the single latest attempt is ever kept on disk for a given
-calib_run_id, at runs/{calib_run_id}/run_metadata.json (and its sibling
-outputs/) -- no per-attempt run_id subfolder. Starting a new run for a
-calib_run_id deletes whatever was there before (see execution.py), so
-run_metadata.json's own "run_id" field is the only record of which attempt
-produced the current state; a failed re-run replaces a previously
-successful one rather than shadowing it.
+Every attempt for a calib_run_id keeps its own metadata document, forever,
+at runs/{calib_run_id}/run_info/{run_id}.json -- a permanent audit trail of
+every run/import invocation, kept regardless of outcome. This is the one
+part of runs/{calib_run_id}/ that is never wiped. Curated outputs
+(runs/{calib_run_id}/*, siblings of run_info/) are a different story: only
+the latest attempt's outputs are ever kept on disk (see execution.py, which
+wipes and re-curates them on every attempt) -- CLAUDE.md's "never commit
+large binary outputs" rule depends on not accumulating one copy of
+potentially-huge curated output per historical attempt. So "latest attempt"
+still matters for outputs/status purposes even though metadata history is
+now unbounded: latest_run()/list_runs() resolve it by run_id, which sorts
+chronologically since generate_run_id() (execution.py) prefixes it with a
+UTC timestamp.
 
 Ported from WF-TDM-Runs' src/tdmruns/metadata.py, flattened: run_set_id +
 scenario_id collapse to a single calib_run_id, run_set_overrides +
@@ -116,33 +121,66 @@ def build(
 
 
 def write(run_dir: Path, metadata: dict):
-    run_dir.mkdir(parents=True, exist_ok=True)
-    with open(run_dir / "run_metadata.json", "w") as f:
+    run_info_dir = run_dir / "run_info"
+    run_info_dir.mkdir(parents=True, exist_ok=True)
+    with open(run_info_dir / f"{metadata['run_id']}.json", "w") as f:
         json.dump(metadata, f, indent=2)
         f.write("\n")
 
 
-def read(run_dir: Path) -> dict:
-    with open(run_dir / "run_metadata.json") as f:
+def _latest_run_id(run_dir: Path) -> str:
+    """The most recent attempt's run_id under run_dir/run_info/, or None if
+    none exist. run_id sorts chronologically (see module docstring), so the
+    lexicographically-greatest filename stem is the latest attempt."""
+    run_info_dir = run_dir / "run_info"
+    if not run_info_dir.is_dir():
+        return None
+    candidates = sorted(run_info_dir.glob("*.json"))
+    return candidates[-1].stem if candidates else None
+
+
+def read(run_dir: Path, run_id: str = None) -> dict:
+    """Reads one attempt's metadata document. run_id=None (the default)
+    resolves to the latest attempt."""
+    run_id = run_id or _latest_run_id(run_dir)
+    with open(run_dir / "run_info" / f"{run_id}.json") as f:
         return json.load(f)
 
 
 def list_runs(repo_root: Path, calib_run_id: str = None) -> list:
-    """Scans runs/ for run_metadata.json files, optionally filtered to one
-    calibration run. At most one per calib_run_id -- only the latest attempt
-    is ever kept on disk (see module docstring) -- sorted by calib_run_id for
-    a stable order."""
+    """The latest attempt for each calibration run under runs/, optionally
+    filtered to one calibration run -- sorted by calib_run_id for a stable
+    order. Full attempt history lives in each run_info/ but this, like the
+    old single-file layout, only ever surfaces the latest one."""
     runs_root = repo_root / "runs"
     if not runs_root.is_dir():
         return []
-    pattern = f"{calib_run_id or '*'}/run_metadata.json"
-    found = sorted(runs_root.glob(pattern), key=lambda p: p.parent.name)
-    return [read(p.parent) for p in found]
+    calib_run_ids = (
+        [calib_run_id] if calib_run_id else sorted(p.name for p in runs_root.iterdir() if p.is_dir())
+    )
+    found = []
+    for crid in calib_run_ids:
+        run = latest_run(repo_root, crid)
+        if run is not None:
+            found.append(run)
+    return found
+
+
+def list_attempts(repo_root: Path, calib_run_id: str) -> list:
+    """Every attempt ever recorded for calib_run_id, oldest first -- the
+    permanent audit trail runs/{calib_run_id}/run_info/ keeps regardless of
+    outcome (see module docstring)."""
+    run_info_dir = repo_root / "runs" / calib_run_id / "run_info"
+    if not run_info_dir.is_dir():
+        return []
+    run_dir = run_info_dir.parent
+    return [read(run_dir, run_id=p.stem) for p in sorted(run_info_dir.glob("*.json"))]
 
 
 def latest_run(repo_root: Path, calib_run_id: str) -> dict:
-    metadata_path = repo_root / "runs" / calib_run_id / "run_metadata.json"
-    return read(metadata_path.parent) if metadata_path.is_file() else None
+    run_dir = repo_root / "runs" / calib_run_id
+    run_id = _latest_run_id(run_dir)
+    return read(run_dir, run_id=run_id) if run_id else None
 
 
 def latest_successful_run(repo_root: Path, calib_run_id: str) -> dict:

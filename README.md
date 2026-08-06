@@ -29,15 +29,20 @@ commit you're now pinned to. If you'd rather do it by hand:
 git submodule update --init --recursive
 ```
 
-Then, for running calibrations (not needed just to browse/edit configs):
+Then, for running calibrations (not needed just to browse/edit configs) — dependency
+management is via [uv](https://docs.astral.sh/uv/), which creates and manages `.venv`
+from `pyproject.toml`/`uv.lock`:
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate           # or: source .venv/bin/activate
-pip install -e ".[dev]"
+uv sync --extra dev
 cp config/local.example.yaml config/local.yaml   # fill in Voyager_EXE for this machine
-tdmcalib validate-config
+uv run tdmcalib validate-config
 ```
+
+`uv run <command>` runs a command inside `.venv` without activating it; activate it the
+usual way (`.venv\Scripts\activate` / `source .venv/bin/activate`) if you'd rather run
+`tdmcalib`/`pytest` directly. Add `--extra reports` to `uv sync` for the packages
+`report/`'s Quarto reports need beyond the base dependencies (see `report/README.md`).
 
 For rendering `report/` locally, one file is too large for git (142MB, over GitHub's
 100MB limit) and isn't committed — copy it in manually before rendering:
@@ -53,7 +58,7 @@ cp "F:\SHARED\Chris\large_files_calibration\v1000\UT_HTS_2023_Linked_Trips.csv" 
 | `tdm/`              | TDM submodule — **do not edit directly** (see below)         |
 | `config/`           | `tdmcalib` framework settings (`framework.yaml`, `local.yaml` — gitignored, copy from `local.example.yaml`), JSON schemas |
 | `calibration_runs/` | One YAML per calibration run (`C50.yaml`, ...) — `tdm_ref`, Control Center overrides, `outputs.include` |
-| `runs/`             | `tdmcalib`'s curated, committed output + `run_metadata.json` per run attempt |
+| `runs/`             | `tdmcalib`'s curated, committed output, one folder per calibration run (`runs/{calib_run_id}/`) — curated files sit directly in that folder; `run_info/{run_id}.json` holds a permanent, never-deleted metadata record for every attempt |
 | `src/tdmcalib/`      | The orchestrator CLI itself |
 | `bin/`              | `RunModel.bat` — the Cube Voyager entry point `tdmcalib` invokes |
 | `tests/`            | `pytest` suite for `src/tdmcalib/` |

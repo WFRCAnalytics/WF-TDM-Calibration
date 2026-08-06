@@ -29,9 +29,12 @@ from tdmcalib.exceptions import OutputCollectionError
 
 
 def _run_voyager_script(script_path: Path, bat_path: Path, voyager_exe: str):
-    voyager_dir = str(Path(voyager_exe).parent)
+    # Empty "" title is required before the quoted exe path -- see
+    # bin/RunModel.bat's own `start /w ""` invocation. Without it, cmd.exe
+    # treats the exe path itself as the window title and tries to run a bare
+    # (unqualified) VOYAGER.EXE instead, which fails to resolve.
     with open(bat_path, "w") as f:
-        f.write(f'start /w "{voyager_dir}" VOYAGER.EXE "{script_path.resolve()}" /start -Report\n')
+        f.write(f'start /w "" "{voyager_exe}" "{script_path.resolve()}" /start -Report\n')
     subprocess.call(str(bat_path), cwd=str(bat_path.parent))
 
 
