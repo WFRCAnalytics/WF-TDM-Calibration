@@ -7,6 +7,24 @@ project:
 website:
   title: "WF-TDM Calibration"
   page-navigation: true
+  sidebar:
+    style: docked
+    search: false
+    contents:
+      - index.qmd
+      - section: "Reports"
+        contents:
+          - report/0-hhdisag-autoown.qmd
+          - report/1-tripgen.qmd
+          - report/2-distribution.qmd
+          - report/3-modechoice.qmd
+          - report/4-assignhwy.qmd
+          - report/7-modelresults.qmd
+      - report/compare.qmd
+
+format:
+  html:
+    css: styles.css
 
 # specify kernel to use to render jupyter notebooks (must match the local env name)
 jupyter: wftdm-docs

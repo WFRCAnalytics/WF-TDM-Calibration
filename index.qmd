@@ -4,8 +4,9 @@ title: TDM Calibration Reports
 
 Calibration validation reports comparing modeled results against observed data
 (HTS, ACS, OBS, and count data). Each report covers every available calibration
-run — use the in-page "Calibration Run" selector to pick which run's modeled
-results to view against observed data.
+run — use the "Calibration Run" dropdown at the top of any report page to pick
+which run's modeled results to view against observed data; your choice carries
+over as you move between pages.
 
 - [Household Disaggregation & Auto Ownership](report/0-hhdisag-autoown.qmd)
 - [Trip Generation](report/1-tripgen.qmd)

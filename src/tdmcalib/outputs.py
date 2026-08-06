@@ -6,8 +6,9 @@ metadata's aggregate file count/byte total even for files that never leave
 the gitignored working folder. Working folders can hold thousands of files
 and tens of gigabytes, so this listing is stat()-only and never reads file
 contents. A declared, glob-based selection then determines which files
-actually get copied into runs/{calib_run_id}/{run_id}/outputs/; only those
-get a checksum (computed at copy time). Every selected file is written
+actually get copied into runs/{calib_run_id}/outputs/ (replacing whatever a
+prior attempt for the same calib_run_id left there -- see execution.py);
+only those get a checksum (computed at copy time). Every selected file is written
 there regardless of size, but any file whose actual written size exceeds
 the configured max_file_size_mb is marked "committed": False and listed in
 that outputs/ folder's own auto-generated .gitignore -- kept on disk

@@ -29,6 +29,8 @@ config_paths = {
 }
 ```
 
+{{< include _calib_run_selector.qmd >}}
+
 ## Access to CRT Stations
 
 ```{python}
@@ -259,12 +261,6 @@ print("\n--- VALIDATION COMPLETE ---")
 //| panel: input
 
 // 2. Define Inputs with Custom Layout
-crtRunsAvailable = Array.from(new Set(transpose(crt_model_data).map(d => d.calib_run))).sort()
-
-viewof crtCalibRunSelect = Inputs.select(crtRunsAvailable, {
-  value: crtRunsAvailable[crtRunsAvailable.length - 1],
-  label: "Calibration Run"
-});
 viewof modeInput = Inputs.select(["Drive", "Walk"], {label: "Access Mode", value: "Drive"});
 viewof metricInput = Inputs.select(["Access Distance (mi)", "Access Time (min)"], {label: "Metric", value: "Access Distance (mi)"});
 viewof layersInput = Inputs.checkbox(["Observed", "Modeled"], {label: "Show Data:", value: ["Observed", "Modeled"]});
@@ -275,7 +271,7 @@ viewof layersInput = Inputs.checkbox(["Observed", "Modeled"], {label: "Show Data
 
 // 1. Prepare Data
 dataObs = transpose(crt_plot_data)
-dataMod = transpose(crt_model_data).filter(d => d.calib_run === crtCalibRunSelect)
+dataMod = transpose(crt_model_data).filter(d => d.calib_run === globalCalibRun)
 
 // 2. Reactive Filtering
 metricInfo = metricInput === "Access Distance (mi)"

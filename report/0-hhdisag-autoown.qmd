@@ -48,6 +48,8 @@ debug = False
 nameMod = "Model"
 ```
 
+{{< include _calib_run_selector.qmd >}}
+
 ---
 
 ```{python}
@@ -277,7 +279,6 @@ hh_data = transpose(hhdis_data);
 hh_hhsize_vals = Array.from(new Set(hh_data.map(d => d.HHSIZE))).sort((a, b) => a - b)
 hh_wrks_vals   = Array.from(new Set(hh_data.map(d => d.WRKS))).sort((a, b) => a - b)
 inc_list       = ["Total", "<$50k", "$50k–$100k", "$100k–$150k", ">$150k"]
-hh_runsAvailable = Array.from(new Set(hh_data.map(d => d.calib_run).filter(r => r != null))).sort()
 ```
 
 ```{ojs}
@@ -286,11 +287,6 @@ hh_runsAvailable = Array.from(new Set(hh_data.map(d => d.calib_run).filter(r => 
 // it trips a Quarto 1.8.27 bug (makeSubFigures throws "Cannot read
 // properties of undefined (reading 'info')") -- panel: input already flows
 // multiple viewof inputs horizontally on its own without it.
-
-viewof hhCalibRunSelect = Inputs.select(hh_runsAvailable, {
-  value: hh_runsAvailable[hh_runsAvailable.length - 1],
-  label: "Calibration Run:"
-})
 
 // Removed: HH Size and Workers dropdowns — now used as facet dimensions (cols × rows)
 viewof vGeoLevel = Inputs.select(["CO_FIPS", "PUMA"],
@@ -329,7 +325,7 @@ viewof vDisplay = Inputs.radio(["Households", "Percentages"],
 // the P1-D merge in the Python cell above), so aggregating across more than
 // one run here would double/triple-count observed data.
 hh_filtered_base = hh_data.filter(d =>
-  d.calib_run === hhCalibRunSelect && (vINC === "Total" || d.INC === vINC)
+  d.calib_run === globalCalibRun && (vINC === "Total" || d.INC === vINC)
 )
 
 // Aggregate by geo × HHSIZE × WRKS
@@ -919,13 +915,6 @@ vo_vehown_vals = ["0", "1", "2", "3+"]
 // properties of undefined (reading 'info')") -- panel: input already flows
 // multiple viewof inputs horizontally on its own without it.
 
-vo_runsAvailable = Array.from(new Set(transpose(val_data_ojs).map(d => d.calib_run).filter(r => r != null))).sort()
-
-viewof voCalibRunSelect = Inputs.select(vo_runsAvailable, {
-  value: vo_runsAvailable[vo_runsAvailable.length - 1],
-  label: "Calibration Run:"
-})
-
 // Removed: HH Size and Vehicle Count dropdowns — now used as facet dimensions (cols × rows)
 viewof geo_level = Inputs.select(
   ["County", "Super District", "Large District", "Medium District", "Small District", "City"],
@@ -959,7 +948,7 @@ viewof vo_display = Inputs.radio(["Households", "Percentages"],
 // dimensions). Filtering to one run avoids double-counting ACS_HH/HTS_HH,
 // which are repeated on every run's row -- same reasoning as hh_filtered_base above.
 vo_filtered_base = transpose(val_data_ojs).filter(row =>
-  row.GeoLevel === geo_level && row.calib_run === voCalibRunSelect
+  row.GeoLevel === geo_level && row.calib_run === globalCalibRun
 )
 
 // Aggregate by GeoName × HHSize × VehOwn

@@ -59,11 +59,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
 <script src="../site_libs/clipboard/clipboard.min.js"></script>
 <script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
+<link href="../report/2-distribution.html" rel="next">
+<link href="../report/0-hhdisag-autoown.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
@@ -74,7 +77,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-1d4f84655f446305ac42a8f1abcf7405.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-30ae6b2e5328ac7375bd033934d6d19c.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -112,20 +115,104 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
+<link rel="stylesheet" href="../styles.css">
 </head>
 
-<body class="fullcontent quarto-light">
+<body class="nav-sidebar docked fullcontent quarto-light">
 
 <div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../report/0-hhdisag-autoown.html">Reports</a></li><li class="breadcrumb-item"><a href="../report/1-tripgen.html">Trip Generation</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
 <!-- content -->
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
 <!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">WF-TDM Calibration</a> 
+    </div>
+      </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TDM Calibration Reports</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Reports</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../report/0-hhdisag-autoown.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Household Disaggregation and Auto Ownership</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../report/1-tripgen.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Trip Generation</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../report/2-distribution.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Trip Distribution &amp; HBW Destination Choice</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../report/3-modechoice.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Mode Choice</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../report/4-assignhwy.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Highway Assignment</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../report/7-modelresults.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Compare Model Results</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../report/compare.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Compare Calibration Runs</span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
     
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
-<header id="title-block-header" class="quarto-title-block default">
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../report/0-hhdisag-autoown.html">Reports</a></li><li class="breadcrumb-item"><a href="../report/1-tripgen.html">Trip Generation</a></li></ol></nav>
 <div class="quarto-title">
 <h1 class="title">Trip Generation</h1>
 </div>
@@ -144,153 +231,169 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
+<!--
+Shared global calibration-run selector, spliced into every report page via
+{{< include _calib_run_selector.qmd >}} (a literal text splice before
+Quarto's own processing, so these cells execute in the including page's own
+kernel/OJS runtime -- not a separate document). Requires the including page
+to have already defined a Python `calib_runs` list (every report page's
+config cell already does: `calib_runs = vs.list_available_runs(repo_root)`)
+before this include point.
+
+Produces `globalCalibRun` (an OJS value, via `viewof`) -- every chart/table
+on the page should filter by this instead of defining its own per-section
+run selector. Persists the choice across page navigation via localStorage
+(each Quarto page is a separate static HTML load, so this is what makes one
+control feel global across the whole site rather than resetting on every
+page).
+-->
+<div id="23e2e3ba" class="cell" data-execution_count="2">
+<div class="cell-output cell-output-display">
+<script type="ojs-define">{"contents": [{"name": "calib_runs_ojs", "value": ["C33"]}]}</script>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb1" data-startfrom="723" data-source-offset="0"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line 722;"><span id="cb1-723"><a href="#cb1-723" aria-hidden="true" tabindex="-1"></a>viewof globalCalibRun <span class="op">=</span> {</span>
+<span id="cb1-724"><a href="#cb1-724" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> options <span class="op">=</span> calib_runs_ojs<span class="op">;</span></span>
+<span id="cb1-725"><a href="#cb1-725" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (options<span class="op">.</span><span class="at">length</span> <span class="op">===</span> <span class="dv">0</span>) {</span>
+<span id="cb1-726"><a href="#cb1-726" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Inputs<span class="op">.</span><span class="fu">select</span>([]<span class="op">,</span> {<span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Run:"</span><span class="op">,</span> <span class="dt">disabled</span><span class="op">:</span> <span class="kw">true</span>})<span class="op">;</span></span>
+<span id="cb1-727"><a href="#cb1-727" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb1-728"><a href="#cb1-728" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> stored <span class="op">=</span> <span class="bu">window</span><span class="op">.</span><span class="at">localStorage</span><span class="op">.</span><span class="fu">getItem</span>(<span class="st">"tdmcalib:selectedRun"</span>)<span class="op">;</span></span>
+<span id="cb1-729"><a href="#cb1-729" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> initial <span class="op">=</span> options<span class="op">.</span><span class="fu">includes</span>(stored) <span class="op">?</span> stored <span class="op">:</span> options[options<span class="op">.</span><span class="at">length</span> <span class="op">-</span> <span class="dv">1</span>]<span class="op">;</span></span>
+<span id="cb1-730"><a href="#cb1-730" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> input <span class="op">=</span> Inputs<span class="op">.</span><span class="fu">select</span>(options<span class="op">,</span> {<span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Run:"</span><span class="op">,</span> <span class="dt">value</span><span class="op">:</span> initial})<span class="op">;</span></span>
+<span id="cb1-731"><a href="#cb1-731" aria-hidden="true" tabindex="-1"></a>  input<span class="op">.</span><span class="at">classList</span><span class="op">.</span><span class="fu">add</span>(<span class="st">"calib-run-bar"</span>)<span class="op">;</span></span>
+<span id="cb1-732"><a href="#cb1-732" aria-hidden="true" tabindex="-1"></a>  input<span class="op">.</span><span class="fu">addEventListener</span>(<span class="st">"input"</span><span class="op">,</span> () <span class="kw">=&gt;</span> {</span>
+<span id="cb1-733"><a href="#cb1-733" aria-hidden="true" tabindex="-1"></a>    <span class="bu">window</span><span class="op">.</span><span class="at">localStorage</span><span class="op">.</span><span class="fu">setItem</span>(<span class="st">"tdmcalib:selectedRun"</span><span class="op">,</span> input<span class="op">.</span><span class="at">value</span>)<span class="op">;</span></span>
+<span id="cb1-734"><a href="#cb1-734" aria-hidden="true" tabindex="-1"></a>  })<span class="op">;</span></span>
+<span id="cb1-735"><a href="#cb1-735" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> input<span class="op">;</span></span>
+<span id="cb1-736"><a href="#cb1-736" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div id="ojs-cell-1" data-nodetype="declaration">
+
+</div>
+</div>
+</div>
 <section id="trip-production-rates" class="level2">
 <h2 class="anchored" data-anchor-id="trip-production-rates">Trip Production Rates</h2>
 <p>The sources of the data include the most recent Utah Household Travel Survey (HTS) from 2023, the HTS from 2012, and the base year model (BY 2023 Model).</p>
-<div id="c63eabc4" class="cell" data-execution_count="15">
+<div id="c99b27b1" class="cell" data-execution_count="16">
 <div class="cell-output cell-output-display">
 <script type="ojs-define">{"contents": [{"name": "tripRates", "value": [{"Purpose": "HBOth", "County": "Box Elder", "Trips per Household": 4.13961450146578, "Trips per Person": 1.3626557858367243, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBSch", "County": "Box Elder", "Trips per Household": 0.8159851567186845, "Trips per Person": 0.2686015556680196, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBShp", "County": "Box Elder", "Trips per Household": 1.0948512998206574, "Trips per Person": 0.3603971958749333, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBW", "County": "Box Elder", "Trips per Household": 1.3308799968301945, "Trips per Person": 0.43809183857407, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "IX", "County": "Box Elder", "Trips per Household": 0.9086453094622247, "Trips per Person": 0.2991029207607815, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "NHBNW", "County": "Box Elder", "Trips per Household": 1.7980354194474113, "Trips per Person": 0.5918675196885674, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "NHBW", "County": "Box Elder", "Trips per Household": 0.5725682124955379, "Trips per Person": 0.18847488993648395, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBOth", "County": "Box Elder", "Trips per Household": 4.923593524448244, "Trips per Person": 1.9349068998674739, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBSch", "County": "Box Elder", "Trips per Household": 0.6858695679193431, "Trips per Person": 0.26953763603484693, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBShp", "County": "Box Elder", "Trips per Household": 1.1370117614466055, "Trips per Person": 0.4468305296790414, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBW", "County": "Box Elder", "Trips per Household": 1.4182524585995036, "Trips per Person": 0.5573543905019478, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "IX", "County": "Box Elder", "Trips per Household": 0.43718747780672423, "Trips per Person": 0.17180887559938965, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "NHBNW", "County": "Box Elder", "Trips per Household": 1.6101114691221976, "Trips per Person": 0.6327524349218938, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "NHBW", "County": "Box Elder", "Trips per Household": 0.8691128059664405, "Trips per Person": 0.34154979623670273, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBOth", "County": "Davis", "Trips per Household": 4.720583827849763, "Trips per Person": 1.3119392586782501, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBSch", "County": "Davis", "Trips per Household": 1.1386022074529571, "Trips per Person": 0.3164390233179421, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBShp", "County": "Davis", "Trips per Household": 1.4012252714374462, "Trips per Person": 0.38942692490819153, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBW", "County": "Davis", "Trips per Household": 1.8773793548541822, "Trips per Person": 0.5217591232114932, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "IX", "County": "Davis", "Trips per Household": 0.11916314053875203, "Trips per Person": 0.03311768373603765, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "NHBNW", "County": "Davis", "Trips per Household": 1.9614137424945122, "Trips per Person": 0.5451138641174615, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "NHBW", "County": "Davis", "Trips per Household": 0.6775443299322925, "Trips per Person": 0.18830234529230214, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBOth", "County": "Davis", "Trips per Household": 6.545955494988101, "Trips per Person": 2.14902814789804, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBSch", "County": "Davis", "Trips per Household": 0.8891325434362979, "Trips per Person": 0.291900985962975, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBShp", "County": "Davis", "Trips per Household": 1.2393192785313287, "Trips per Person": 0.4068668074256984, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBW", "County": "Davis", "Trips per Household": 1.9872882105206062, "Trips per Person": 0.6524239747221916, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "IX", "County": "Davis", "Trips per Household": 0.17563692285954408, "Trips per Person": 0.05766135918955602, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "NHBNW", "County": "Davis", "Trips per Household": 2.0798543344888527, "Trips per Person": 0.6828133053710005, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "NHBW", "County": "Davis", "Trips per Household": 0.7512746593420507, "Trips per Person": 0.24664243302062244, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBOth", "County": "Salt Lake", "Trips per Household": 3.854112312375041, "Trips per Person": 1.3784972506061837, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBSch", "County": "Salt Lake", "Trips per Household": 0.6344551002839988, "Trips per Person": 0.22692504537720815, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBShp", "County": "Salt Lake", "Trips per Household": 0.9666434930833527, "Trips per Person": 0.3457386006249039, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBW", "County": "Salt Lake", "Trips per Household": 1.8300285451664464, "Trips per Person": 0.6545448377160056, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "IX", "County": "Salt Lake", "Trips per Household": 0.13058947080472827, "Trips per Person": 0.046707830979502866, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "NHBNW", "County": "Salt Lake", "Trips per Household": 1.747182403523119, "Trips per Person": 0.6249133248740041, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "NHBW", "County": "Salt Lake", "Trips per Household": 0.9978952037709957, "Trips per Person": 0.3569163748483821, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBOth", "County": "Salt Lake", "Trips per Household": 4.890598070281683, "Trips per Person": 1.8077944420754892, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBSch", "County": "Salt Lake", "Trips per Household": 0.6455919195232344, "Trips per Person": 0.23864105518197454, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBShp", "County": "Salt Lake", "Trips per Household": 0.9417879470339113, "Trips per Person": 0.34812900013341885, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBW", "County": "Salt Lake", "Trips per Household": 1.8795514514897598, "Trips per Person": 0.6947703775220279, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "IX", "County": "Salt Lake", "Trips per Household": 0.13926935492783168, "Trips per Person": 0.05148048606158952, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "NHBNW", "County": "Salt Lake", "Trips per Household": 1.846532242717136, "Trips per Person": 0.6825649291815468, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "NHBW", "County": "Salt Lake", "Trips per Household": 1.037056775865808, "Trips per Person": 0.3833448278891077, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBOth", "County": "Utah", "Trips per Household": 5.19578428869229, "Trips per Person": 1.4650086371737634, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBSch", "County": "Utah", "Trips per Household": 1.120878141036886, "Trips per Person": 0.31604394382038586, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBShp", "County": "Utah", "Trips per Household": 1.1851166228045333, "Trips per Person": 0.3341566916558467, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBW", "County": "Utah", "Trips per Household": 2.0128053552192484, "Trips per Person": 0.5675326507998606, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "IX", "County": "Utah", "Trips per Household": 0.1358182143704879, "Trips per Person": 0.03829544224368904, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "NHBNW", "County": "Utah", "Trips per Household": 2.0989813059975106, "Trips per Person": 0.5918309097713836, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "NHBW", "County": "Utah", "Trips per Household": 0.8690079960011393, "Trips per Person": 0.24502638084599077, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBOth", "County": "Utah", "Trips per Household": 6.847569328840183, "Trips per Person": 2.022624743648261, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBSch", "County": "Utah", "Trips per Household": 1.074855837862453, "Trips per Person": 0.31748930300843126, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBShp", "County": "Utah", "Trips per Household": 1.104721028835349, "Trips per Person": 0.3263108382619913, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBW", "County": "Utah", "Trips per Household": 2.184635160162067, "Trips per Person": 0.6452942523965949, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "IX", "County": "Utah", "Trips per Household": 0.10187717482194199, "Trips per Person": 0.030092326884515252, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "NHBNW", "County": "Utah", "Trips per Household": 2.3007773026060345, "Trips per Person": 0.6796001439920405, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "NHBW", "County": "Utah", "Trips per Household": 1.0302109274931959, "Trips per Person": 0.3043021564379688, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBOth", "County": "Weber", "Trips per Household": 3.8591644797570486, "Trips per Person": 1.2914925694601629, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBSch", "County": "Weber", "Trips per Household": 0.6357425670254981, "Trips per Person": 0.2127550680230788, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBShp", "County": "Weber", "Trips per Household": 0.9973726698610241, "Trips per Person": 0.33377675371567694, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBW", "County": "Weber", "Trips per Household": 1.744890830204078, "Trips per Person": 0.5839381953136161, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "IX", "County": "Weber", "Trips per Household": 0.20098508014715263, "Trips per Person": 0.06726086409220476, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "NHBNW", "County": "Weber", "Trips per Household": 1.793721377442952, "Trips per Person": 0.6002796312001865, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "NHBW", "County": "Weber", "Trips per Household": 0.6265468614113294, "Trips per Person": 0.2096776699142556, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBOth", "County": "Weber", "Trips per Household": 4.440404942567437, "Trips per Person": 1.5706536789886183, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBSch", "County": "Weber", "Trips per Household": 0.6124023069537188, "Trips per Person": 0.21661806724361998, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBShp", "County": "Weber", "Trips per Household": 0.7659052516400764, "Trips per Person": 0.2709149090689987, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBW", "County": "Weber", "Trips per Household": 2.087333463025782, "Trips per Person": 0.7383286041209307, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "IX", "County": "Weber", "Trips per Household": 0.20720454653255485, "Trips per Person": 0.07329209554621224, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "NHBNW", "County": "Weber", "Trips per Household": 1.9962052079929506, "Trips per Person": 0.7060948482183956, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "NHBW", "County": "Weber", "Trips per Household": 0.9257980358672218, "Trips per Person": 0.3274719557884568, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBOth", "County": "Region", "Trips per Household": 4.262412926966083, "Trips per Person": 1.3789206624550678, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBSch", "County": "Region", "Trips per Household": 0.8095029653821023, "Trips per Person": 0.2618799221028434, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBShp", "County": "Region", "Trips per Household": 1.077929317114824, "Trips per Person": 0.34871774121933624, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBW", "County": "Region", "Trips per Household": 1.8584737800855773, "Trips per Person": 0.6012293834269733, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "IX", "County": "Region", "Trips per Household": 0.14915434234073574, "Trips per Person": 0.048252482355089735, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "NHBNW", "County": "Region", "Trips per Household": 1.857434826137824, "Trips per Person": 0.6008932744927982, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "NHBW", "County": "Region", "Trips per Household": 0.8772541195707384, "Trips per Person": 0.2837978986144215, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "HBOth", "County": "Region", "Trips per Household": 5.543220514901706, "Trips per Person": 1.8934713530076976, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBSch", "County": "Region", "Trips per Household": 0.7797657577238808, "Trips per Person": 0.26635493218019496, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBShp", "County": "Region", "Trips per Household": 1.005867817052462, "Trips per Person": 0.34358761145820965, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBW", "County": "Region", "Trips per Household": 1.9842788513825946, "Trips per Person": 0.6777964454727425, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "IX", "County": "Region", "Trips per Household": 0.14689645833285342, "Trips per Person": 0.05017737161345438, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "NHBNW", "County": "Region", "Trips per Household": 2.0014257916519664, "Trips per Person": 0.6836535532866043, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "NHBW", "County": "Region", "Trips per Household": 0.9812120517611528, "Trips per Person": 0.33516561468935063, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "HBOth", "County": "Box Elder", "Trips per Household": 5.553660506011125, "Trips per Person": 1.9120030888030888, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBSch", "County": "Box Elder", "Trips per Household": 0.8681051498295352, "Trips per Person": 0.2988694980694981, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBShp", "County": "Box Elder", "Trips per Household": 0.9796608648842633, "Trips per Person": 0.3372756756756757, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBW", "County": "Box Elder", "Trips per Household": 1.5676206710927687, "Trips per Person": 0.5396972972972973, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "IX", "County": "Box Elder", "Trips per Household": 0.4857886237215145, "Trips per Person": 0.16724633204633205, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "NHBNW", "County": "Box Elder", "Trips per Household": 1.7667862910461152, "Trips per Person": 0.608265637065637, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "NHBW", "County": "Box Elder", "Trips per Household": 0.8288892876368203, "Trips per Person": 0.28536833976833975, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBOth", "County": "Davis", "Trips per Household": 5.9720181798860486, "Trips per Person": 1.9483296219747983, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBSch", "County": "Davis", "Trips per Household": 0.8923822680715752, "Trips per Person": 0.29113354223614907, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBShp", "County": "Davis", "Trips per Household": 1.0442791397251765, "Trips per Person": 0.34068884592306153, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBW", "County": "Davis", "Trips per Household": 1.9097725061921151, "Trips per Person": 0.6230500700046671, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "IX", "County": "Davis", "Trips per Household": 0.08908716372524175, "Trips per Person": 0.029064070938062535, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "NHBNW", "County": "Davis", "Trips per Household": 1.8059305338706644, "Trips per Person": 0.5891723448229882, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "NHBW", "County": "Davis", "Trips per Household": 0.8548846182142186, "Trips per Person": 0.2789001933462231, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBOth", "County": "Salt Lake", "Trips per Household": 5.139680775651139, "Trips per Person": 1.869784091268316, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBSch", "County": "Salt Lake", "Trips per Household": 0.6454675173218084, "Trips per Person": 0.23481709234478182, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBShp", "County": "Salt Lake", "Trips per Household": 0.9612110402231827, "Trips per Person": 0.3496826339634068, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBW", "County": "Salt Lake", "Trips per Household": 1.8183652329011457, "Trips per Person": 0.6615100300977804, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "IX", "County": "Salt Lake", "Trips per Household": 0.08873819487320207, "Trips per Person": 0.03228240669105768, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "NHBNW", "County": "Salt Lake", "Trips per Household": 2.0820825044019116, "Trips per Person": 0.7574487430973927, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "NHBW", "County": "Salt Lake", "Trips per Household": 1.0128560975052021, "Trips per Person": 0.36847078651872334, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBOth", "County": "Utah", "Trips per Household": 6.4314923997948465, "Trips per Person": 1.993457911055839, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBSch", "County": "Utah", "Trips per Household": 1.0380822701215942, "Trips per Person": 0.32175631798409743, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBShp", "County": "Utah", "Trips per Household": 1.095696318586802, "Trips per Person": 0.33961394317612703, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBW", "County": "Utah", "Trips per Household": 2.047784389283007, "Trips per Person": 0.6347161338607933, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "IX", "County": "Utah", "Trips per Household": 0.05110496861426179, "Trips per Person": 0.01584011884731609, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "NHBNW", "County": "Utah", "Trips per Household": 2.074387149775557, "Trips per Person": 0.6429617291384132, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "NHBW", "County": "Utah", "Trips per Household": 0.9616880670651725, "Trips per Person": 0.2980777346981267, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBOth", "County": "Weber", "Trips per Household": 5.351873557472426, "Trips per Person": 1.9539064320218698, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBSch", "County": "Weber", "Trips per Household": 0.6907571873770195, "Trips per Person": 0.25218736894425375, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBShp", "County": "Weber", "Trips per Household": 0.9978004445909869, "Trips per Person": 0.3642852704990603, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBW", "County": "Weber", "Trips per Household": 1.758202065539944, "Trips per Person": 0.6418990074711483, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "IX", "County": "Weber", "Trips per Household": 0.1418606877333305, "Trips per Person": 0.05179167766887747, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "NHBNW", "County": "Weber", "Trips per Household": 1.7566789691445348, "Trips per Person": 0.6413429427936814, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "NHBW", "County": "Weber", "Trips per Household": 0.8564460375030578, "Trips per Person": 0.31267842997157547, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBOth", "County": "Region", "Trips per Household": 5.604021664589761, "Trips per Person": 1.9242470664725981, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBSch", "County": "Region", "Trips per Household": 0.7849355632104175, "Trips per Person": 0.269522504600851, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBShp", "County": "Region", "Trips per Household": 1.0102861610315308, "Trips per Person": 0.3469009040323006, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "HBW", "County": "Region", "Trips per Household": 1.8785565074548287, "Trips per Person": 0.645037986115206, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "IX", "County": "Region", "Trips per Household": 0.09006147112687274, "Trips per Person": 0.030924313286140342, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "NHBNW", "County": "Region", "Trips per Household": 2.003465475731841, "Trips per Person": 0.6879278481051941, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "NHBW", "County": "Region", "Trips per Household": 0.9593559597392928, "Trips per Person": 0.3294130540029731, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "All", "County": "Box Elder", "Trips per Household": 10.66057989624049, "Trips per Person": 3.50919170633958, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "All", "County": "Davis", "Trips per Household": 11.895911874559905, "Trips per Person": 3.3060982232616785, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "All", "County": "Region", "Trips per Household": 10.892162277597885, "Trips per Person": 3.52369136466653, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "All", "County": "Salt Lake", "Trips per Household": 10.160906529007681, "Trips per Person": 3.6342432650261904, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "All", "County": "Utah", "Trips per Household": 12.618391924122095, "Trips per Person": 3.55789465631092, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "All", "County": "Weber", "Trips per Household": 9.858423865849083, "Trips per Person": 3.2991807517191813, "Data Source": "HTS 2012", "calib_run": NaN}, {"Purpose": "All", "County": "Box Elder", "Trips per Household": 11.081139065309058, "Trips per Person": 4.354740562841296, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "All", "County": "Davis", "Trips per Household": 13.668461444166782, "Trips per Person": 4.487337013590084, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "All", "County": "Region", "Trips per Household": 12.442667242806616, "Trips per Person": 4.250206881708254, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "All", "County": "Salt Lake", "Trips per Household": 11.380387761839364, "Trips per Person": 4.206725118045155, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "All", "County": "Utah", "Trips per Household": 14.644646760621225, "Trips per Person": 4.325713764629803, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "All", "County": "Weber", "Trips per Household": 11.035253754579742, "Trips per Person": 3.9033741589752324, "Data Source": "HTS 2023", "calib_run": NaN}, {"Purpose": "All", "County": "Box Elder", "Trips per Household": 12.050511394222143, "Trips per Person": 4.148725868725869, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "All", "County": "Davis", "Trips per Household": 12.56835440968504, "Trips per Person": 4.10033868924595, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "All", "County": "Region", "Trips per Household": 12.330682802884544, "Trips per Person": 4.233973676615263, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "All", "County": "Salt Lake", "Trips per Household": 11.748401362877592, "Trips per Person": 4.273995783981459, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "All", "County": "Utah", "Trips per Household": 13.700235563241241, "Trips per Person": 4.246423888760713, "Data Source": "Model", "calib_run": "C33"}, {"Purpose": "All", "County": "Weber", "Trips per Household": 11.553618949361299, "Trips per Person": 4.218091129370467, "Data Source": "Model", "calib_run": "C33"}]}]}</script>
 </div>
 </div>
 <div class="cell" data-include="false">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb1" data-startfrom="724" data-source-offset="-1"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line 723;"><span id="cb1-724"><a href="#cb1-724" aria-hidden="true" tabindex="-1"></a>areas <span class="op">=</span> [<span class="st">"Region"</span><span class="op">,</span><span class="st">"Box Elder"</span><span class="op">,</span><span class="st">"Weber"</span><span class="op">,</span><span class="st">"Davis"</span><span class="op">,</span><span class="st">"Salt Lake"</span><span class="op">,</span><span class="st">"Utah"</span>]</span>
-<span id="cb1-725"><a href="#cb1-725" aria-hidden="true" tabindex="-1"></a>areasAvailable <span class="op">=</span> areas<span class="op">.</span><span class="fu">filter</span>(a <span class="kw">=&gt;</span> tripRates<span class="op">.</span><span class="fu">some</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">County</span> <span class="op">===</span> a))</span>
-<span id="cb1-726"><a href="#cb1-726" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-727"><a href="#cb1-727" aria-hidden="true" tabindex="-1"></a>metricMap <span class="op">=</span> <span class="kw">new</span> <span class="bu">Map</span>([</span>
-<span id="cb1-728"><a href="#cb1-728" aria-hidden="true" tabindex="-1"></a>  [<span class="st">"Trips per Household"</span><span class="op">,</span> <span class="st">"Trips per Household"</span>]<span class="op">,</span></span>
-<span id="cb1-729"><a href="#cb1-729" aria-hidden="true" tabindex="-1"></a>  [<span class="st">"Trips per Person"</span><span class="op">,</span> <span class="st">"Trips per Person"</span>]</span>
-<span id="cb1-730"><a href="#cb1-730" aria-hidden="true" tabindex="-1"></a>])</span>
-<span id="cb1-731"><a href="#cb1-731" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-732"><a href="#cb1-732" aria-hidden="true" tabindex="-1"></a><span class="co">// every calibration run present in the data (Model rows only -- HTS rows</span></span>
-<span id="cb1-733"><a href="#cb1-733" aria-hidden="true" tabindex="-1"></a><span class="co">// have calib_run == null), for the run selector below</span></span>
-<span id="cb1-734"><a href="#cb1-734" aria-hidden="true" tabindex="-1"></a>runsAvailable <span class="op">=</span> <span class="bu">Array</span><span class="op">.</span><span class="fu">from</span>(<span class="kw">new</span> <span class="bu">Set</span>(</span>
-<span id="cb1-735"><a href="#cb1-735" aria-hidden="true" tabindex="-1"></a>  tripRates<span class="op">.</span><span class="fu">filter</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">calib_run</span> <span class="op">!=</span> <span class="kw">null</span>)<span class="op">.</span><span class="fu">map</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">calib_run</span>)</span>
-<span id="cb1-736"><a href="#cb1-736" aria-hidden="true" tabindex="-1"></a>))<span class="op">.</span><span class="fu">sort</span>()</span>
-<span id="cb1-737"><a href="#cb1-737" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-738"><a href="#cb1-738" aria-hidden="true" tabindex="-1"></a>viewof calibRunSelect <span class="op">=</span> Inputs<span class="op">.</span><span class="fu">select</span>(runsAvailable<span class="op">,</span> {</span>
-<span id="cb1-739"><a href="#cb1-739" aria-hidden="true" tabindex="-1"></a>  <span class="dt">value</span><span class="op">:</span> runsAvailable[runsAvailable<span class="op">.</span><span class="at">length</span> <span class="op">-</span> <span class="dv">1</span>]<span class="op">,</span></span>
-<span id="cb1-740"><a href="#cb1-740" aria-hidden="true" tabindex="-1"></a>  <span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Run"</span></span>
-<span id="cb1-741"><a href="#cb1-741" aria-hidden="true" tabindex="-1"></a>})</span>
-<span id="cb1-742"><a href="#cb1-742" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-743"><a href="#cb1-743" aria-hidden="true" tabindex="-1"></a>viewof countySelect <span class="op">=</span> Inputs<span class="op">.</span><span class="fu">select</span>(areasAvailable<span class="op">,</span> {</span>
-<span id="cb1-744"><a href="#cb1-744" aria-hidden="true" tabindex="-1"></a>  <span class="dt">value</span><span class="op">:</span> <span class="st">"Region"</span><span class="op">,</span></span>
-<span id="cb1-745"><a href="#cb1-745" aria-hidden="true" tabindex="-1"></a>  <span class="dt">label</span><span class="op">:</span> <span class="st">"Area"</span></span>
-<span id="cb1-746"><a href="#cb1-746" aria-hidden="true" tabindex="-1"></a>})</span>
-<span id="cb1-747"><a href="#cb1-747" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-748"><a href="#cb1-748" aria-hidden="true" tabindex="-1"></a>viewof metricSelect <span class="op">=</span> Inputs<span class="op">.</span><span class="fu">select</span>(metricMap<span class="op">,</span> {</span>
-<span id="cb1-749"><a href="#cb1-749" aria-hidden="true" tabindex="-1"></a>  <span class="dt">value</span><span class="op">:</span> <span class="st">"Trips per Household"</span><span class="op">,</span></span>
-<span id="cb1-750"><a href="#cb1-750" aria-hidden="true" tabindex="-1"></a>  <span class="dt">label</span><span class="op">:</span> <span class="st">"Metric:"</span></span>
-<span id="cb1-751"><a href="#cb1-751" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb2" data-startfrom="749" data-source-offset="-1"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line 748;"><span id="cb2-749"><a href="#cb2-749" aria-hidden="true" tabindex="-1"></a>areas <span class="op">=</span> [<span class="st">"Region"</span><span class="op">,</span><span class="st">"Box Elder"</span><span class="op">,</span><span class="st">"Weber"</span><span class="op">,</span><span class="st">"Davis"</span><span class="op">,</span><span class="st">"Salt Lake"</span><span class="op">,</span><span class="st">"Utah"</span>]</span>
+<span id="cb2-750"><a href="#cb2-750" aria-hidden="true" tabindex="-1"></a>areasAvailable <span class="op">=</span> areas<span class="op">.</span><span class="fu">filter</span>(a <span class="kw">=&gt;</span> tripRates<span class="op">.</span><span class="fu">some</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">County</span> <span class="op">===</span> a))</span>
+<span id="cb2-751"><a href="#cb2-751" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-752"><a href="#cb2-752" aria-hidden="true" tabindex="-1"></a>metricMap <span class="op">=</span> <span class="kw">new</span> <span class="bu">Map</span>([</span>
+<span id="cb2-753"><a href="#cb2-753" aria-hidden="true" tabindex="-1"></a>  [<span class="st">"Trips per Household"</span><span class="op">,</span> <span class="st">"Trips per Household"</span>]<span class="op">,</span></span>
+<span id="cb2-754"><a href="#cb2-754" aria-hidden="true" tabindex="-1"></a>  [<span class="st">"Trips per Person"</span><span class="op">,</span> <span class="st">"Trips per Person"</span>]</span>
+<span id="cb2-755"><a href="#cb2-755" aria-hidden="true" tabindex="-1"></a>])</span>
+<span id="cb2-756"><a href="#cb2-756" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-757"><a href="#cb2-757" aria-hidden="true" tabindex="-1"></a>viewof countySelect <span class="op">=</span> Inputs<span class="op">.</span><span class="fu">select</span>(areasAvailable<span class="op">,</span> {</span>
+<span id="cb2-758"><a href="#cb2-758" aria-hidden="true" tabindex="-1"></a>  <span class="dt">value</span><span class="op">:</span> <span class="st">"Region"</span><span class="op">,</span></span>
+<span id="cb2-759"><a href="#cb2-759" aria-hidden="true" tabindex="-1"></a>  <span class="dt">label</span><span class="op">:</span> <span class="st">"Area"</span></span>
+<span id="cb2-760"><a href="#cb2-760" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb2-761"><a href="#cb2-761" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-762"><a href="#cb2-762" aria-hidden="true" tabindex="-1"></a>viewof metricSelect <span class="op">=</span> Inputs<span class="op">.</span><span class="fu">select</span>(metricMap<span class="op">,</span> {</span>
+<span id="cb2-763"><a href="#cb2-763" aria-hidden="true" tabindex="-1"></a>  <span class="dt">value</span><span class="op">:</span> <span class="st">"Trips per Household"</span><span class="op">,</span></span>
+<span id="cb2-764"><a href="#cb2-764" aria-hidden="true" tabindex="-1"></a>  <span class="dt">label</span><span class="op">:</span> <span class="st">"Metric:"</span></span>
+<span id="cb2-765"><a href="#cb2-765" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display hidden">
 <div>
-<div id="ojs-cell-1-1" data-nodetype="declaration">
+<div id="ojs-cell-2-1" data-nodetype="declaration">
 
 </div>
 </div>
 </div>
 <div class="cell-output cell-output-display hidden">
 <div>
-<div id="ojs-cell-1-2" data-nodetype="declaration">
+<div id="ojs-cell-2-2" data-nodetype="declaration">
 
 </div>
 </div>
 </div>
 <div class="cell-output cell-output-display hidden">
 <div>
-<div id="ojs-cell-1-3" data-nodetype="declaration">
+<div id="ojs-cell-2-3" data-nodetype="declaration">
 
 </div>
 </div>
 </div>
 <div class="cell-output cell-output-display hidden">
 <div>
-<div id="ojs-cell-1-4" data-nodetype="declaration">
+<div id="ojs-cell-2-4" data-nodetype="declaration">
 
 </div>
 </div>
 </div>
 <div class="cell-output cell-output-display hidden">
 <div>
-<div id="ojs-cell-1-5" data-nodetype="declaration">
-
-</div>
-</div>
-</div>
-<div class="cell-output cell-output-display hidden">
-<div>
-<div id="ojs-cell-1-6" data-nodetype="declaration">
-
-</div>
-</div>
-</div>
-<div class="cell-output cell-output-display hidden">
-<div>
-<div id="ojs-cell-1-7" data-nodetype="declaration">
+<div id="ojs-cell-2-5" data-nodetype="declaration">
 
 </div>
 </div>
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb2" data-startfrom="759" data-source-offset="-1"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line 758;"><span id="cb2-759"><a href="#cb2-759" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> {GroupedBarChart} <span class="im">from</span> <span class="st">"@d3/grouped-bar-chart"</span></span>
-<span id="cb2-760"><a href="#cb2-760" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> {Swatches} <span class="im">from</span> <span class="st">"@d3/color-legend"</span></span>
-<span id="cb2-761"><a href="#cb2-761" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-762"><a href="#cb2-762" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb2-763"><a href="#cb2-763" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> container <span class="op">=</span> <span class="fu">html</span><span class="vs">`</span></span>
-<span id="cb2-764"><a href="#cb2-764" aria-hidden="true" tabindex="-1"></a><span class="vs">    &lt;div style="display:flex; flex-direction:column; gap:10px;"&gt;&lt;/div&gt;</span></span>
-<span id="cb2-765"><a href="#cb2-765" aria-hidden="true" tabindex="-1"></a><span class="vs">  `</span><span class="op">;</span></span>
-<span id="cb2-766"><a href="#cb2-766" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-767"><a href="#cb2-767" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Controls</span></span>
-<span id="cb2-768"><a href="#cb2-768" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> controls <span class="op">=</span> <span class="fu">html</span><span class="vs">`</span></span>
-<span id="cb2-769"><a href="#cb2-769" aria-hidden="true" tabindex="-1"></a><span class="vs">    &lt;div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;"&gt;&lt;/div&gt;</span></span>
-<span id="cb2-770"><a href="#cb2-770" aria-hidden="true" tabindex="-1"></a><span class="vs">  `</span><span class="op">;</span></span>
-<span id="cb2-771"><a href="#cb2-771" aria-hidden="true" tabindex="-1"></a>  controls<span class="op">.</span><span class="fu">append</span>(viewof calibRunSelect)<span class="op">;</span></span>
-<span id="cb2-772"><a href="#cb2-772" aria-hidden="true" tabindex="-1"></a>  controls<span class="op">.</span><span class="fu">append</span>(viewof countySelect)<span class="op">;</span></span>
-<span id="cb2-773"><a href="#cb2-773" aria-hidden="true" tabindex="-1"></a>  controls<span class="op">.</span><span class="fu">append</span>(viewof metricSelect)<span class="op">;</span></span>
-<span id="cb2-774"><a href="#cb2-774" aria-hidden="true" tabindex="-1"></a>  container<span class="op">.</span><span class="fu">append</span>(controls)<span class="op">;</span></span>
-<span id="cb2-775"><a href="#cb2-775" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-776"><a href="#cb2-776" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Reactive data -- always keep HTS reference rows (calib_run == null),</span></span>
-<span id="cb2-777"><a href="#cb2-777" aria-hidden="true" tabindex="-1"></a>  <span class="co">// but only the selected calibration run's Model rows</span></span>
-<span id="cb2-778"><a href="#cb2-778" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> filtered_data <span class="op">=</span> tripRates</span>
-<span id="cb2-779"><a href="#cb2-779" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">filter</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">County</span> <span class="op">===</span> countySelect)</span>
-<span id="cb2-780"><a href="#cb2-780" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">filter</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">calib_run</span> <span class="op">==</span> <span class="kw">null</span> <span class="op">||</span> d<span class="op">.</span><span class="at">calib_run</span> <span class="op">===</span> calibRunSelect)</span>
-<span id="cb2-781"><a href="#cb2-781" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">map</span>(d <span class="kw">=&gt;</span> ({ <span class="op">...</span>d<span class="op">,</span> <span class="st">"Data Source"</span><span class="op">:</span> <span class="bu">String</span>(d[<span class="st">"Data Source"</span>])<span class="op">.</span><span class="fu">trim</span>() }))<span class="op">;</span></span>
-<span id="cb2-782"><a href="#cb2-782" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-783"><a href="#cb2-783" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> purposeOrder <span class="op">=</span> [<span class="st">"All"</span><span class="op">,</span><span class="st">"HBW"</span><span class="op">,</span><span class="st">"HBShp"</span><span class="op">,</span><span class="st">"HBOth"</span><span class="op">,</span><span class="st">"HBSch"</span><span class="op">,</span><span class="st">"NHBW"</span><span class="op">,</span><span class="st">"NHBNW"</span><span class="op">,</span><span class="st">"IX"</span>]<span class="op">;</span></span>
-<span id="cb2-784"><a href="#cb2-784" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> purposes <span class="op">=</span> purposeOrder<span class="op">.</span><span class="fu">filter</span>(p <span class="kw">=&gt;</span></span>
-<span id="cb2-785"><a href="#cb2-785" aria-hidden="true" tabindex="-1"></a>    filtered_data<span class="op">.</span><span class="fu">some</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">Purpose</span> <span class="op">===</span> p)</span>
-<span id="cb2-786"><a href="#cb2-786" aria-hidden="true" tabindex="-1"></a>  )<span class="op">;</span></span>
-<span id="cb2-787"><a href="#cb2-787" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-788"><a href="#cb2-788" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Title</span></span>
-<span id="cb2-789"><a href="#cb2-789" aria-hidden="true" tabindex="-1"></a>  container<span class="op">.</span><span class="fu">append</span>(<span class="fu">html</span><span class="vs">`</span></span>
-<span id="cb2-790"><a href="#cb2-790" aria-hidden="true" tabindex="-1"></a><span class="vs">    &lt;div style="font-size:18px; font-weight:600; margin-top:8px;"&gt;</span></span>
-<span id="cb2-791"><a href="#cb2-791" aria-hidden="true" tabindex="-1"></a><span class="vs">      </span><span class="sc">${</span>metricSelect<span class="sc">}</span><span class="vs"> — </span><span class="sc">${</span>countySelect<span class="sc">}</span><span class="vs"> — </span><span class="sc">${</span>calibRunSelect<span class="sc">}</span></span>
-<span id="cb2-792"><a href="#cb2-792" aria-hidden="true" tabindex="-1"></a><span class="vs">    &lt;/div&gt;</span></span>
-<span id="cb2-793"><a href="#cb2-793" aria-hidden="true" tabindex="-1"></a><span class="vs">  `</span>)<span class="op">;</span></span>
-<span id="cb2-794"><a href="#cb2-794" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-795"><a href="#cb2-795" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Chart</span></span>
-<span id="cb2-796"><a href="#cb2-796" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> chart <span class="op">=</span> <span class="fu">GroupedBarChart</span>(filtered_data<span class="op">,</span> {</span>
-<span id="cb2-797"><a href="#cb2-797" aria-hidden="true" tabindex="-1"></a>    <span class="dt">x</span><span class="op">:</span> d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">Purpose</span><span class="op">,</span></span>
-<span id="cb2-798"><a href="#cb2-798" aria-hidden="true" tabindex="-1"></a>    <span class="dt">y</span><span class="op">:</span> d <span class="kw">=&gt;</span> d[metricSelect]<span class="op">,</span></span>
-<span id="cb2-799"><a href="#cb2-799" aria-hidden="true" tabindex="-1"></a>    <span class="dt">z</span><span class="op">:</span> d <span class="kw">=&gt;</span> d[<span class="st">"Data Source"</span>]<span class="op">,</span></span>
-<span id="cb2-800"><a href="#cb2-800" aria-hidden="true" tabindex="-1"></a>    <span class="dt">xDomain</span><span class="op">:</span> purposes<span class="op">,</span></span>
-<span id="cb2-801"><a href="#cb2-801" aria-hidden="true" tabindex="-1"></a>    <span class="dt">zDomain</span><span class="op">:</span> [<span class="st">"HTS 2012"</span><span class="op">,</span> <span class="st">"HTS 2023"</span><span class="op">,</span> <span class="st">"Model"</span>]<span class="op">,</span></span>
-<span id="cb2-802"><a href="#cb2-802" aria-hidden="true" tabindex="-1"></a>    <span class="dt">colors</span><span class="op">:</span> [<span class="st">"lightgray"</span><span class="op">,</span> <span class="st">"steelblue"</span><span class="op">,</span> <span class="st">"forestgreen"</span>]<span class="op">,</span></span>
-<span id="cb2-803"><a href="#cb2-803" aria-hidden="true" tabindex="-1"></a>    <span class="dt">width</span><span class="op">:</span> <span class="dv">900</span></span>
-<span id="cb2-804"><a href="#cb2-804" aria-hidden="true" tabindex="-1"></a>  })<span class="op">;</span></span>
-<span id="cb2-805"><a href="#cb2-805" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-806"><a href="#cb2-806" aria-hidden="true" tabindex="-1"></a>  chart<span class="op">.</span><span class="fu">querySelectorAll</span>(<span class="st">"text"</span>)<span class="op">.</span><span class="fu">forEach</span>(t <span class="kw">=&gt;</span> (t<span class="op">.</span><span class="at">style</span><span class="op">.</span><span class="at">fontSize</span> <span class="op">=</span> <span class="st">"18px"</span>))<span class="op">;</span></span>
-<span id="cb2-807"><a href="#cb2-807" aria-hidden="true" tabindex="-1"></a>  container<span class="op">.</span><span class="fu">append</span>(chart)<span class="op">;</span></span>
-<span id="cb2-808"><a href="#cb2-808" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-809"><a href="#cb2-809" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Legend</span></span>
-<span id="cb2-810"><a href="#cb2-810" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> color <span class="op">=</span> d3<span class="op">.</span><span class="fu">scaleOrdinal</span>(</span>
-<span id="cb2-811"><a href="#cb2-811" aria-hidden="true" tabindex="-1"></a>    [<span class="st">"HTS 2012"</span><span class="op">,</span> <span class="st">"HTS 2023"</span><span class="op">,</span> <span class="st">"BY 2023 Model"</span>]<span class="op">,</span></span>
-<span id="cb2-812"><a href="#cb2-812" aria-hidden="true" tabindex="-1"></a>    [<span class="st">"lightgray"</span><span class="op">,</span> <span class="st">"steelblue"</span><span class="op">,</span> <span class="st">"forestgreen"</span>]</span>
-<span id="cb2-813"><a href="#cb2-813" aria-hidden="true" tabindex="-1"></a>  )<span class="op">;</span></span>
-<span id="cb2-814"><a href="#cb2-814" aria-hidden="true" tabindex="-1"></a>  container<span class="op">.</span><span class="fu">append</span>(<span class="fu">Swatches</span>(color<span class="op">,</span> { <span class="dt">label</span><span class="op">:</span> <span class="st">"Data Source"</span> }))<span class="op">;</span></span>
-<span id="cb2-815"><a href="#cb2-815" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-816"><a href="#cb2-816" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> container<span class="op">;</span></span>
-<span id="cb2-817"><a href="#cb2-817" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb3" data-startfrom="4" data-source-offset="-1"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line 3;"><span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> {GroupedBarChart} <span class="im">from</span> <span class="st">"@d3/grouped-bar-chart"</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> {Swatches} <span class="im">from</span> <span class="st">"@d3/color-legend"</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> container <span class="op">=</span> <span class="fu">html</span><span class="vs">`</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="vs">    &lt;div style="display:flex; flex-direction:column; gap:10px;"&gt;&lt;/div&gt;</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="vs">  `</span><span class="op">;</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Controls</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> controls <span class="op">=</span> <span class="fu">html</span><span class="vs">`</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="vs">    &lt;div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;"&gt;&lt;/div&gt;</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="vs">  `</span><span class="op">;</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>  controls<span class="op">.</span><span class="fu">append</span>(viewof countySelect)<span class="op">;</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  controls<span class="op">.</span><span class="fu">append</span>(viewof metricSelect)<span class="op">;</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  container<span class="op">.</span><span class="fu">append</span>(controls)<span class="op">;</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Reactive data -- always keep HTS reference rows (calib_run == null),</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  <span class="co">// but only the selected calibration run's Model rows</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> filtered_data <span class="op">=</span> tripRates</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">filter</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">County</span> <span class="op">===</span> countySelect)</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">filter</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">calib_run</span> <span class="op">==</span> <span class="kw">null</span> <span class="op">||</span> d<span class="op">.</span><span class="at">calib_run</span> <span class="op">===</span> globalCalibRun)</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span><span class="fu">map</span>(d <span class="kw">=&gt;</span> ({ <span class="op">...</span>d<span class="op">,</span> <span class="st">"Data Source"</span><span class="op">:</span> <span class="bu">String</span>(d[<span class="st">"Data Source"</span>])<span class="op">.</span><span class="fu">trim</span>() }))<span class="op">;</span></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> purposeOrder <span class="op">=</span> [<span class="st">"All"</span><span class="op">,</span><span class="st">"HBW"</span><span class="op">,</span><span class="st">"HBShp"</span><span class="op">,</span><span class="st">"HBOth"</span><span class="op">,</span><span class="st">"HBSch"</span><span class="op">,</span><span class="st">"NHBW"</span><span class="op">,</span><span class="st">"NHBNW"</span><span class="op">,</span><span class="st">"IX"</span>]<span class="op">;</span></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> purposes <span class="op">=</span> purposeOrder<span class="op">.</span><span class="fu">filter</span>(p <span class="kw">=&gt;</span></span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>    filtered_data<span class="op">.</span><span class="fu">some</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">Purpose</span> <span class="op">===</span> p)</span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>  )<span class="op">;</span></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Title</span></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>  container<span class="op">.</span><span class="fu">append</span>(<span class="fu">html</span><span class="vs">`</span></span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a><span class="vs">    &lt;div style="font-size:18px; font-weight:600; margin-top:8px;"&gt;</span></span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a><span class="vs">      </span><span class="sc">${</span>metricSelect<span class="sc">}</span><span class="vs"> — </span><span class="sc">${</span>countySelect<span class="sc">}</span><span class="vs"> — </span><span class="sc">${</span>globalCalibRun<span class="sc">}</span></span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a><span class="vs">    &lt;/div&gt;</span></span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a><span class="vs">  `</span>)<span class="op">;</span></span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Chart</span></span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> chart <span class="op">=</span> <span class="fu">GroupedBarChart</span>(filtered_data<span class="op">,</span> {</span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>    <span class="dt">x</span><span class="op">:</span> d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">Purpose</span><span class="op">,</span></span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>    <span class="dt">y</span><span class="op">:</span> d <span class="kw">=&gt;</span> d[metricSelect]<span class="op">,</span></span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>    <span class="dt">z</span><span class="op">:</span> d <span class="kw">=&gt;</span> d[<span class="st">"Data Source"</span>]<span class="op">,</span></span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>    <span class="dt">xDomain</span><span class="op">:</span> purposes<span class="op">,</span></span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>    <span class="dt">zDomain</span><span class="op">:</span> [<span class="st">"HTS 2012"</span><span class="op">,</span> <span class="st">"HTS 2023"</span><span class="op">,</span> <span class="st">"Model"</span>]<span class="op">,</span></span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>    <span class="dt">colors</span><span class="op">:</span> [<span class="st">"lightgray"</span><span class="op">,</span> <span class="st">"steelblue"</span><span class="op">,</span> <span class="st">"forestgreen"</span>]<span class="op">,</span></span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>    <span class="dt">width</span><span class="op">:</span> <span class="dv">900</span></span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>  })<span class="op">;</span></span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>  chart<span class="op">.</span><span class="fu">querySelectorAll</span>(<span class="st">"text"</span>)<span class="op">.</span><span class="fu">forEach</span>(t <span class="kw">=&gt;</span> (t<span class="op">.</span><span class="at">style</span><span class="op">.</span><span class="at">fontSize</span> <span class="op">=</span> <span class="st">"18px"</span>))<span class="op">;</span></span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>  container<span class="op">.</span><span class="fu">append</span>(chart)<span class="op">;</span></span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Legend</span></span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> color <span class="op">=</span> d3<span class="op">.</span><span class="fu">scaleOrdinal</span>(</span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>    [<span class="st">"HTS 2012"</span><span class="op">,</span> <span class="st">"HTS 2023"</span><span class="op">,</span> <span class="st">"BY 2023 Model"</span>]<span class="op">,</span></span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a>    [<span class="st">"lightgray"</span><span class="op">,</span> <span class="st">"steelblue"</span><span class="op">,</span> <span class="st">"forestgreen"</span>]</span>
+<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a>  )<span class="op">;</span></span>
+<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a>  container<span class="op">.</span><span class="fu">append</span>(<span class="fu">Swatches</span>(color<span class="op">,</span> { <span class="dt">label</span><span class="op">:</span> <span class="st">"Data Source"</span> }))<span class="op">;</span></span>
+<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> container<span class="op">;</span></span>
+<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div id="fig-prod-hh" class="cell quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-prod-hh-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
@@ -298,7 +401,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div id="fig-prod-hh-1" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-subfloat-fig figure">
 <div aria-describedby="fig-prod-hh-1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div id="ojs-cell-2-1" data-nodetype="declaration">
+<div id="ojs-cell-3-1" data-nodetype="declaration">
 
 </div>
 </div>
@@ -312,7 +415,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div id="fig-prod-hh-2" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-subfloat-fig figure">
 <div aria-describedby="fig-prod-hh-2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div id="ojs-cell-2-2" data-nodetype="declaration">
+<div id="ojs-cell-3-2" data-nodetype="declaration">
 
 </div>
 </div>
@@ -326,7 +429,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div id="fig-prod-hh-3" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-subfloat-fig figure">
 <div aria-describedby="fig-prod-hh-3-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div id="ojs-cell-2-3" data-nodetype="expression">
+<div id="ojs-cell-3-3" data-nodetype="expression">
 
 </div>
 </div>
@@ -349,7 +452,7 @@ Figure&nbsp;1: Trip Generation Rates (II + IX) by Purpose
 
 </main> <!-- /main -->
 <script type="ojs-module-contents">
-eyJjb250ZW50cyI6W3sibWV0aG9kTmFtZSI6ImludGVycHJldCIsImNlbGxOYW1lIjoib2pzLWNlbGwtMSIsImlubGluZSI6ZmFsc2UsInNvdXJjZSI6IlxuYXJlYXMgPSBbXCJSZWdpb25cIixcIkJveCBFbGRlclwiLFwiV2ViZXJcIixcIkRhdmlzXCIsXCJTYWx0IExha2VcIixcIlV0YWhcIl1cbmFyZWFzQXZhaWxhYmxlID0gYXJlYXMuZmlsdGVyKGEgPT4gdHJpcFJhdGVzLnNvbWUoZCA9PiBkLkNvdW50eSA9PT0gYSkpXG5cbm1ldHJpY01hcCA9IG5ldyBNYXAoW1xuICBbXCJUcmlwcyBwZXIgSG91c2Vob2xkXCIsIFwiVHJpcHMgcGVyIEhvdXNlaG9sZFwiXSxcbiAgW1wiVHJpcHMgcGVyIFBlcnNvblwiLCBcIlRyaXBzIHBlciBQZXJzb25cIl1cbl0pXG5cbi8vIGV2ZXJ5IGNhbGlicmF0aW9uIHJ1biBwcmVzZW50IGluIHRoZSBkYXRhIChNb2RlbCByb3dzIG9ubHkgLS0gSFRTIHJvd3Ncbi8vIGhhdmUgY2FsaWJfcnVuID09IG51bGwpLCBmb3IgdGhlIHJ1biBzZWxlY3RvciBiZWxvd1xucnVuc0F2YWlsYWJsZSA9IEFycmF5LmZyb20obmV3IFNldChcbiAgdHJpcFJhdGVzLmZpbHRlcihkID0+IGQuY2FsaWJfcnVuICE9IG51bGwpLm1hcChkID0+IGQuY2FsaWJfcnVuKVxuKSkuc29ydCgpXG5cbnZpZXdvZiBjYWxpYlJ1blNlbGVjdCA9IElucHV0cy5zZWxlY3QocnVuc0F2YWlsYWJsZSwge1xuICB2YWx1ZTogcnVuc0F2YWlsYWJsZVtydW5zQXZhaWxhYmxlLmxlbmd0aCAtIDFdLFxuICBsYWJlbDogXCJDYWxpYnJhdGlvbiBSdW5cIlxufSlcblxudmlld29mIGNvdW50eVNlbGVjdCA9IElucHV0cy5zZWxlY3QoYXJlYXNBdmFpbGFibGUsIHtcbiAgdmFsdWU6IFwiUmVnaW9uXCIsXG4gIGxhYmVsOiBcIkFyZWFcIlxufSlcblxudmlld29mIG1ldHJpY1NlbGVjdCA9IElucHV0cy5zZWxlY3QobWV0cmljTWFwLCB7XG4gIHZhbHVlOiBcIlRyaXBzIHBlciBIb3VzZWhvbGRcIixcbiAgbGFiZWw6IFwiTWV0cmljOlwiXG59KVxuIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0IiwiY2VsbE5hbWUiOiJvanMtY2VsbC0yIiwiaW5saW5lIjpmYWxzZSwic291cmNlIjoiXG5pbXBvcnQge0dyb3VwZWRCYXJDaGFydH0gZnJvbSBcIkBkMy9ncm91cGVkLWJhci1jaGFydFwiXG5pbXBvcnQge1N3YXRjaGVzfSBmcm9tIFwiQGQzL2NvbG9yLWxlZ2VuZFwiXG5cbntcbiAgY29uc3QgY29udGFpbmVyID0gaHRtbGBcbiAgICA8ZGl2IHN0eWxlPVwiZGlzcGxheTpmbGV4OyBmbGV4LWRpcmVjdGlvbjpjb2x1bW47IGdhcDoxMHB4O1wiPjwvZGl2PlxuICBgO1xuXG4gIC8vIENvbnRyb2xzXG4gIGNvbnN0IGNvbnRyb2xzID0gaHRtbGBcbiAgICA8ZGl2IHN0eWxlPVwiZGlzcGxheTpmbGV4OyBnYXA6MTZweDsgYWxpZ24taXRlbXM6Y2VudGVyOyBmbGV4LXdyYXA6d3JhcDtcIj48L2Rpdj5cbiAgYDtcbiAgY29udHJvbHMuYXBwZW5kKHZpZXdvZiBjYWxpYlJ1blNlbGVjdCk7XG4gIGNvbnRyb2xzLmFwcGVuZCh2aWV3b2YgY291bnR5U2VsZWN0KTtcbiAgY29udHJvbHMuYXBwZW5kKHZpZXdvZiBtZXRyaWNTZWxlY3QpO1xuICBjb250YWluZXIuYXBwZW5kKGNvbnRyb2xzKTtcblxuICAvLyBSZWFjdGl2ZSBkYXRhIC0tIGFsd2F5cyBrZWVwIEhUUyByZWZlcmVuY2Ugcm93cyAoY2FsaWJfcnVuID09IG51bGwpLFxuICAvLyBidXQgb25seSB0aGUgc2VsZWN0ZWQgY2FsaWJyYXRpb24gcnVuJ3MgTW9kZWwgcm93c1xuICBjb25zdCBmaWx0ZXJlZF9kYXRhID0gdHJpcFJhdGVzXG4gICAgLmZpbHRlcihkID0+IGQuQ291bnR5ID09PSBjb3VudHlTZWxlY3QpXG4gICAgLmZpbHRlcihkID0+IGQuY2FsaWJfcnVuID09IG51bGwgfHwgZC5jYWxpYl9ydW4gPT09IGNhbGliUnVuU2VsZWN0KVxuICAgIC5tYXAoZCA9PiAoeyAuLi5kLCBcIkRhdGEgU291cmNlXCI6IFN0cmluZyhkW1wiRGF0YSBTb3VyY2VcIl0pLnRyaW0oKSB9KSk7XG5cbiAgY29uc3QgcHVycG9zZU9yZGVyID0gW1wiQWxsXCIsXCJIQldcIixcIkhCU2hwXCIsXCJIQk90aFwiLFwiSEJTY2hcIixcIk5IQldcIixcIk5IQk5XXCIsXCJJWFwiXTtcbiAgY29uc3QgcHVycG9zZXMgPSBwdXJwb3NlT3JkZXIuZmlsdGVyKHAgPT5cbiAgICBmaWx0ZXJlZF9kYXRhLnNvbWUoZCA9PiBkLlB1cnBvc2UgPT09IHApXG4gICk7XG5cbiAgLy8gVGl0bGVcbiAgY29udGFpbmVyLmFwcGVuZChodG1sYFxuICAgIDxkaXYgc3R5bGU9XCJmb250LXNpemU6MThweDsgZm9udC13ZWlnaHQ6NjAwOyBtYXJnaW4tdG9wOjhweDtcIj5cbiAgICAgICR7bWV0cmljU2VsZWN0fSDigJQgJHtjb3VudHlTZWxlY3R9IOKAlCAke2NhbGliUnVuU2VsZWN0fVxuICAgIDwvZGl2PlxuICBgKTtcblxuICAvLyBDaGFydFxuICBjb25zdCBjaGFydCA9IEdyb3VwZWRCYXJDaGFydChmaWx0ZXJlZF9kYXRhLCB7XG4gICAgeDogZCA9PiBkLlB1cnBvc2UsXG4gICAgeTogZCA9PiBkW21ldHJpY1NlbGVjdF0sXG4gICAgejogZCA9PiBkW1wiRGF0YSBTb3VyY2VcIl0sXG4gICAgeERvbWFpbjogcHVycG9zZXMsXG4gICAgekRvbWFpbjogW1wiSFRTIDIwMTJcIiwgXCJIVFMgMjAyM1wiLCBcIk1vZGVsXCJdLFxuICAgIGNvbG9yczogW1wibGlnaHRncmF5XCIsIFwic3RlZWxibHVlXCIsIFwiZm9yZXN0Z3JlZW5cIl0sXG4gICAgd2lkdGg6IDkwMFxuICB9KTtcblxuICBjaGFydC5xdWVyeVNlbGVjdG9yQWxsKFwidGV4dFwiKS5mb3JFYWNoKHQgPT4gKHQuc3R5bGUuZm9udFNpemUgPSBcIjE4cHhcIikpO1xuICBjb250YWluZXIuYXBwZW5kKGNoYXJ0KTtcblxuICAvLyBMZWdlbmRcbiAgY29uc3QgY29sb3IgPSBkMy5zY2FsZU9yZGluYWwoXG4gICAgW1wiSFRTIDIwMTJcIiwgXCJIVFMgMjAyM1wiLCBcIkJZIDIwMjMgTW9kZWxcIl0sXG4gICAgW1wibGlnaHRncmF5XCIsIFwic3RlZWxibHVlXCIsIFwiZm9yZXN0Z3JlZW5cIl1cbiAgKTtcbiAgY29udGFpbmVyLmFwcGVuZChTd2F0Y2hlcyhjb2xvciwgeyBsYWJlbDogXCJEYXRhIFNvdXJjZVwiIH0pKTtcblxuICByZXR1cm4gY29udGFpbmVyO1xufVxuIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0UXVpZXQiLCJzb3VyY2UiOiJzaGlueUlucHV0KCdjYWxpYlJ1blNlbGVjdCcpIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0UXVpZXQiLCJzb3VyY2UiOiJzaGlueUlucHV0KCdjb3VudHlTZWxlY3QnKSJ9LHsibWV0aG9kTmFtZSI6ImludGVycHJldFF1aWV0Iiwic291cmNlIjoic2hpbnlJbnB1dCgnbWV0cmljU2VsZWN0JykifV19
+eyJjb250ZW50cyI6W3sibWV0aG9kTmFtZSI6ImludGVycHJldCIsImNlbGxOYW1lIjoib2pzLWNlbGwtMSIsImlubGluZSI6ZmFsc2UsInNvdXJjZSI6Ilxudmlld29mIGdsb2JhbENhbGliUnVuID0ge1xuICBjb25zdCBvcHRpb25zID0gY2FsaWJfcnVuc19vanM7XG4gIGlmIChvcHRpb25zLmxlbmd0aCA9PT0gMCkge1xuICAgIHJldHVybiBJbnB1dHMuc2VsZWN0KFtdLCB7bGFiZWw6IFwiQ2FsaWJyYXRpb24gUnVuOlwiLCBkaXNhYmxlZDogdHJ1ZX0pO1xuICB9XG4gIGNvbnN0IHN0b3JlZCA9IHdpbmRvdy5sb2NhbFN0b3JhZ2UuZ2V0SXRlbShcInRkbWNhbGliOnNlbGVjdGVkUnVuXCIpO1xuICBjb25zdCBpbml0aWFsID0gb3B0aW9ucy5pbmNsdWRlcyhzdG9yZWQpID8gc3RvcmVkIDogb3B0aW9uc1tvcHRpb25zLmxlbmd0aCAtIDFdO1xuICBjb25zdCBpbnB1dCA9IElucHV0cy5zZWxlY3Qob3B0aW9ucywge2xhYmVsOiBcIkNhbGlicmF0aW9uIFJ1bjpcIiwgdmFsdWU6IGluaXRpYWx9KTtcbiAgaW5wdXQuY2xhc3NMaXN0LmFkZChcImNhbGliLXJ1bi1iYXJcIik7XG4gIGlucHV0LmFkZEV2ZW50TGlzdGVuZXIoXCJpbnB1dFwiLCAoKSA9PiB7XG4gICAgd2luZG93LmxvY2FsU3RvcmFnZS5zZXRJdGVtKFwidGRtY2FsaWI6c2VsZWN0ZWRSdW5cIiwgaW5wdXQudmFsdWUpO1xuICB9KTtcbiAgcmV0dXJuIGlucHV0O1xufVxuIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0IiwiY2VsbE5hbWUiOiJvanMtY2VsbC0yIiwiaW5saW5lIjpmYWxzZSwic291cmNlIjoiXG5hcmVhcyA9IFtcIlJlZ2lvblwiLFwiQm94IEVsZGVyXCIsXCJXZWJlclwiLFwiRGF2aXNcIixcIlNhbHQgTGFrZVwiLFwiVXRhaFwiXVxuYXJlYXNBdmFpbGFibGUgPSBhcmVhcy5maWx0ZXIoYSA9PiB0cmlwUmF0ZXMuc29tZShkID0+IGQuQ291bnR5ID09PSBhKSlcblxubWV0cmljTWFwID0gbmV3IE1hcChbXG4gIFtcIlRyaXBzIHBlciBIb3VzZWhvbGRcIiwgXCJUcmlwcyBwZXIgSG91c2Vob2xkXCJdLFxuICBbXCJUcmlwcyBwZXIgUGVyc29uXCIsIFwiVHJpcHMgcGVyIFBlcnNvblwiXVxuXSlcblxudmlld29mIGNvdW50eVNlbGVjdCA9IElucHV0cy5zZWxlY3QoYXJlYXNBdmFpbGFibGUsIHtcbiAgdmFsdWU6IFwiUmVnaW9uXCIsXG4gIGxhYmVsOiBcIkFyZWFcIlxufSlcblxudmlld29mIG1ldHJpY1NlbGVjdCA9IElucHV0cy5zZWxlY3QobWV0cmljTWFwLCB7XG4gIHZhbHVlOiBcIlRyaXBzIHBlciBIb3VzZWhvbGRcIixcbiAgbGFiZWw6IFwiTWV0cmljOlwiXG59KVxuIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0IiwiY2VsbE5hbWUiOiJvanMtY2VsbC0zIiwiaW5saW5lIjpmYWxzZSwic291cmNlIjoiXG5pbXBvcnQge0dyb3VwZWRCYXJDaGFydH0gZnJvbSBcIkBkMy9ncm91cGVkLWJhci1jaGFydFwiXG5pbXBvcnQge1N3YXRjaGVzfSBmcm9tIFwiQGQzL2NvbG9yLWxlZ2VuZFwiXG5cbntcbiAgY29uc3QgY29udGFpbmVyID0gaHRtbGBcbiAgICA8ZGl2IHN0eWxlPVwiZGlzcGxheTpmbGV4OyBmbGV4LWRpcmVjdGlvbjpjb2x1bW47IGdhcDoxMHB4O1wiPjwvZGl2PlxuICBgO1xuXG4gIC8vIENvbnRyb2xzXG4gIGNvbnN0IGNvbnRyb2xzID0gaHRtbGBcbiAgICA8ZGl2IHN0eWxlPVwiZGlzcGxheTpmbGV4OyBnYXA6MTZweDsgYWxpZ24taXRlbXM6Y2VudGVyOyBmbGV4LXdyYXA6d3JhcDtcIj48L2Rpdj5cbiAgYDtcbiAgY29udHJvbHMuYXBwZW5kKHZpZXdvZiBjb3VudHlTZWxlY3QpO1xuICBjb250cm9scy5hcHBlbmQodmlld29mIG1ldHJpY1NlbGVjdCk7XG4gIGNvbnRhaW5lci5hcHBlbmQoY29udHJvbHMpO1xuXG4gIC8vIFJlYWN0aXZlIGRhdGEgLS0gYWx3YXlzIGtlZXAgSFRTIHJlZmVyZW5jZSByb3dzIChjYWxpYl9ydW4gPT0gbnVsbCksXG4gIC8vIGJ1dCBvbmx5IHRoZSBzZWxlY3RlZCBjYWxpYnJhdGlvbiBydW4ncyBNb2RlbCByb3dzXG4gIGNvbnN0IGZpbHRlcmVkX2RhdGEgPSB0cmlwUmF0ZXNcbiAgICAuZmlsdGVyKGQgPT4gZC5Db3VudHkgPT09IGNvdW50eVNlbGVjdClcbiAgICAuZmlsdGVyKGQgPT4gZC5jYWxpYl9ydW4gPT0gbnVsbCB8fCBkLmNhbGliX3J1biA9PT0gZ2xvYmFsQ2FsaWJSdW4pXG4gICAgLm1hcChkID0+ICh7IC4uLmQsIFwiRGF0YSBTb3VyY2VcIjogU3RyaW5nKGRbXCJEYXRhIFNvdXJjZVwiXSkudHJpbSgpIH0pKTtcblxuICBjb25zdCBwdXJwb3NlT3JkZXIgPSBbXCJBbGxcIixcIkhCV1wiLFwiSEJTaHBcIixcIkhCT3RoXCIsXCJIQlNjaFwiLFwiTkhCV1wiLFwiTkhCTldcIixcIklYXCJdO1xuICBjb25zdCBwdXJwb3NlcyA9IHB1cnBvc2VPcmRlci5maWx0ZXIocCA9PlxuICAgIGZpbHRlcmVkX2RhdGEuc29tZShkID0+IGQuUHVycG9zZSA9PT0gcClcbiAgKTtcblxuICAvLyBUaXRsZVxuICBjb250YWluZXIuYXBwZW5kKGh0bWxgXG4gICAgPGRpdiBzdHlsZT1cImZvbnQtc2l6ZToxOHB4OyBmb250LXdlaWdodDo2MDA7IG1hcmdpbi10b3A6OHB4O1wiPlxuICAgICAgJHttZXRyaWNTZWxlY3R9IOKAlCAke2NvdW50eVNlbGVjdH0g4oCUICR7Z2xvYmFsQ2FsaWJSdW59XG4gICAgPC9kaXY+XG4gIGApO1xuXG4gIC8vIENoYXJ0XG4gIGNvbnN0IGNoYXJ0ID0gR3JvdXBlZEJhckNoYXJ0KGZpbHRlcmVkX2RhdGEsIHtcbiAgICB4OiBkID0+IGQuUHVycG9zZSxcbiAgICB5OiBkID0+IGRbbWV0cmljU2VsZWN0XSxcbiAgICB6OiBkID0+IGRbXCJEYXRhIFNvdXJjZVwiXSxcbiAgICB4RG9tYWluOiBwdXJwb3NlcyxcbiAgICB6RG9tYWluOiBbXCJIVFMgMjAxMlwiLCBcIkhUUyAyMDIzXCIsIFwiTW9kZWxcIl0sXG4gICAgY29sb3JzOiBbXCJsaWdodGdyYXlcIiwgXCJzdGVlbGJsdWVcIiwgXCJmb3Jlc3RncmVlblwiXSxcbiAgICB3aWR0aDogOTAwXG4gIH0pO1xuXG4gIGNoYXJ0LnF1ZXJ5U2VsZWN0b3JBbGwoXCJ0ZXh0XCIpLmZvckVhY2godCA9PiAodC5zdHlsZS5mb250U2l6ZSA9IFwiMThweFwiKSk7XG4gIGNvbnRhaW5lci5hcHBlbmQoY2hhcnQpO1xuXG4gIC8vIExlZ2VuZFxuICBjb25zdCBjb2xvciA9IGQzLnNjYWxlT3JkaW5hbChcbiAgICBbXCJIVFMgMjAxMlwiLCBcIkhUUyAyMDIzXCIsIFwiQlkgMjAyMyBNb2RlbFwiXSxcbiAgICBbXCJsaWdodGdyYXlcIiwgXCJzdGVlbGJsdWVcIiwgXCJmb3Jlc3RncmVlblwiXVxuICApO1xuICBjb250YWluZXIuYXBwZW5kKFN3YXRjaGVzKGNvbG9yLCB7IGxhYmVsOiBcIkRhdGEgU291cmNlXCIgfSkpO1xuXG4gIHJldHVybiBjb250YWluZXI7XG59XG4ifSx7Im1ldGhvZE5hbWUiOiJpbnRlcnByZXRRdWlldCIsInNvdXJjZSI6InNoaW55SW5wdXQoJ2dsb2JhbENhbGliUnVuJykifSx7Im1ldGhvZE5hbWUiOiJpbnRlcnByZXRRdWlldCIsInNvdXJjZSI6InNoaW55SW5wdXQoJ2NvdW50eVNlbGVjdCcpIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0UXVpZXQiLCJzb3VyY2UiOiJzaGlueUlucHV0KCdtZXRyaWNTZWxlY3QnKSJ9XX0=
 </script>
 <script type="module">
 if (window.location.protocol === "file:") { alert("The OJS runtime does not work with file:// URLs. Please use a web server to view this document."); }
@@ -759,6 +862,18 @@ window._ojs.runtime.interpretFromScriptTags();
     }
   });
   </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../report/0-hhdisag-autoown.html" class="pagination-link" aria-label="Household Disaggregation and Auto Ownership">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Household Disaggregation and Auto Ownership</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../report/2-distribution.html" class="pagination-link" aria-label="Trip Distribution &amp; HBW Destination Choice">
+        <span class="nav-page-text">Trip Distribution &amp; HBW Destination Choice</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
 </div> <!-- /content -->
 
 

@@ -52,6 +52,8 @@ tazv10_st = tazv10[['CO_TAZID', 'DISTLRG']]
 tazv10_wf = tazv10[['TAZID', 'DISTLRG']]
 ```
 
+{{< include _calib_run_selector.qmd >}}
+
 ```{python}
 purp_mats = [
   'HBW',
@@ -380,20 +382,13 @@ ojs_define(dataStats = gcdtime_Stats)
 ```
 
 ```{ojs}
-distRunsAvailable = Array.from(new Set(transpose(dataStats).map(d => d.calib_run))).sort()
-
-viewof distCalibRunSelect = Inputs.select(distRunsAvailable, {
-  value: distRunsAvailable[distRunsAvailable.length - 1],
-  label: "Calibration Run"
-})
-
 viewof varSelect = Inputs.select(new Map([['Generalized Cost','GC'], ['Distance', 'Dist']]), {value: 'GC', label: "Variable"})
 
 viewof purpSelect  = Inputs.select(new Map([['Internal Trip Purposes', 'InternalTripPurposes'], ['Internal Truck Purposes', 'InternalTruckPurposes'], ['External Trip Purposes', 'Externals']]), {value: 'InternalTripPurposes', label: "Purpose Set"});
 
 dataLT = transpose(dataStats)
 filtered_data = dataLT.filter(function(dataL) {
-    return varSelect == dataL.Variable && purpSelect == dataL.PurpType && dataL.calib_run === distCalibRunSelect;
+    return varSelect == dataL.Variable && purpSelect == dataL.PurpType && dataL.calib_run === globalCalibRun;
 })
 
 import {Legend, Swatches} from "@d3/color-legend"
@@ -605,18 +600,18 @@ viewof binSize = Inputs.range([1, 5], {value: 2, step: 1, label: "Bin Size:"})
 ```{ojs}
 freqT = transpose(freq)
 
-// reuses distCalibRunSelect (defined above, "Average Trip Length" section)
+// reuses globalCalibRun (the shared sidebar-bar selector, _calib_run_selector.qmd)
 freqT_filtered_Obs = freqT.filter(function(freqData) {
     return vTripPurp == freqData.TRIPPURP &&
     vTlfType == freqData.TLFTYPE &&
-    freqData.calib_run === distCalibRunSelect &&
+    freqData.calib_run === globalCalibRun &&
     'freqObs' == freqData.freqSource;
 })
 
 freqT_filtered_Mod = freqT.filter(function(freqData) {
     return vTripPurp == freqData.TRIPPURP &&
     vTlfType == freqData.TLFTYPE &&
-    freqData.calib_run === distCalibRunSelect &&
+    freqData.calib_run === globalCalibRun &&
     'freqMod' == freqData.freqSource;
 })
 
@@ -810,8 +805,8 @@ ojs_define(dataIntra = df_intra)
 
 
 ```{ojs}
-// reuses distCalibRunSelect (defined above, "Average Trip Length" section)
-dataIntraT = transpose(dataIntra).filter(d => d.calib_run === distCalibRunSelect)
+// reuses globalCalibRun (the shared sidebar-bar selector, _calib_run_selector.qmd)
+dataIntraT = transpose(dataIntra).filter(d => d.calib_run === globalCalibRun)
 ```
 
 ::: {.panel-tabset}
@@ -949,10 +944,8 @@ ojs_define(trips_master_data = master_trips2)
 
 ```{ojs}
 // 1. Data Processing
-paRunsAvailable = Array.from(new Set(transpose(trips_master_data).map(d => d.calib_run))).sort()
-
 dc_final = {
-  const data = transpose(trips_master_data).filter(d => d.calib_run === vCalibRun_final);
+  const data = transpose(trips_master_data).filter(d => d.calib_run === globalCalibRun);
   return data.map(d => ({
     ...d,
     tmeMod: d.mod,
@@ -962,11 +955,6 @@ dc_final = {
 }
 
 // 2. Selectors
-viewof vCalibRun_final = Inputs.select(paRunsAvailable, {
-  value: paRunsAvailable[paRunsAvailable.length - 1],
-  label: "Calibration Run:"
-})
-
 viewof vGeo_final = Inputs.select(["District", "County"], {label: "Geography Level:", value: "District"})
 
 // This dropdown updates its options based on what's available in the data
@@ -1432,18 +1420,9 @@ ojs_define(dist_sum_obs = dist_sum_obs_chart)
 ```
 
 ```{ojs}
-paModelRunsAvailable = Array.from(new Set(transpose(dist_sum_mod).map(d => d.calib_run))).sort()
-
-viewof paModelCalibRun = Inputs.select(paModelRunsAvailable, {
-  value: paModelRunsAvailable[paModelRunsAvailable.length - 1],
-  label: "Calibration Run:"
-})
-```
-
-```{ojs}
 // 1. DATA PROCESSING & INPUTS
 dc = {
-  const modT = transpose(dist_sum_mod).filter(d => d.calib_run === paModelCalibRun);
+  const modT = transpose(dist_sum_mod).filter(d => d.calib_run === globalCalibRun);
   const obsT = transpose(dist_sum_obs);
 
   return modT.map(m => {
@@ -1614,14 +1593,9 @@ viewof vRemoveOutliers_2 = Inputs.toggle({
   value: false
 })
 
-viewof vCalibRun_2 = Inputs.select(
-  Array.from(new Set(transpose(dist_sum_mod2).map(d => d.calib_run))).sort(),
-  { label: "Calibration Run:" }
-)
-
 // 2. DATA PROCESSING (Matches selected model source to selected observed data)
 dc_2 = {
-  const modT2 = transpose(dist_sum_mod2).filter(d => d.calib_run === vCalibRun_2);
+  const modT2 = transpose(dist_sum_mod2).filter(d => d.calib_run === globalCalibRun);
   const obsT2 = vRemoveOutliers_2
     ? transpose(dist_sum_obs2_no_outliers)
     : transpose(dist_sum_obs2);

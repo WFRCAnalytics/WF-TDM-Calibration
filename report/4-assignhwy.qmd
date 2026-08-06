@@ -51,6 +51,8 @@ config_paths = {
 }
 ```
 
+{{< include _calib_run_selector.qmd >}}
+
 ```{python}
 # read segment shapefile into spatial enabled dataframe
 segShp = gpd.read_file(
@@ -485,14 +487,10 @@ import { Plot } from '@observablehq/plot'
 // Use transpose() to convert the column-oriented Python data to row-oriented objects
 data_raw = transpose(data_py)
 
-// 3. DASHBOARD CONTROLS
+// 3. DASHBOARD CONTROLS (calibration run is the shared globalCalibRun
+// selector -- see _calib_run_selector.qmd -- not part of this form)
 viewof dashboard_ctrls = {
   const form = Inputs.form({
-    calib_run: Inputs.select(
-      Array.from(new Set(data_raw.map(d => d.calib_run))).sort(),
-      {label: "Calibration Run:", value: Array.from(new Set(data_raw.map(d => d.calib_run))).sort().at(-1)}
-    ),
-
     group_by: Inputs.select(
       new Map([
         ["Functional Class", "FTCLASS"],
@@ -552,7 +550,8 @@ viewof dashboard_ctrls = {
 
 // 4. DATA PROCESSING
 dash_data = {
-  const { calib_run, group_by, filter_county, filter_ftclass, filter_atype, filter_period, filter_vehicle } = dashboard_ctrls;
+  const { group_by, filter_county, filter_ftclass, filter_atype, filter_period, filter_vehicle } = dashboard_ctrls;
+  const calib_run = globalCalibRun;
 
   let base = aq.from(data_raw)
     .params({
@@ -1190,10 +1189,10 @@ ojs_define(ccs_daily_data=df_final_export)
 //| echo: false
 
 // Define daily_data globally so the Input Panel above can see it. Reuses
-// dashboard_ctrls.calib_run (the CCS Volume Validation dashboard's run
-// selector, above) so one control governs the whole page.
+// globalCalibRun (the shared sidebar-bar selector, _calib_run_selector.qmd)
+// so one control governs the whole site.
 daily_data = transpose(ccs_daily_data)
-  .filter(d => d.calib_run === dashboard_ctrls.calib_run)
+  .filter(d => d.calib_run === globalCalibRun)
   .map(d => ({...d, Date: new Date(d.DATE_STR) }))
 ```
 
@@ -2786,17 +2785,7 @@ ojs_define(
 ```
 
 ```{ojs}
-// layout-ncol deliberately omitted here: it trips a Quarto 1.8.27 bug
-// (makeSubFigures throws "Cannot read properties of undefined (reading
-// 'info')") when present on an OJS cell with multiple viewof declarations.
-hotRunsAvailable = Array.from(new Set(transpose(traffic_data).map(d => d.calib_run))).sort()
-
-viewof hotCalibRunSelect = Inputs.select(hotRunsAvailable, {
-  value: hotRunsAvailable[hotRunsAvailable.length - 1],
-  label: "Calibration Run:"
-})
-
-// This puts the 4 selectors side-by-side perfectly above the chart
+// This puts the 3 selectors side-by-side perfectly above the chart
 viewof selected_var = Inputs.select(
   new Map([
     ["Flow Rate (vehicles per hour)", "Vph"],
@@ -2845,7 +2834,7 @@ plot_data = {
 
   // 1. Filter the data based on dropdowns
   const filtered = raw_data.filter(d =>
-      d.calib_run === hotCalibRunSelect &&
+      d.calib_run === globalCalibRun &&
       d.Period === selected_period &&
       d.DIRECTION === selected_direction
   );
@@ -2994,7 +2983,7 @@ Plot.plot({
 map_display2 = {
   // 1. RE-AGGREGATE DATA FOR MAP
   const raw = transpose(traffic_data);
-  const filtered = raw.filter(d => d.calib_run === hotCalibRunSelect && d.Period === selected_period && d.DIRECTION === selected_direction);
+  const filtered = raw.filter(d => d.calib_run === globalCalibRun && d.Period === selected_period && d.DIRECTION === selected_direction);
 
   const map_stats = new Map();
   filtered.forEach(d => {

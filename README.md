@@ -82,7 +82,7 @@ tdmcalib import-manual-run --run C50
 
 Add a new calibration run by copying an existing `calibration_runs/C5N.yaml` — no
 changes needed under `report/`, since every report covers all calibration runs
-automatically once `runs/C5N/<run_id>/outputs/` exists. See `report/README.md`.
+automatically once `runs/C5N/outputs/` exists. See `report/README.md`.
 
 ## Working with the TDM submodule
 
@@ -130,14 +130,17 @@ Raw model output lives inside the `tdm/` submodule's own working tree
 (`tdm/Scenarios/{calib_run_id}/`, already gitignored there by `tdm/.gitignore`) — it
 never touches this repo's git history. `tdmcalib` copies a declared subset
 (`calibration_runs/*.yaml`'s `outputs.include`) into
-`runs/{calib_run_id}/{run_id}/outputs/`, which **is** committed — that curated,
-checksummed set is this repo's actual audit trail of what a run produced. Every
-curated file is still written there regardless of size (so reports render fully on
-the machine that curated it), but any file whose actual written size exceeds
-`outputs.max_file_size_mb` is auto-excluded from git via that `outputs/` folder's
-own generated `.gitignore` (and marked `"committed": false` in `run_metadata.json`)
-rather than committed or failing the run — see `report/README.md`'s "Known gaps" for
-which files this currently applies to.
+`runs/{calib_run_id}/outputs/`, which **is** committed — that curated, checksummed set
+is this repo's actual audit trail of what the latest run produced. Only the latest
+attempt is ever kept for a given calibration run: starting a new run for
+`{calib_run_id}` deletes whatever `runs/{calib_run_id}/` held before, rather than
+accumulating one folder per attempt, so a failed re-run replaces (not shadows) an
+earlier successful one. Every curated file is still written there regardless of size
+(so reports render fully on the machine that curated it), but any file whose actual
+written size exceeds `outputs.max_file_size_mb` is auto-excluded from git via that
+`outputs/` folder's own generated `.gitignore` (and marked `"committed": false` in
+`run_metadata.json`) rather than committed or failing the run — see
+`report/README.md`'s "Known gaps" for which files this currently applies to.
 
 ## CI
 

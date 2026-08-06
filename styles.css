@@ -1,0 +1,32 @@
+/* Sticky calibration-run control bar, shared across every report page via
+   report/_calib_run_selector.qmd ({{< include >}}). Sits directly under
+   the page title and stays visible while scrolling. */
+.calib-run-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 1.5rem 0;
+  padding: 0.6rem 1rem;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+}
+
+.calib-run-bar label {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.calib-run-bar select {
+  min-width: 8rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .calib-run-bar {
+    background: #26292c;
+    border-color: #3a3f44;
+  }
+}

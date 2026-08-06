@@ -38,6 +38,8 @@ debug = False
 nameMod = "Model"
 ```
 
+{{< include _calib_run_selector.qmd >}}
+
 ```{python}
 #| echo: false
 #| include: false
@@ -729,17 +731,6 @@ metricMap = new Map([
   ["Trips per Person", "Trips per Person"]
 ])
 
-// every calibration run present in the data (Model rows only -- HTS rows
-// have calib_run == null), for the run selector below
-runsAvailable = Array.from(new Set(
-  tripRates.filter(d => d.calib_run != null).map(d => d.calib_run)
-)).sort()
-
-viewof calibRunSelect = Inputs.select(runsAvailable, {
-  value: runsAvailable[runsAvailable.length - 1],
-  label: "Calibration Run"
-})
-
 viewof countySelect = Inputs.select(areasAvailable, {
   value: "Region",
   label: "Area"
@@ -768,7 +759,6 @@ import {Swatches} from "@d3/color-legend"
   const controls = html`
     <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;"></div>
   `;
-  controls.append(viewof calibRunSelect);
   controls.append(viewof countySelect);
   controls.append(viewof metricSelect);
   container.append(controls);
@@ -777,7 +767,7 @@ import {Swatches} from "@d3/color-legend"
   // but only the selected calibration run's Model rows
   const filtered_data = tripRates
     .filter(d => d.County === countySelect)
-    .filter(d => d.calib_run == null || d.calib_run === calibRunSelect)
+    .filter(d => d.calib_run == null || d.calib_run === globalCalibRun)
     .map(d => ({ ...d, "Data Source": String(d["Data Source"]).trim() }));
 
   const purposeOrder = ["All","HBW","HBShp","HBOth","HBSch","NHBW","NHBNW","IX"];
@@ -788,7 +778,7 @@ import {Swatches} from "@d3/color-legend"
   // Title
   container.append(html`
     <div style="font-size:18px; font-weight:600; margin-top:8px;">
-      ${metricSelect} — ${countySelect} — ${calibRunSelect}
+      ${metricSelect} — ${countySelect} — ${globalCalibRun}
     </div>
   `);
 

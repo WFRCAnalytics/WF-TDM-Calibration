@@ -19,23 +19,31 @@ control_center_defaults_dir: "Scenarios/_default"
 #
 # Deliberately excludes {run_id}: raw model outputs are too large to
 # duplicate on every attempt, so re-running a calibration run reuses the same
-# on-disk folder and lets Cube overwrite files in place. runs/{calib_run_id}/
-# {run_id}/run_metadata.json still records one entry per attempt -- only the
-# TDM-side working folder itself is shared across attempts.
+# on-disk folder and lets Cube overwrite files in place. Likewise,
+# runs/{calib_run_id}/run_metadata.json (the curated, committed side) keeps
+# only the latest attempt -- a new run replaces it rather than adding another
+# one alongside.
 scenario_folder_template: "Scenarios/{calib_run_id}"
 
 # Filename, within control_center_defaults_dir, of the driver script staged
 # into every run's working folder unless a calibration run declares its own
 # via driver_script. Its name is preserved when staged.
 #
-# Deliberately NOT __HailMary_1Subfolder_withValidationDoc.s -- that variant
-# additionally runs GenerateDocumentation.s (gated by Run_Documentation=1 in
-# the baseline), which is wired to WF-TDM-Documentation's folder/sidebar
-# conventions (DocumentationDir, ValidationQmdDir, _quarto-website.yml). This
-# repo's own tdmcalib output curation (outputs.py) + report/ Quarto
-# reports are the reporting path here instead, so that step is intentionally
-# never invoked.
-default_driver_script: "__HailMary_1Subfolder.s"
+# Must be __HailMary.s, not __HailMary_1Subfolder.s or
+# __HailMary_1Subfolder_withValidationDoc.s: those two variants' READ FILE
+# paths are '..\..\..\1_Inputs\...' (three levels up to the tdm/ root),
+# which assumes an extra folder level (e.g. Scenarios/{group}/{run}/) that
+# this repo's scenario_folder_template ("Scenarios/{calib_run_id}", only two
+# levels below tdm/) doesn't have -- confirmed by a live C50 run failing at
+# the very first READ FILE step (VOYAGER ReturnCode=2, "cannot find the path
+# specified") until switched to __HailMary.s, whose paths are '..\..\...'
+# (two levels up), matching this template exactly. The _withValidationDoc
+# variant would also additionally run GenerateDocumentation.s (gated by
+# Run_Documentation=1 in the baseline), wired to WF-TDM-Documentation's
+# folder/sidebar conventions (DocumentationDir, ValidationQmdDir,
+# _quarto-website.yml) -- this repo's own tdmcalib output curation
+# (outputs.py) + report/ Quarto reports are the reporting path here instead.
+default_driver_script: "__HailMary.s"
 
 # The fixed batch entry point and how the orchestrator invokes it. Kept as
 # config (not hardcoded) since the calling convention is a property of the TDM

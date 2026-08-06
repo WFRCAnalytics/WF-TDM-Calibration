@@ -20,7 +20,7 @@ TDM version — nothing here should silently change which TDM commit is in use.
 - **Never commit large binary outputs** (skims, trip tables, matrices, logs) into git.
   Raw model output lives inside the `tdm/` submodule's own working tree
   (`tdm/Scenarios/{calib_run_id}/`, already gitignored there) — only a curated,
-  size-capped subset ever gets committed, under `runs/{calib_run_id}/{run_id}/outputs/`,
+  size-capped subset ever gets committed, under `runs/{calib_run_id}/outputs/`,
   produced by `tdmcalib`'s output curation (`outputs.include` in `calibration_runs/*.yaml`
   — see `config/framework.yaml`'s `outputs.max_file_size_mb`). This is enforced
   automatically, not just by convention: any curated file whose actual written size
@@ -31,6 +31,13 @@ TDM version — nothing here should silently change which TDM commit is in use.
   Don't `git add` anything under `tdm/Scenarios/` directly, don't widen an
   `outputs.include` pattern just to make a large file fit, and don't hand-edit an
   `outputs/.gitignore` — it's regenerated on every curation run.
+- **Only the latest run is ever kept** for a given calibration run. There's no
+  per-attempt `run_id` folder under `runs/{calib_run_id}/` — starting a new run
+  (`tdmcalib run`/`import-manual-run`) deletes whatever was there before (outputs and
+  `run_metadata.json` alike) and replaces it with the new attempt's own. A failed
+  re-run therefore replaces, not shadows, an earlier successful one. Don't try to
+  "preserve" an old run's folder by copying it elsewhere as part of a routine task —
+  that's a deliberate call for the user to make, not a default.
 - If asked to "update the TDM" or "bump the submodule," treat it as a deliberate,
   reviewed action: fetch tags, checkout the specific target tag/commit inside `tdm/`,
   then `git add tdm && git commit` with a message stating what changed and why. Don't
@@ -43,7 +50,7 @@ TDM version — nothing here should silently change which TDM commit is in use.
 | `tdm/`              | TDM submodule — read-only from this repo's perspective       |
 | `config/`           | `tdmcalib` framework settings (`framework.yaml`, `local.yaml` — gitignored, per-machine, copy from `local.example.yaml`), JSON schemas |
 | `calibration_runs/` | One YAML per calibration run (`C50.yaml`, ...) — `tdm_ref`, Control Center overrides, `outputs.include` — see `README.md`'s tdmcalib section |
-| `runs/`             | `tdmcalib`'s curated, committed output + `run_metadata.json` per run attempt (`runs/{calib_run_id}/{run_id}/`) |
+| `runs/`             | `tdmcalib`'s curated, committed output + `run_metadata.json`, one folder per calibration run (`runs/{calib_run_id}/`) — only the latest attempt is kept, not one per run_id |
 | `src/tdmcalib/`     | The orchestrator (installable as the `tdmcalib` CLI) — ported from the sibling `WF-TDM-Runs` repo's `tdmruns`, flattened for a single calibration-run axis instead of run_set/scenario nesting |
 | `bin/`              | `RunModel.bat` — TDM-version-independent Cube Voyager entry point `tdmcalib` invokes |
 | `tests/`            | `pytest` suite for `src/tdmcalib/` |

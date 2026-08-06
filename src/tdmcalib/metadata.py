@@ -1,12 +1,19 @@
-"""Run metadata: the framework's source of truth. One JSON document per run,
-schema-versioned, committed to the repo. Reporting reads only this -- never
-the TDM submodule or the gitignored working folders directly.
+"""Run metadata: the framework's source of truth. One JSON document per
+calibration run, schema-versioned, committed to the repo. Reporting reads
+only this -- never the TDM submodule or the gitignored working folders
+directly.
+
+Only the single latest attempt is ever kept on disk for a given
+calib_run_id, at runs/{calib_run_id}/run_metadata.json (and its sibling
+outputs/) -- no per-attempt run_id subfolder. Starting a new run for a
+calib_run_id deletes whatever was there before (see execution.py), so
+run_metadata.json's own "run_id" field is the only record of which attempt
+produced the current state; a failed re-run replaces a previously
+successful one rather than shadowing it.
 
 Ported from WF-TDM-Runs' src/tdmruns/metadata.py, flattened: run_set_id +
 scenario_id collapse to a single calib_run_id, run_set_overrides +
-scenario_overrides collapse to a single overrides dict, and runs/ drops one
-directory level (runs/{calib_run_id}/{run_id}/ instead of
-runs/{run_set_id}/{scenario_id}/{run_id}/)."""
+scenario_overrides collapse to a single overrides dict."""
 import json
 import subprocess
 from datetime import datetime, timezone
@@ -122,30 +129,31 @@ def read(run_dir: Path) -> dict:
 
 def list_runs(repo_root: Path, calib_run_id: str = None) -> list:
     """Scans runs/ for run_metadata.json files, optionally filtered to one
-    calibration run, sorted newest-first by run_id (which is
-    timestamp-prefixed)."""
+    calibration run. At most one per calib_run_id -- only the latest attempt
+    is ever kept on disk (see module docstring) -- sorted by calib_run_id for
+    a stable order."""
     runs_root = repo_root / "runs"
     if not runs_root.is_dir():
         return []
-    pattern = f"{calib_run_id or '*'}/*/run_metadata.json"
-    found = sorted(runs_root.glob(pattern), key=lambda p: p.parent.name, reverse=True)
+    pattern = f"{calib_run_id or '*'}/run_metadata.json"
+    found = sorted(runs_root.glob(pattern), key=lambda p: p.parent.name)
     return [read(p.parent) for p in found]
 
 
 def latest_run(repo_root: Path, calib_run_id: str) -> dict:
-    runs = list_runs(repo_root, calib_run_id)
-    return runs[0] if runs else None
+    metadata_path = repo_root / "runs" / calib_run_id / "run_metadata.json"
+    return read(metadata_path.parent) if metadata_path.is_file() else None
 
 
 def latest_successful_run(repo_root: Path, calib_run_id: str) -> dict:
     """
-    Like latest_run(), but skips past newer failed attempts.
+    Returns the recorded run for calib_run_id if its status is "success",
+    None otherwise.
 
-    Returns the most recent run with status "success" -- a calibration run
-    re-run for an unrelated reason (e.g. a later attempt that failed)
-    shouldn't shadow an earlier successful one.
+    Since a failed re-run replaces (rather than shadows) an earlier
+    successful one, a caller relying on the last known-good state (e.g.
+    start_from_copy in run_seed.py) must treat "recorded but currently
+    failed" the same as "nothing recorded".
     """
-    for run in list_runs(repo_root, calib_run_id):
-        if run["status"] == "success":
-            return run
-    return None
+    run = latest_run(repo_root, calib_run_id)
+    return run if run and run["status"] == "success" else None

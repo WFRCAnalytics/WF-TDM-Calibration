@@ -28,11 +28,12 @@ committed normally.
 `_validation_scripts.py` provides the shared discovery/loading helpers every report
 uses:
 
-- `list_available_runs(repo_root)` — every `calib_run_id` under `runs/` with at least
-  one successful `tdmcalib` run.
-- `resolve_latest_run_outputs(repo_root, calib_run)` — that run's most recent
-  successful `runs/<calib_run>/<run_id>/outputs/` folder (a flat, curated set of model
-  output — see `src/tdmcalib/outputs.py`).
+- `list_available_runs(repo_root)` — every `calib_run_id` under `runs/` whose currently
+  recorded run succeeded (only the latest attempt is ever kept on disk for a
+  calib_run_id — see `src/tdmcalib/metadata.py`).
+- `resolve_latest_run_outputs(repo_root, calib_run)` — that run's
+  `runs/<calib_run>/outputs/` folder (a flat, curated set of model output — see
+  `src/tdmcalib/outputs.py`).
 - `load_per_run(repo_root, load_fn)` — calls `load_fn(calib_run, outputs_dir)` for
   every available run, tags each result with a `calib_run` column, and concatenates
   into one DataFrame. This is the pattern every stage report uses to build its modeled
@@ -55,8 +56,8 @@ recomputation on a plain `quarto preview`.
 1. Add `calibration_runs/C5N.yaml` (copy an existing one as a starting point) and run
    it through `tdmcalib` (see repo root `README.md`) — `tdmcalib run --run C5N` (or
    `import-manual-run` if the model was run outside the CLI) populates
-   `runs/C5N/<run_id>/outputs/` with a curated set of model output, and automatically
-   re-renders this Quarto project so the new run shows up.
+   `runs/C5N/outputs/` with a curated set of model output, and automatically re-renders
+   this Quarto project so the new run shows up.
 2. Nothing under `report/` needs to change — every `.qmd` discovers `C5N` on its own
    via `_validation_scripts.list_available_runs()`.
 3. If rendering locally instead of relying on the automatic post-run render: `quarto

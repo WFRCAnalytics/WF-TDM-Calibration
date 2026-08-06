@@ -8,23 +8,21 @@ import numpy as np
 
 
 def resolve_latest_run_outputs(repo_root: Path, calib_run: str) -> Path:
-    """Finds the most recent successful tdmcalib run's curated outputs/ dir
-    for this calibration run (runs/{calib_run}/{run_id}/outputs/, newest
-    run_id first, skipping past failed attempts) -- mirrors
+    """Finds this calibration run's curated outputs/ dir
+    (runs/{calib_run}/outputs/) -- mirrors
     tdmcalib.metadata.latest_successful_run() without importing the package,
     since these reports may be rendered in an environment that doesn't have
-    it installed (e.g. the "reports" Jupyter kernel vs. the "dev" venv)."""
+    it installed (e.g. the "reports" Jupyter kernel vs. the "dev" venv).
+    Only the latest attempt is ever kept on disk for a calib_run_id, so a
+    failed re-run makes this raise even if an earlier attempt once
+    succeeded."""
     calib_run_dir = repo_root / "runs" / calib_run
-    run_dirs = sorted(
-        (p for p in calib_run_dir.glob("*") if (p / "run_metadata.json").is_file()),
-        key=lambda p: p.name,
-        reverse=True,
-    )
-    for run_dir in run_dirs:
-        with open(run_dir / "run_metadata.json") as f:
+    metadata_path = calib_run_dir / "run_metadata.json"
+    if metadata_path.is_file():
+        with open(metadata_path) as f:
             metadata = json.load(f)
         if metadata.get("status") == "success":
-            return run_dir / "outputs"
+            return calib_run_dir / "outputs"
     raise FileNotFoundError(
         f"No successful tdmcalib run found under {calib_run_dir} -- "
         f"run `tdmcalib run --run {calib_run}` (or import-manual-run) first."

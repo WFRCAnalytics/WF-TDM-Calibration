@@ -25,10 +25,8 @@ def calibration_run_file(repo_root: Path, calib_run_id: str) -> Path:
     return calibration_runs_dir(repo_root) / f"{calib_run_id}.yaml"
 
 
-def runs_dir(repo_root: Path, calib_run_id: str = None, run_id: str = None) -> Path:
+def runs_dir(repo_root: Path, calib_run_id: str = None) -> Path:
     p = repo_root / "runs"
     if calib_run_id:
         p = p / calib_run_id
-        if run_id:
-            p = p / run_id
     return p

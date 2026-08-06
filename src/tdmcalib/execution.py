@@ -16,6 +16,7 @@ plain, non-calibration baseline WF-TDM-Runs was built against uses
 import os
 import platform
 import secrets
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -185,11 +186,24 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
     # they overwrite any stale copies rather than the other way around) ---
     seeded_from = seed.seed(repo_root, calib_run_id, calib_run, folder)
 
-    # NOTE: ParentDir, not ModelDir -- see module docstring.
+    # NOTE: ParentDir, not ModelDir -- see module docstring. ScenarioDir must
+    # stay relative to ParentDir (both trailing-separated), matching the
+    # baseline template's own convention (Scenarios/_default/_ControlCenter-
+    # Calib - BY_2023.block sets ScenarioDir to a relative fragment) -- TDM
+    # step scripts throughout 2_ModelScripts/ build paths by literally
+    # concatenating '@ParentDir@@ScenarioDir@', which only forms a valid path
+    # when ParentDir ends in a separator and ScenarioDir is relative to it.
+    # An absolute ScenarioDir (this framework's original approach) instead
+    # produces a garbled double-path and F(102)/F(004) "cannot find" errors --
+    # confirmed by a live C50 run failing exactly this way once the driver
+    # script's own folder-depth issue (see default_driver_script's comment in
+    # config/framework.yaml) was fixed.
     identity_fields = {
         "ScenarioName": calib_run_id,
-        "ScenarioDir": _windows_style(str(folder.resolve()), trailing_sep=False),
-        "ParentDir": _windows_style(str(tdm_path.resolve()), trailing_sep=False),
+        "ScenarioDir": _windows_style(
+            str(folder.resolve().relative_to(tdm_path.resolve())), trailing_sep=True,
+        ),
+        "ParentDir": _windows_style(str(tdm_path.resolve()), trailing_sep=True),
     }
     rendered = cc.render(overrides, cc_local_layer, identity_fields)
     baseline_path = tdm_path / framework["control_center_defaults_dir"] / baseline_filename
@@ -223,7 +237,13 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
 
     # --- inventory + curate outputs (best effort even on failure) ---
     full_inventory = out.inventory(folder)
-    run_dir = repo_root / "runs" / calib_run_id / run_id
+    run_dir = repo_root / "runs" / calib_run_id
+    # Only the latest attempt is ever kept on disk for a calib_run_id -- wipe
+    # whatever a previous attempt left (metadata + outputs) before this
+    # attempt's own curate()/write() recreate it, so a narrowed
+    # outputs.include or a failed re-run can't leave stale files behind.
+    if run_dir.exists():
+        shutil.rmtree(run_dir)
     status, error, curated = out.curate(
         folder, full_inventory, output_spec, run_dir, status, error, repo_root,
         voyager_exe=local_layer.get("Voyager_EXE"),
@@ -314,7 +334,10 @@ def import_manual_run(repo_root: Path, calib_run_id: str, scenario_folder: Path 
 
     local_layer = framework.get("_local", {})
     full_inventory = out.inventory(scenario_folder)
-    run_dir = repo_root / "runs" / calib_run_id / run_id
+    run_dir = repo_root / "runs" / calib_run_id
+    # Same "latest attempt only" wipe as run() -- see its comment.
+    if run_dir.exists():
+        shutil.rmtree(run_dir)
     status, error, curated = out.curate(
         scenario_folder, full_inventory, output_spec, run_dir, "success", None, repo_root,
         voyager_exe=local_layer.get("Voyager_EXE"),

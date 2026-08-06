@@ -1,12 +1,13 @@
 r"""Staging of the driver script (_HailMary.s variant) for a run.
 
-The TDM's Scenarios/_default/ library ships __HailMary_1Subfolder.s, the
-driver script variant designed to run one directory level deeper than
-Scenarios/_default/ itself -- exactly the depth of the per-run working
-folder this framework creates (Scenarios/{calib_run_id}/, see
-config/framework.yaml's scenario_folder_template). Every run stages a copy
-of it into that folder before execution, alongside the rendered
-_ControlCenter.block.
+The TDM's Scenarios/_default/ library ships __HailMary.s, whose
+'..\..\...' READ FILE paths resolve two levels up to the tdm/ root --
+exactly the depth of the per-run working folder this framework creates
+(Scenarios/{calib_run_id}/, see config/framework.yaml's
+scenario_folder_template and default_driver_script's comment). The
+_1Subfolder variants resolve three levels up instead and fail here. Every
+run stages a copy of the configured default into that folder before
+execution, alongside the rendered _ControlCenter.block.
 
 A calibration run may declare driver_script to stage its own copy instead --
 e.g. to add, remove, or replace a step. The custom file lives in the

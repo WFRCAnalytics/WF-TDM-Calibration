@@ -192,6 +192,8 @@ config_tdm_map = {
 }
 ```
 
+{{< include _calib_run_selector.qmd >}}
+
 ```{python}
 # ==============================================================================
 # PHASE 2: DATA LOADING AND STANDARDIZATION PIPELINE
@@ -712,12 +714,6 @@ The mode choice model was calibrated to observed mode shares from the 2023 Utah 
 
 ```{ojs}
 html`<br/>`
-mcRunsAvailable = Array.from(new Set(transpose(dataLong).map(d => d.calib_run))).sort()
-
-viewof mcCalibRunSelect = Inputs.select(mcRunsAvailable, {
-  value: mcRunsAvailable[mcRunsAvailable.length - 1],
-  label: "Calibration Run:"
-})
 
 viewof plotSelect = Inputs.select(
   [
@@ -758,7 +754,7 @@ filtered_data = facetPurposes.flatMap(purp =>
       periodSelect === d.Period &&
       purp === d.TripPurpose &&
       d.Mode !== "Core Bus" &&
-      d.calib_run === mcCalibRunSelect
+      d.calib_run === globalCalibRun
     )
     .map(d => ({...d, PurposeLabel: facetLabels.get(purp)}))
 )
@@ -767,7 +763,7 @@ table_filtered_data = dataTT.filter(d =>
   plotSelect === d.ModeGroup &&
   periodSelect === d.Period &&
   d.Mode !== "Core Bus" &&
-  d.calib_run === mcCalibRunSelect
+  d.calib_run === globalCalibRun
 )
 
 import {GroupedBarChart} from "@d3/grouped-bar-chart"
@@ -939,18 +935,18 @@ Transit trips and boardings by mode were calibrated to acceptable ranges for mod
 html`<br/>`
 viewof bPlotSelect = Inputs.select(new Map([['Trips by Hierarchical Mode', 'Trips by Hierarchical Mode'], ['Boardings by Hierarchical Mode', 'Boardings by Hierarchical Mode'], ['Transfer Ratio by Hierarchical Mode','Transfer Ratio'], ['Boardings by Observed Mode','Boardings by Mode Surveyed']]), {value: 'Trips by Hierarchical Mode', label: "Category"})
 
-// reuses mcCalibRunSelect (defined above, "Mode Share" section)
+// reuses globalCalibRun (the shared sidebar-bar selector, _calib_run_selector.qmd)
 dataBLC = transpose(boardChart)
 filtered_bDataC = dataBLC.filter(function(dataBLC) {
     return bPlotSelect == dataBLC.Title &&
            "Value" == dataBLC.View &&
-           dataBLC.calib_run === mcCalibRunSelect &&
+           dataBLC.calib_run === globalCalibRun &&
            dataBLC.Mode !== "Core Bus"; // <--- EXCLUDE CORE BUS
 })
 dataBTT = transpose(boardTable)
 filtered_bDataT = dataBTT.filter(function(dataBTT) {
     return bPlotSelect == dataBTT.Title &&
-           dataBTT.calib_run === mcCalibRunSelect &&
+           dataBTT.calib_run === globalCalibRun &&
            dataBTT.Mode !== "Core Bus"; // <--- EXCLUDE CORE BUS
 })
 
@@ -1026,7 +1022,7 @@ bChart = GroupedBarChart(filtered_bDataC, {
 filtered_bData2 = dataBLC.filter(function(dataBLC) {
     return bPlotSelect == dataBLC.Title  &&
            metric == dataBLC.View &&
-           dataBLC.calib_run === mcCalibRunSelect &&
+           dataBLC.calib_run === globalCalibRun &&
            dataBLC.Mode !== "Core Bus"; // <--- EXCLUDE CORE BUS
 })
 
@@ -1336,14 +1332,8 @@ ojs_define(data_py=boardings_barchart, sort_order=crt_stops_order)
 
 // 1. Transpose data from Column-format (Python) to Row-format (OJS)
 data = transpose(data_py)
-crtRunsAvailable = Array.from(new Set(data.map(d => d.calib_run).filter(r => r != null))).sort()
 
 // 2. Create the Inputs
-viewof crtCalibRunSelect = Inputs.select(crtRunsAvailable, {
-  value: crtRunsAvailable[crtRunsAvailable.length - 1],
-  label: "Calibration Run:"
-})
-
 viewof access_select = Inputs.radio(
   ["All", "Walk", "Drive"],
   {label: "Access Mode", value: "All"}
@@ -1353,7 +1343,7 @@ viewof access_select = Inputs.radio(
 // e.g. On-Board Survey / Passenger Counts) always visible, only the selected
 // run's Modeled rows
 filtered_data_boarding = data.filter(d => {
-  if (d.calib_run != null && d.calib_run !== crtCalibRunSelect) return false;
+  if (d.calib_run != null && d.calib_run !== globalCalibRun) return false;
   if (access_select === "All") return true;
   return d.Access_Type === access_select;
 })
@@ -1639,12 +1629,6 @@ viewof crtViewSel = Inputs.radio(
   {label: "View", value: "Share (%)"}
 )
 
-crtDistRunsAvailable = Array.from(new Set(crtData.map(d => d.calib_run))).sort()
-
-viewof crtDistCalibRunSelect = Inputs.select(crtDistRunsAvailable, {
-  value: crtDistRunsAvailable[crtDistRunsAvailable.length - 1],
-  label: "Calibration Run:"
-})
 ```
 
 ```{ojs}
@@ -1653,7 +1637,7 @@ _periodCode = crtPeriodSel === "Peak" ? "PK" : crtPeriodSel === "Off-Peak" ? "OK
 _accessCode = crtAccessSel === "All" ? null : crtAccessSel
 
 crtFiltered = crtData.filter(d =>
-  d.calib_run === crtDistCalibRunSelect &&
+  d.calib_run === globalCalibRun &&
   (_periodCode === null || d.Period     === _periodCode) &&
   (_accessCode === null || d.AccessMode === _accessCode)
 )

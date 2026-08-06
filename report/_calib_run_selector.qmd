@@ -1,0 +1,40 @@
+<!--
+Shared global calibration-run selector, spliced into every report page via
+{{< include _calib_run_selector.qmd >}} (a literal text splice before
+Quarto's own processing, so these cells execute in the including page's own
+kernel/OJS runtime -- not a separate document). Requires the including page
+to have already defined a Python `calib_runs` list (every report page's
+config cell already does: `calib_runs = vs.list_available_runs(repo_root)`)
+before this include point.
+
+Produces `globalCalibRun` (an OJS value, via `viewof`) -- every chart/table
+on the page should filter by this instead of defining its own per-section
+run selector. Persists the choice across page navigation via localStorage
+(each Quarto page is a separate static HTML load, so this is what makes one
+control feel global across the whole site rather than resetting on every
+page).
+-->
+
+```{python}
+#| echo: false
+ojs_define(calib_runs_ojs=calib_runs)
+```
+
+```{ojs}
+//| echo: false
+
+viewof globalCalibRun = {
+  const options = calib_runs_ojs;
+  if (options.length === 0) {
+    return Inputs.select([], {label: "Calibration Run:", disabled: true});
+  }
+  const stored = window.localStorage.getItem("tdmcalib:selectedRun");
+  const initial = options.includes(stored) ? stored : options[options.length - 1];
+  const input = Inputs.select(options, {label: "Calibration Run:", value: initial});
+  input.classList.add("calib-run-bar");
+  input.addEventListener("input", () => {
+    window.localStorage.setItem("tdmcalib:selectedRun", input.value);
+  });
+  return input;
+}
+```
