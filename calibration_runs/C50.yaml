@@ -23,12 +23,12 @@ tdm_ref: "calib/C50-start"
 baseline_control_center: "_ControlCenter - BY_2023.block"
 
 driver_script: "__HailMary_resumable.s"
-start_at_label: "STEP4_11"
+start_at_label: "STEP6"
 
 overrides:
   UserName: "Bill Hereth"
   UserCompany: "WFRC"
-  runIdPrfx: ""
+  keyOutputPrfx: "_"
 
 outputs:
   max_file_size_mb: 95
@@ -49,15 +49,12 @@ outputs:
     - datafile: "3_Distribute/TLF/TLF_Time.csv"
     - datafile: "4_ModeChoice/5_DistrictSummary/DISTLRG_PA_AllPurp.csv"
     - datafile: "4_ModeChoice/2_DetailedTripMatrices/IMZ_TripTotals.csv"
-    # These carry a Cube-generated `___{runId}___` filename prefix (see
-    # GlobalVars.runId in pp_ValidationDocumentation.py) -- wildcarded since
-    # the exact runId text depends on ModelVersion/ScenarioName/RunYear.
-    - datafile: "4_ModeChoice/3_TransitAssign/*_transit_brding_summary_node.csv"
-    - datafile: "4_ModeChoice/3_TransitAssign/*_transit_rider_summary_link.csv"
-    - datafile: "4_ModeChoice/4_Shares/*_RegionShares_Ok.csv"
-    - datafile: "4_ModeChoice/4_Shares/*_RegionShares_Pk.csv"
-    - datafile: "5_AssignHwy/4_Summaries/*_Summary_SEGID.csv"
-    - datafile: "5_AssignHwy/4_Summaries/*_Summary_SEGID_Detailed.csv"
+    - datafile: "4_ModeChoice/3_TransitAssign/_transit_brding_summary_node.csv"
+    - datafile: "4_ModeChoice/3_TransitAssign/_transit_rider_summary_link.csv"
+    - datafile: "4_ModeChoice/4_Shares/*RegionShares_Ok.csv"
+    - datafile: "4_ModeChoice/4_Shares/*RegionShares_Pk.csv"
+    - datafile: "5_AssignHwy/4_Summaries/*Summary_SEGID.csv"
+    - datafile: "5_AssignHwy/4_Summaries/*Summary_SEGID_Detailed.csv"
     # Matrix conversions (Cube .MTX -> .omx). source_format defaults to "mtx"
     # (Cube's native format, the real Scenarios/C50/ working folder's actual
     # output -- this repo's pipeline deliberately never runs
