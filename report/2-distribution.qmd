@@ -668,7 +668,12 @@ master_trips2 = pd.concat([master_trips, all_purps], ignore_index=True)
 ```
 
 ```{python}
-ojs_define(trips_master_data = master_trips2)
+# The outer merge above only fillna()s mod/obs -- an observed key with no
+# matching modeled row (in any run) still gets calib_run = NaN, which
+# serializes as the bare JSON token `NaN` and breaks ojs_define's
+# JSON.parse() client-side (see report/1-tripgen.qmd's tripRates fix for
+# the full explanation). Swap NaN for None so it serializes as valid `null`.
+ojs_define(trips_master_data = master_trips2.astype(object).where(master_trips2.notna(), None))
 ```
 
 

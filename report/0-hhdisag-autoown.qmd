@@ -833,7 +833,13 @@ df_val_combined = pd.concat([
     df_val_city[cols_to_keep],
 ])
 
-ojs_define(val_data_ojs=df_val_combined)
+# The outer merges in summarize_validation() only fillna() the value
+# columns -- a geo/HHSize/VehOwn combo missing from mod_agg (or from
+# acs_agg/hts_agg) still gets calib_run = NaN, which serializes as the bare
+# JSON token `NaN` and breaks ojs_define's JSON.parse() client-side (see
+# report/1-tripgen.qmd's tripRates fix for the full explanation). Swap NaN
+# for None so it serializes as valid `null`.
+ojs_define(val_data_ojs=df_val_combined.astype(object).where(df_val_combined.notna(), None))
 
 def gdf_to_geojson(gdf, cols):
     return gdf[cols + ["geometry"]].to_crs("EPSG:4326").__geo_interface__

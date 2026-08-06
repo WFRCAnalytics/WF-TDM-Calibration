@@ -649,7 +649,18 @@ if debug:
 # ======================================================================
 # EXPORT TO OJS
 # ======================================================================
-tripRates = trip_rates_county_purp_df.to_dict(orient="records")
+# NaN (e.g. the HTS reference rows' calib_run) serializes to the bare
+# token `NaN`, which is invalid JSON -- Quarto's OJS runtime parses this
+# payload with plain JSON.parse(), so a stray NaN throws and silently
+# aborts the whole ojs-define block (surfacing as "tripRates is not
+# defined" client-side, not as a Python error). Swap NaN for None so it
+# serializes as valid JSON `null`, which the OJS filters already expect.
+tripRates = (
+    trip_rates_county_purp_df
+    .astype(object)
+    .where(trip_rates_county_purp_df.notna(), None)
+    .to_dict(orient="records")
+)
 ojs_define(tripRates=tripRates)
 
 ```
