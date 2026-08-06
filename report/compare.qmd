@@ -16,9 +16,16 @@ stays fast regardless of how many calibration runs accumulate.
 # LOAD ALL PER-RUN, PER-STAGE SUMMARY METRICS
 # ==============================================================================
 import json
+import sys
 from pathlib import Path
 
 import pandas as pd
+
+sys.path.insert(0, ".")
+import _validation_scripts as vs
+
+repo_root = Path("..")
+calib_runs = vs.list_available_runs(repo_root)
 
 rows = []
 for f in sorted(Path(".").glob("summary_metrics_*.json")):
@@ -34,6 +41,8 @@ for f in sorted(Path(".").glob("summary_metrics_*.json")):
 compare_df = pd.DataFrame(rows, columns=["calib_run", "stage", "metric", "value"])
 ojs_define(compare_data=compare_df)
 ```
+
+{{< include _calib_run_selector.qmd >}}
 
 ```{ojs}
 data = transpose(compare_data)

@@ -2,8 +2,6 @@ import glob
 import json
 from pathlib import Path
 
-import contextily as ctx
-import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -101,7 +99,46 @@ def load_per_run(repo_root: Path, load_fn):
     return pd.concat(frames, ignore_index=True)
 
 
+def load_cached_per_run(repo_root: Path, name: str):
+    """Like load_per_run(), but reads pre-built per-run cache files
+    (runs/{calib_run}/cache/{name}.parquet, written by
+    report/preprocess/build_cache.py) instead of recomputing from raw
+    outputs -- the expensive OMX/DBF/CSV parsing already happened once,
+    when that run was curated (see tdmcalib's
+    postprocess.build_report_cache()), not on every render. Tags each
+    result with a 'calib_run' column and concatenates, same contract as
+    load_per_run(). Raises if every available run's cache for `name` is
+    missing -- run `python -m report.preprocess.build_cache --run <id>`
+    (from the repo root) to (re)build it."""
+    import pandas as pd
+
+    frames = []
+    missing = []
+    for calib_run in list_available_runs(repo_root):
+        cache_path = repo_root / "runs" / calib_run / "cache" / f"{name}.parquet"
+        if not cache_path.is_file():
+            missing.append(calib_run)
+            continue
+        df = pd.read_parquet(cache_path)
+        df["calib_run"] = calib_run
+        frames.append(df)
+    if not frames:
+        detail = f"missing for: {', '.join(missing)}" if missing else "no calibration runs have output yet"
+        raise FileNotFoundError(
+            f"No cached '{name}' dataset could be loaded ({detail}). Run "
+            f"`python -m report.preprocess.build_cache --run <id>` (from the repo root) first."
+        )
+    return pd.concat(frames, ignore_index=True)
+
+
 def plot_volume_diff(dfFiltered, varVehType, segShp):
+    # Local imports: contextily/matplotlib are report-render-only
+    # dependencies (the "reports" Jupyter kernel, not tdmcalib's own dev
+    # venv) -- module-level imports here would make report/preprocess/'s
+    # build_cache.py (which only needs this module's lightweight
+    # run-discovery helpers, invoked from tdmcalib itself) require them too.
+    import contextily as ctx
+    import matplotlib.pyplot as plt
 
     dfFiltered["diff"] = round(dfFiltered["AWDT_Mod"] - dfFiltered["AWDT_Obs"], 1)
 

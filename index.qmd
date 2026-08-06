@@ -1,12 +1,28 @@
 ---
 title: TDM Calibration Reports
+echo: false
+warning: false
+message: false
 ---
+
+```{python}
+import sys
+from pathlib import Path
+
+sys.path.insert(0, "report")
+import _validation_scripts as vs
+
+repo_root = Path()
+calib_runs = vs.list_available_runs(repo_root)
+```
+
+{{< include report/_calib_run_selector.qmd >}}
 
 Calibration validation reports comparing modeled results against observed data
 (HTS, ACS, OBS, and count data). Each report covers every available calibration
-run — use the "Calibration Run" dropdown at the top of any report page to pick
-which run's modeled results to view against observed data; your choice carries
-over as you move between pages.
+run — use the "Calibration Run" dropdown in the sidebar to pick which run's
+modeled results to view against observed data; your choice carries over as you
+move between pages.
 
 - [Household Disaggregation & Auto Ownership](report/0-hhdisag-autoown.qmd)
 - [Trip Generation](report/1-tripgen.qmd)

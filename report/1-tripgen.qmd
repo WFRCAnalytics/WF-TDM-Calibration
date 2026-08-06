@@ -11,7 +11,6 @@ message: false
 # ==============================================================================
 import pandas as pd
 import numpy as np
-from dbfread import DBF
 import plotly.express as px
 from tabulate import tabulate
 from IPython.display import Markdown
@@ -27,11 +26,6 @@ import _validation_scripts as vs
 # report/README.md's "one report per stage, not per run" note)
 repo_root = Path("..")
 calib_runs = vs.list_available_runs(repo_root)
-
-# static reference paths (not run-specific)
-config_paths = {
-    "taz_dbf": r"data/0-hhdisag-autoown/WFv1000_TAZ.dbf",
-}
 
 # variables
 debug = False
@@ -59,53 +53,29 @@ if debug: display(counties_df)
 ```
 
 ```{python}
-# read in TAZ data
-taz_df = pd.DataFrame(DBF(config_paths["taz_dbf"], load=True))
+# Modeled trip-end productions by county x purpose, one calibration run at a
+# time -- see report/preprocess/tripgen.py (extracted so this parsing
+# happens once per tdmcalib run/import, not on every `quarto render`; see
+# report/README.md's "Report data caching" section). Reads
+# runs/{calib_run}/cache/modeled_tripgen.parquet per run and concatenates
+# with a 'calib_run' column, same contract load_per_run() used to have.
+mod_p_se_county_reg_df = vs.load_cached_per_run(repo_root, "modeled_tripgen")
 
-if debug: display(taz_df)
-```
-
-```{python}
-# import + process model outputs, one calibration run at a time
-# (see _validation_scripts.load_per_run -- results get concatenated with a
-# 'calib_run' column below, once every run is loaded)
-
-def _load_modeled_tripgen(calib_run, outputs_dir):
-    # from tdm 2_TripGen output
-    mod_pa_wide_df = pd.read_csv(outputs_dir / "pa_final.csv")
-
-    # from tdm 0_InputProcessing output
-    mod_se_df = pd.DataFrame(DBF(outputs_dir / "SE_File.dbf", load=True))
-    mod_se_df = mod_se_df[['Z','TOTHH','HHPOP']].rename(columns={'Z':'TAZID'})
-    mod_se_county_df = mod_se_df.merge(taz_df[['TAZID','CO_FIPS']], on='TAZID').groupby(['CO_FIPS'], as_index=False).agg(TOTHH=('TOTHH','sum'),HHPOP=('HHPOP','sum'))
-
-    # calculate the total number of trip end productions for the modeled data
-    mod_p_wide_df = mod_pa_wide_df.filter(regex='^(TAZID|.*_P)$').copy()
-    mod_p_wide_df['HBSCH_P'] = mod_p_wide_df['HBSCHPR_P'] + mod_p_wide_df['HBSCHSC_P']
-
-    # filter to only columns to compare here, including removing college which is not part of trip gen
-    mod_p_wide_df = mod_p_wide_df[['TAZID','HBW_P','HBSHP_P','HBOTH_P','HBSCH_P','NHBW_P','NHBNW_P','IX_P']]
-    mod_p_wide_df = mod_p_wide_df.rename(columns=lambda x: x.rstrip('_P'))
-    mod_p_wide_df = mod_p_wide_df.rename(columns={'HBSH':'HBShp', 'HBOTH':'HBOth','HBSCH':'HBSch'})
-
-    # make the data long
-    mod_p_df = mod_p_wide_df.melt(id_vars=['TAZID'], var_name='Purpose', value_name='Trips')
-
-    # summarize by county
-    mod_p_county_df = mod_p_df.merge(taz_df[['TAZID','CO_FIPS']], on='TAZID').groupby(['CO_FIPS','Purpose'],as_index=False).agg(Trips=('Trips','sum'))
-    mod_p_se_county_df = mod_p_county_df.merge(mod_se_county_df, on='CO_FIPS')
-    mod_p_se_county_df = mod_p_se_county_df.merge(counties_df[['CO_FIPS','County']], on='CO_FIPS').drop(columns='CO_FIPS')
-
-    # add total row for all counties (region)
-    totals_by_year = (mod_p_se_county_df.groupby(['Purpose'], as_index=False).sum(numeric_only=True))
-    totals_by_year['County'] = 'Region'
-    mod_p_se_county_reg_df = pd.concat([mod_p_se_county_df, totals_by_year],ignore_index=True)
-
-    mod_p_se_county_reg_df['Trips per Person'] = mod_p_se_county_reg_df['Trips'] / mod_p_se_county_reg_df['HHPOP']
-    mod_p_se_county_reg_df['Trips per Household'] = mod_p_se_county_reg_df['Trips'] / mod_p_se_county_reg_df['TOTHH']
-    mod_p_se_county_reg_df['Data Source'] = nameMod
-
-    return mod_p_se_county_reg_df.drop(columns=['Trips','TOTHH','HHPOP'])
+# County *names* + 'Data Source' are added here rather than cached (see
+# report/preprocess/tripgen.py's docstring) -- CO_FIPS is null on the
+# preprocessed 'Region' total row, which becomes the 'Region' label here.
+# Cast to pandas' nullable Int64 (matching counties_df['CO_FIPS'], which
+# BigQuery's to_dataframe() already returns as nullable Int64) -- the cache
+# round-trip left this as plain float64 (introducing the null upcast a
+# plain int dtype can't hold), and merging float64 against nullable Int64
+# directly raises ("Cannot interpret 'Int64Dtype()' as a data type").
+mod_p_se_county_reg_df['CO_FIPS'] = mod_p_se_county_reg_df['CO_FIPS'].astype('Int64')
+mod_p_se_county_reg_df = mod_p_se_county_reg_df.merge(
+    counties_df[['CO_FIPS', 'County']], on='CO_FIPS', how='left'
+)
+mod_p_se_county_reg_df['County'] = mod_p_se_county_reg_df['County'].fillna('Region')
+mod_p_se_county_reg_df = mod_p_se_county_reg_df.drop(columns=['CO_FIPS'])
+mod_p_se_county_reg_df['Data Source'] = nameMod
 ```
 
 ```{python}
@@ -586,14 +556,6 @@ if debug:
 ```
 
 
-
-```{python}
-# load every calibration run's modeled trip rates and tag each row with
-# 'calib_run' -- lets the OJS run selector filter which run's Model bars show
-mod_p_se_county_reg_df = vs.load_per_run(repo_root, _load_modeled_tripgen)
-
-if debug: display(mod_p_se_county_reg_df)
-```
 
 ```{python}
 # concat hts and mod and add total row.

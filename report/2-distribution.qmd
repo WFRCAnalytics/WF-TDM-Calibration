@@ -12,14 +12,6 @@ message: false
 import pandas as pd
 import geopandas as gpd
 import numpy as np
-import os
-import re
-import openmatrix as omx
-from dbfread import DBF
-from functools import reduce
-from scipy import special
-import math as ms
-from math import floor
 from IPython.display import Markdown
 import sys
 from pathlib import Path
@@ -54,86 +46,6 @@ tazv10_wf = tazv10[['TAZID', 'DISTLRG']]
 
 {{< include _calib_run_selector.qmd >}}
 
-```{python}
-purp_mats = [
-  'HBW',
-  'HBShp',
-  'HBOth',
-  'HBSch_Pr',
-  'HBSch_Sc',
-  'HBC',
-  'NHBW',
-  'NHBNW'
-]
-truck_mats = [
-  'II_LT',
-  'II_MD',
-  'II_HV',
-  'II_LT_D2D',
-  'II_LT_HnS',
-  'II_LT_Lcl',
-  'II_LT_Reg',
-  'II_LT_LHl',
-  'II_LT_Unk',
-  'II_MD_D2D',
-  'II_MD_HnS',
-  'II_MD_Lcl',
-  'II_MD_Reg',
-  'II_MD_LHl',
-  'II_MD_Unk',
-  'II_MD_Adj',
-  'II_HV_D2D',
-  'II_HV_HnS',
-  'II_HV_Lcl',
-  'II_HV_Reg',
-  'II_HV_LHl',
-  'II_HV_Unk',
-  'II_HV_Adj'
-]
-ext_mats = [
-  "IX",
-  'XI',
-  'IX_MD',
-  'XI_MD',
-  'IX_HV',
-  'XI_HV'
-]
-
-purp_mats_obs = [
-  'HBW',
-  'HBSHP',
-  'HBOTH',
-  'HBSCH_PR',
-  'HBSCH_SC',
-  'HBC',
-  'NHBW',
-  'NHBNW'
-]
-truck_mats_obs = [
-  mat for mat in truck_mats if mat not in ['II_LT', 'II_MD', 'II_HV']
-]
-ext_mats_obs = [
-  "IX",
-  'XI',
-  'IX_MD',
-  'XI_MD',
-  'IX_HV',
-  'XI_HV'
-]
-
-purp_mats_skim = [
-  'HBW',
-  'HBShp',
-  'HBOth',
-  'NHBW',
-  'NHBNW',
-  'HBS',
-  'LT',
-  'MD',
-  'HV',
-  'Ext']
-```
-
 ## Trip Distribution
 
 The model used the 2012 Household Travel Survey to calibrate trip lengths for internal and external person trips. Trips were calibrated based on generalized cost trip length frequencies and validated to time and distance trip length frequencies and average trip lengths. The validation results are shown in @fig-ave-trip-length and @fig-trip-length-freq. Trip lengths by time and distance met the validation targets and aligned closely with observed data.
@@ -141,136 +53,8 @@ The model used the 2012 Household Travel Survey to calibrate trip lengths for in
 No observed data was available for internal and external commercial vehicle calibration. CV trips were calibrated based on previous model estimation and validated relative to person work and other trip lengths.
 
 ```{python}
-# ------------------------------------------------ #
-# 1. Define Standardization Maps
-# ------------------------------------------------ #
-
-# Map modeled truck names to the standard names
-mod_trip_map = {
-    'II_LT': 'LT',
-    'II_MD': 'MD',
-    'II_HV': 'HV'
-}
-
-# Map uppercase observed names to your preferred standard names
-obs_trip_map = {
-    'HBSHP': 'HBShp',
-    'HBOTH': 'HBOth',
-    'HBSCH_PR': 'HBSch_Pr',
-    'HBSCH_SC': 'HBSch_Sc'
-}
-
-# Map the standard trip purposes to the skim matrix names for joining
-skim_join_map = {
-    'IX': 'Ext',
-    'XI': 'Ext',
-    'IX_MD': 'Ext',
-    'XI_MD': 'Ext',
-    'IX_HV': 'Ext',
-    'XI_HV': 'Ext',
-    'HBSch_Pr': 'HBS',
-    'HBSch_Sc': 'HBS',
-    'II_LT_D2D': 'LT',
-    'II_LT_HnS': 'LT',
-    'II_LT_Lcl': 'LT',
-    'II_LT_Reg': 'LT',
-    'II_LT_LHl': 'LT',
-    'II_LT_Unk': 'LT',
-    'II_MD_D2D': 'MD',
-    'II_MD_HnS': 'MD',
-    'II_MD_Lcl': 'MD',
-    'II_MD_Reg': 'MD',
-    'II_MD_LHl': 'MD',
-    'II_MD_Unk': 'MD',
-    'II_MD_Adj': 'MD',
-    'II_HV_D2D': 'HV',
-    'II_HV_HnS': 'HV',
-    'II_HV_Lcl': 'HV',
-    'II_HV_Reg': 'HV',
-    'II_HV_LHl': 'HV',
-    'II_HV_Unk': 'HV',
-    'II_HV_Adj': 'HV'
-}
-
-# ------------------------------------------------ #
-# 2. Helper Function with Renaming Capability
-# ------------------------------------------------ #
-def extract_omx_to_df(omx_path, matrix_names, val_col_name, rename_dict=None, optional_missing=None):
-    df_list = []
-    taz_ids = np.arange(1, 3630)
-    rename_lookup = {k.upper(): v for k, v in (rename_dict or {}).items()}
-    optional_missing = {m.upper() for m in (optional_missing or [])}
-
-    with omx.open_file(omx_path, 'r') as f:
-        matrix_lookup = {mat.upper(): mat for mat in f.list_matrices()}
-
-        for mat_name in matrix_names:
-            mat_key = mat_name.upper()
-            actual_mat_name = matrix_lookup.get(mat_key)
-
-            if actual_mat_name is None:
-                if mat_key not in optional_missing:
-                    print(f"Warning: {mat_name} not found in OMX")
-                continue
-
-            mat = np.array(f[actual_mat_name]).astype(float)
-            ii, jj = np.nonzero(mat)
-
-            # Apply renaming if a dictionary is provided, otherwise keep the original name
-            std_purpose = rename_lookup.get(mat_key, mat_name)
-
-            df_mat = pd.DataFrame({
-                "i": taz_ids[ii],
-                "j": taz_ids[jj],
-                val_col_name: mat[ii, jj],
-                "Purpose": std_purpose
-            })
-
-            df_list.append(df_mat)
-
-    if df_list:
-        return pd.concat(df_list, ignore_index=True)
-    else:
-        return pd.DataFrame(columns=["i", "j", val_col_name, "Purpose"])
-
-# ------------------------------------------------ #
-# 3. Execute Extraction & Merge (modeled side: one calibration run at a time;
-#    observed side: shared, extracted once)
-# ------------------------------------------------ #
-obs_trips = extract_omx_to_df(
-    config_paths["skm_obs"],
-    purp_mats_obs + truck_mats_obs + ext_mats_obs,
-    "Trips_Obs",
-    rename_dict=obs_trip_map
-)
-
-def _load_mod_trips_dist_gc(calib_run, outputs_dir):
-    mod_trips = extract_omx_to_df(
-        outputs_dir / "PA_AllPurp_GRAVITY.omx",
-        purp_mats + truck_mats + ext_mats,
-        "Trips_Mod",
-        rename_dict=mod_trip_map
-    )
-    mod_dist = extract_omx_to_df(outputs_dir / "skm_DY_Dist.omx", purp_mats_skim, "Dist")
-    mod_gc = extract_omx_to_df(outputs_dir / "skm_DY_GC.omx", purp_mats_skim, "GC")
-
-    df = pd.merge(mod_trips, obs_trips, on=['i', 'j', 'Purpose'], how='outer')
-    df['Trips_Mod'] = df['Trips_Mod'].fillna(0)
-    df['Trips_Obs'] = df['Trips_Obs'].fillna(0)
-
-    # Create a temporary 'Skim_Purpose' column to link up with the skims (maps 'IX' to 'Ext', etc.)
-    df['Skim_Purpose'] = df['Purpose'].apply(lambda x: skim_join_map.get(x, x))
-    mod_dist = mod_dist.rename(columns={'Purpose': 'Skim_Purpose'})
-    mod_gc = mod_gc.rename(columns={'Purpose': 'Skim_Purpose'})
-
-    df = pd.merge(df, mod_dist, on=['i', 'j', 'Skim_Purpose'], how='left')
-    df = pd.merge(df, mod_gc, on=['i', 'j', 'Skim_Purpose'], how='left')
-    df = df.drop(columns=['Skim_Purpose'])
-    df['Dist'] = df['Dist'].fillna(0)
-    df['GC'] = df['GC'].fillna(0)
-    return df
-
-df_flat = vs.load_per_run(repo_root, _load_mod_trips_dist_gc)
+# See report/preprocess/distribution.py.
+df_flat = vs.load_cached_per_run(repo_root, "mod_trips_dist_gc")
 ```
 
 ```{python}
@@ -730,29 +514,8 @@ obs_intra = obs_intra[['PURP','pct_intrazonal']]
 
 
 ```{python}
-# ------------------------------------------------ #
-# Calcualte Modeled Intrazonal Trip Percentages    #
-# (one calibration run at a time)                  #
-# ------------------------------------------------ #
-def _load_mod_intra(calib_run, outputs_dir):
-    results = []
-    with omx.open_file(outputs_dir / "PA_AllPurp_GRAVITY.omx", 'r') as f:
-        for mat_name in purp_mats:
-            if mat_name not in f.list_matrices():
-                print(f"⚠️ {mat_name} not found in OMX")
-                continue
-            mat = f[mat_name][:].astype(float)
-            total_trips = mat.sum()
-            intra_trips = np.trace(mat)
-            results.append({
-                "PURP": mat_name,
-                "total_trips": total_trips,
-                "intra_trips": intra_trips,
-                "pct_intrazonal": 100 * intra_trips / total_trips
-            })
-    return pd.DataFrame(results)[['PURP','pct_intrazonal']]
-
-mod_intra = vs.load_per_run(repo_root, _load_mod_intra)
+# See report/preprocess/distribution.py.
+mod_intra = vs.load_cached_per_run(repo_root, "mod_intra")
 ```
 
 ```{python}
@@ -873,41 +636,8 @@ obs_trips = obs_trips.rename(columns={'DISTLRG':'p_DistLrg', 'CO_FIPS':'p_CO_FIP
 obs_trips = obs_trips.merge(tazv10[['CO_TAZID','DISTLRG','CO_FIPS']], how = 'left', left_on='aCO_TAZID_USTMv4', right_on='CO_TAZID')
 obs_trips = obs_trips.rename(columns={'DISTLRG':'a_DistLrg', 'CO_FIPS':'a_CO_FIPS'}).drop(columns={'CO_TAZID'})
 
-# ------------------------------------------------ #
-# Preprocess Modeled Skim Data (one calibration run at a time)
-# ------------------------------------------------ #
-taz_ids = np.arange(1, 3630)
-
-def _load_master_trips(calib_run, outputs_dir):
-    od_results = []
-    with omx.open_file(outputs_dir / "PA_AllPurp_GRAVITY.omx", 'r') as f:
-        for mat_name in purp_mats:
-            if mat_name not in f.list_matrices():
-                print(f"⚠️ {mat_name} not found in OMX")
-                continue
-            mat = f[mat_name][:].astype(float)
-            ii, jj = np.nonzero(mat)
-            od_results.extend(
-                {"i": taz_ids[i], "j": taz_ids[j], "trips": mat[i, j], "purpose": mat_name}
-                for i, j in zip(ii, jj)
-            )
-
-    mod_trips = pd.DataFrame(od_results)
-    mod_trips = mod_trips.merge(tazv10[['TAZID','DISTLRG','CO_FIPS']], how = 'left', left_on='i', right_on='TAZID')
-    mod_trips = mod_trips.rename(columns={'DISTLRG':'p_DistLrg', 'CO_FIPS':'p_CO_FIPS'}).drop(columns={'TAZID'})
-    mod_trips = mod_trips.merge(tazv10[['TAZID','DISTLRG','CO_FIPS']], how = 'left', left_on='j', right_on='TAZID')
-    mod_trips = mod_trips.rename(columns={'DISTLRG':'a_DistLrg', 'CO_FIPS':'a_CO_FIPS'}).drop(columns={'TAZID'})
-    mod_trips = mod_trips.rename(columns={'purpose':'PURP'})
-
-    mod_trips_dist = mod_trips.groupby(['PURP','p_DistLrg','a_DistLrg'], as_index=False).agg(trips=('trips','sum'))
-    mod_trips_co = mod_trips.groupby(['PURP','p_CO_FIPS','a_CO_FIPS'], as_index=False).agg(trips=('trips','sum'))
-    mod_trips_dist['Geo'] = 'District'
-    mod_trips_co['Geo'] = 'County'
-    mod_trips_dist = mod_trips_dist.rename(columns={'p_DistLrg': 'p_Loc', 'a_DistLrg': 'a_Loc', 'trips': 'mod'})
-    mod_trips_co = mod_trips_co.rename(columns={'p_CO_FIPS': 'p_Loc', 'a_CO_FIPS': 'a_Loc', 'trips': 'mod'})
-    return pd.concat([mod_trips_dist, mod_trips_co], ignore_index=True)
-
-mod_trips_all = vs.load_per_run(repo_root, _load_master_trips)
+# See report/preprocess/distribution.py.
+mod_trips_all = vs.load_cached_per_run(repo_root, "master_trips")
 
 # ------------------------------------------------ #
 # Summarize Observed (shared, not run-specific)
@@ -1055,42 +785,8 @@ Plot.plot({
 ## HBW Destination Choice
 
 ```{python}
-def _load_dist_sum_mod(calib_run, outputs_dir):
-    #--------------------------------------------------------------------#
-    # Modeled: Destination Choice Model                                  #
-    #--------------------------------------------------------------------#
-    dist_sum_mod_mc = pd.read_csv(outputs_dir / "DISTLRG_PA_AllPurp.csv", low_memory=False)[['I','J','HBW','HBO','NHB','HBSch','HBC']]
-    dist_sum_mod_mc = dist_sum_mod_mc.rename(columns={'I':'p_DistLrg', 'J':'a_DistLrg'})
-    dist_sum_mod_mc = dist_sum_mod_mc.melt(
-        id_vars=['p_DistLrg', 'a_DistLrg'],
-        value_vars=['HBW', 'HBO', 'NHB', 'HBSch', 'HBC'],
-        var_name='PURP5_t',
-        value_name='total_trips'
-    )
-    dist_sum_mod_mc['Source'] = 'Destination Choice'
-
-    #--------------------------------------------------------------------#
-    # Modeled: Gravity Choice Model                                      #
-    #--------------------------------------------------------------------#
-    dist_sum_mod_db = pd.read_csv(outputs_dir / "DISTLRG_PA_Gravity_AllPurp.csv", low_memory=False)
-    dist_sum_mod_db['HBO'] = dist_sum_mod_db['HBOth'] + dist_sum_mod_db['HBShp']
-    dist_sum_mod_db['HBSch'] = dist_sum_mod_db['HBSch_Pr'] + dist_sum_mod_db['HBSch_Sc']
-    dist_sum_mod_db['NHB'] = dist_sum_mod_db['NHBW'] + dist_sum_mod_db['NHBNW']
-    dist_sum_mod_db = dist_sum_mod_db[['I','J','HBW','HBO','NHB','HBSch','HBC']]
-    dist_sum_mod_db = dist_sum_mod_db.rename(columns={'I':'p_DistLrg', 'J':'a_DistLrg'})
-    dist_sum_mod_db = dist_sum_mod_db.melt(
-        id_vars=['p_DistLrg', 'a_DistLrg'],
-        value_vars=['HBW', 'HBO', 'NHB', 'HBSch', 'HBC'],
-        var_name='PURP5_t',
-        value_name='total_trips'
-    )
-    dist_sum_mod_db['Source'] = 'Gravity'
-
-    dist_sum_mod = pd.concat([dist_sum_mod_mc, dist_sum_mod_db], ignore_index=True)
-    dist_sum_mod = dist_sum_mod[dist_sum_mod['PURP5_t']=='HBW']
-    return dist_sum_mod[['Source','p_DistLrg','a_DistLrg','total_trips']]
-
-dist_sum_mod_chart = vs.load_per_run(repo_root, _load_dist_sum_mod)
+# See report/preprocess/distribution.py.
+dist_sum_mod_chart = vs.load_cached_per_run(repo_root, "dist_sum_mod")
 
 #--------------------------------------------------------------------#
 # Observed: Household Travel Survey                                  #
@@ -1196,54 +892,8 @@ obs_dist_hbw_sum = (
         .agg(total_trips=('trip_weight','sum'))
 )
 
-#--------------------------------------------------------------------#
-# Process + Summarize Modeled Data (OMX Files, one run at a time)     #
-#--------------------------------------------------------------------#
-def parse_veh_inc(fname):
-    base = os.path.splitext(fname)[0]      # pa_HBW_2veh_hi_noXI
-    base = base.replace("pa_", "")         # HBW_2veh_hi_noXI
-    base = base.replace("_noXI", "")       # HBW_2veh_hi
-    return base
-
-_hbw_veh_files = [
-    "pa_HBW_0veh_hi.omx",
-    "pa_HBW_0veh_lo.omx",
-    "pa_HBW_1veh_hi.omx",
-    "pa_HBW_1veh_lo.omx",
-    "pa_HBW_2veh_hi_noXI.omx",
-    "pa_HBW_2veh_lo_noXI.omx",
-]
-
-def _load_mod_dist_hbw_sum(calib_run, outputs_dir):
-    dfs = []
-    for f in _hbw_veh_files:
-        with omx.open_file(outputs_dir / f, "r") as omx_file:
-            mat = omx_file["trips"][:]
-        df = (
-            pd.DataFrame(mat)
-              .reset_index()
-              .melt(id_vars="index", var_name="a_taz", value_name="trips")
-              .rename(columns={"index": "p_taz"})
-        )
-        df["p_taz"] += 1  # shift from 0-based to 1-based TAZ
-        df["a_taz"] += 1
-        df["veh_inc"] = parse_veh_inc(f)
-        dfs.append(df)
-    mod_taz_hbw_0 = pd.concat(dfs, ignore_index=True)
-
-    mod_taz_hbw_1 = mod_taz_hbw_0.merge(tazv10_wf, how = 'left', left_on='p_taz', right_on='TAZID')
-    mod_taz_hbw_1 = mod_taz_hbw_1.rename(columns={'DISTLRG':'p_DistLrg'}).drop(columns={'TAZID'})
-    mod_taz_hbw_2 = mod_taz_hbw_1.merge(tazv10_wf, how = 'left', left_on='a_taz', right_on='TAZID')
-    mod_taz_hbw_2 = mod_taz_hbw_2.rename(columns={'DISTLRG':'a_DistLrg'}).drop(columns={'TAZID'})
-
-    return (
-        mod_taz_hbw_2
-            [['veh_inc','p_DistLrg','a_DistLrg','trips']]
-            .groupby(['veh_inc','p_DistLrg','a_DistLrg'], as_index=False)
-            .agg(total_trips=('trips','sum'))
-    )
-
-mod_dist_hbw_sum = vs.load_per_run(repo_root, _load_mod_dist_hbw_sum)
+# See report/preprocess/distribution.py.
+mod_dist_hbw_sum = vs.load_cached_per_run(repo_root, "mod_dist_hbw_sum")
 
 #--------------------------------------------------------------------#
 # Process Observed Data (HTS): No Outliers                           #
@@ -1294,119 +944,8 @@ obs_dist_hbw_sum_no_outliers = obs_dist_hbw_sum_no_outliers.drop(columns=["trips
 
 
 ```{python}
-def _load_mod_distrib_hbw_sum(calib_run, outputs_dir):
-    # ---------------------------
-    # 1) LOAD
-    # ---------------------------
-    hhdisag_dfs = {
-        s: pd.DataFrame(DBF(outputs_dir / f"VO_HH{s}_IncLoHi_Worker_VehOwn.dbf", load=True))
-        for s in range(1, 7)
-    }
-
-    # ---------------------------
-    # 2) COLLAPSE WORKERS (W)
-    # ---------------------------
-    for s, df in hhdisag_dfs.items():
-        for inc in ["L", "H"]:
-            for v in range(4):
-                cols = [f"S{s}I{inc}W{w}V{v}" for w in range(4)]
-                df[f"S{s}I{inc}V{v}"] = df[cols].sum(axis=1)
-
-    # ---------------------------
-    # 3) LEFT-JOIN ALL 6 ON Z
-    # ---------------------------
-    Z_COLS = ["Z"]
-
-    dfs_list = [hhdisag_dfs[s] for s in range(1, 7)]
-
-    df_merged = reduce(
-        lambda left, right: pd.merge(left, right, on=Z_COLS, how="left"),
-        dfs_list
-    )
-
-    # ---------------------------
-    # 4) COLLAPSE HOUSEHOLD SIZE (S)
-    # ---------------------------
-    final_hhdisag_vals = df_merged[Z_COLS].copy()
-
-    for inc in ["L", "H"]:
-        for v in range(4):
-            cols = [f"S{s}I{inc}V{v}" for s in range(1, 7)]
-            final_hhdisag_vals[f"I{inc}V{v}"] = df_merged[cols].sum(axis=1)
-
-    # ---------------------------
-    # 5) KEEP ONLY Z + I/V
-    # ---------------------------
-    final_hhdisag_vals = final_hhdisag_vals[Z_COLS + [c for c in final_hhdisag_vals.columns if c.startswith("I")]]
-
-    # Combine 2 and 3 vehicles into 2+ and overwrite V2
-    for inc in ["L", "H"]:
-        # Add 3-vehicle to 2-vehicle
-        final_hhdisag_vals[f"I{inc}V2"] = final_hhdisag_vals[f"I{inc}V2"] + final_hhdisag_vals[f"I{inc}V3"]
-
-    # Drop the old 3-vehicle columns
-    final_hhdisag_vals = final_hhdisag_vals.drop(columns=[f"I{inc}V3" for inc in ["L","H"]])
-
-    # ---------------------------
-    # 6) CALCULATE percentages
-    # ---------------------------
-    final_hhdisag_pct = final_hhdisag_vals.copy()
-    row_totals = final_hhdisag_pct.drop(columns=Z_COLS).sum(axis=1)
-    final_hhdisag_pct.loc[:, final_hhdisag_pct.columns.difference(Z_COLS)] = (
-        final_hhdisag_pct.drop(columns=Z_COLS).div(row_totals, axis=0)
-    )
-    final_hhdisag_pct.loc[:, final_hhdisag_pct.columns.difference(Z_COLS)] = final_hhdisag_pct.loc[:, final_hhdisag_pct.columns.difference(Z_COLS)].round(4)
-
-    final_hhdisag_pct = final_hhdisag_pct.fillna(0)
-
-    # -----------------------------
-    # Read in PA_AllPurp_Gravity Matrix from Distribution
-    # -----------------------------
-    taz_ids = list(range(1, 3630))  # 1-based
-
-    with omx.open_file(outputs_dir / "PA_AllPurp_GRAVITY.omx", 'r') as f:
-        mat = f['HBW'][:].astype(float)
-
-    df = pd.DataFrame(mat, index=taz_ids, columns=taz_ids)
-    hbw_distrib_trips = df.stack().reset_index()
-    hbw_distrib_trips.columns = ['i', 'j', 'trips']
-
-    # -----------------------------
-    # Calculate income/vehicle ownerhsip breakdown
-    # -----------------------------
-    mod_distrib_hbw = hbw_distrib_trips.merge(final_hhdisag_pct, left_on="i", right_on="Z", how="left").drop(columns=["Z"])
-    mod_distrib_hbw['HBW_0veh_lo'] = mod_distrib_hbw['ILV0'] * mod_distrib_hbw['trips']
-    mod_distrib_hbw['HBW_0veh_hi'] = mod_distrib_hbw['IHV0'] * mod_distrib_hbw['trips']
-    mod_distrib_hbw['HBW_1veh_lo'] = mod_distrib_hbw['ILV1'] * mod_distrib_hbw['trips']
-    mod_distrib_hbw['HBW_1veh_hi'] = mod_distrib_hbw['IHV1'] * mod_distrib_hbw['trips']
-    mod_distrib_hbw['HBW_2veh_lo'] = mod_distrib_hbw['ILV2'] * mod_distrib_hbw['trips']
-    mod_distrib_hbw['HBW_2veh_hi'] = mod_distrib_hbw['IHV2'] * mod_distrib_hbw['trips']
-
-    hbw_cols = ['HBW_0veh_lo', 'HBW_0veh_hi','HBW_1veh_lo', 'HBW_1veh_hi','HBW_2veh_lo', 'HBW_2veh_hi']
-    mod_distrib_hbw_long = mod_distrib_hbw.melt(
-        id_vars=['i', 'j'],
-        value_vars=hbw_cols,
-        var_name='veh_inc',
-        value_name='hbw_trips'
-    )
-    mod_distrib_hbw_long = mod_distrib_hbw_long.rename(columns={'hbw_trips':'trips'})
-
-    # -----------------------------
-    # Summrize at Large District level
-    # -----------------------------
-    mod_distrib_hbw_1 = mod_distrib_hbw_long.merge(tazv10_wf, how = 'left', left_on='i', right_on='TAZID')
-    mod_distrib_hbw_1 = mod_distrib_hbw_1.rename(columns={'DISTLRG':'p_DistLrg'}).drop(columns={'TAZID'})
-    mod_distrib_hbw_2 = mod_distrib_hbw_1.merge(tazv10_wf, how = 'left', left_on='j', right_on='TAZID')
-    mod_distrib_hbw_2 = mod_distrib_hbw_2.rename(columns={'DISTLRG':'a_DistLrg'}).drop(columns={'TAZID'})
-
-    return (
-        mod_distrib_hbw_2
-            [['veh_inc','p_DistLrg','a_DistLrg','trips']]
-            .groupby(['veh_inc','p_DistLrg','a_DistLrg'], as_index=False)
-            .agg(total_trips=('trips','sum'))
-    )
-
-mod_distrib_hbw_sum = vs.load_per_run(repo_root, _load_mod_distrib_hbw_sum)
+# See report/preprocess/distribution.py.
+mod_distrib_hbw_sum = vs.load_cached_per_run(repo_root, "mod_distrib_hbw_sum")
 ```
 
 

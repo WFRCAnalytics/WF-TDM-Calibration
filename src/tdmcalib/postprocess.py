@@ -1,18 +1,53 @@
 """
-Post-run report rendering.
+Post-run report caching and rendering.
 
-Runs `quarto render` against the repo-root Quarto project after a
-calibration run's outputs are curated, so report/*.qmd reflects the run
-automatically -- replacing the old manual "preprocess" toggle that
-report/config.json used to gate (see report/README.md). Rendering failure
-never raises: the calibration run's curated outputs are already safely on
-disk regardless of whether the report re-rendered cleanly, so a rendering
-problem is recorded on the run's metadata instead of failing the run.
+Two steps run after a calibration run's outputs are curated, in order:
+build_report_cache() extracts+caches this run's per-stage report data
+(report/preprocess/), then render_validation() runs `quarto render` so
+report/*.qmd reflects the run automatically -- replacing the old manual
+"preprocess" toggle that report/config.json used to gate (see
+report/README.md). Neither ever raises: the calibration run's curated
+outputs are already safely on disk regardless of whether caching/rendering
+succeeded, so a problem in either is recorded on the run's metadata instead
+of failing the run.
 """
 
 import shutil
 import subprocess
+import sys
 from pathlib import Path
+
+
+def build_report_cache(repo_root: Path, calib_run_id: str) -> dict:
+    """
+    Runs `python -m report.preprocess.build_cache --run <calib_run_id>`
+    (see report/preprocess/), which extracts+caches this run's per-stage
+    report data (runs/{calib_run_id}/cache/*.parquet) so report/*.qmd reads
+    cheap pre-built files instead of re-parsing raw OMX/DBF/CSV on every
+    render. Must run before render_validation() so the freshly-curated
+    run's cache exists by the time Quarto renders. Returns a dict with a
+    "status" key ("success" or "failed"); never raises -- report/*.qmd's
+    own load_cached_per_run() names the exact command to fix a stale/missing
+    cache if this step didn't run or failed.
+    """
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "report.preprocess.build_cache", "--run", calib_run_id],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            timeout=1800,
+        )
+    except subprocess.TimeoutExpired:
+        return {"status": "failed", "reason": "report cache build timed out after 1800s"}
+
+    if result.returncode != 0:
+        return {
+            "status": "failed",
+            "reason": f"report cache build exited {result.returncode}",
+            "stdout_tail": result.stdout[-4000:],
+        }
+    return {"status": "success"}
 
 
 def render_validation(repo_root: Path, framework: dict) -> dict:

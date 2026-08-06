@@ -107,42 +107,11 @@ df_plot = df_crt_access.dropna(subset=["Stop_Name", "boarding_weight"])
 ```{python}
 # | label: crt-model-process
 
-# 1. Setup Mapping
-station_nodes = df_station_master["Model_N"].tolist()
-node_map = dict(zip(df_station_master["Model_N"], df_station_master["UTA_Stops"]))
-
-# 2. Read, Filter, and Process Modeled Data (one calibration run at a time)
-def _load_crt_model(calib_run, outputs_dir):
-    in_rider_summary = vs.find_one(outputs_dir, "*transit_rider_summary_link.csv")
-    df_rider_summary = pd.read_csv(in_rider_summary).query(
-        "Mode.isin([11, 12, 80]) and A < 10000 and B in @station_nodes"
-    )
-
-    df_model_plot = (
-        df_rider_summary.assign(Stop_Name=lambda x: x["B"].map(node_map))
-        .query("FromSkim_CRT > 0")
-        .dropna(subset=["Stop_Name"])
-        .rename(
-            columns={
-                "Distance": "access_dist",
-                "Time": "access_time",
-                "FromSkim_CRT": "boarding_weight",
-                "AccessMode": "Ac_Mode2_Model",
-            }
-        )
-        .assign(
-            Ac_Mode2_Model=lambda x: x["Ac_Mode2_Model"].str.title(),
-            access_dist=lambda x: pd.to_numeric(x["access_dist"], errors="coerce"),
-            access_time=lambda x: pd.to_numeric(x["access_time"], errors="coerce"),
-            # If your data is x100 (e.g. 1500 = 15 trips), uncomment the line below:
-            # boarding_weight = lambda x: x['boarding_weight'] / 100
-        )
-    )
-    return df_model_plot[
-        ["Stop_Name", "access_dist", "access_time", "boarding_weight", "Ac_Mode2_Model"]
-    ]
-
-df_model_plot = vs.load_per_run(repo_root, _load_crt_model)
+# Read, Filter, and Process Modeled Data (one calibration run at a time) --
+# see report/preprocess/modelresults.py (extracted so this parsing happens
+# once per tdmcalib run/import, not on every `quarto render`; see
+# report/README.md's "Report data caching" section).
+df_model_plot = vs.load_cached_per_run(repo_root, "crt_model")
 
 # 3. Export Both Datasets to OJS
 ojs_define(

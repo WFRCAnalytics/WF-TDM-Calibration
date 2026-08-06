@@ -20,10 +20,45 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
-<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="site_libs/quarto-nav/quarto-nav.js"></script>
 <script src="site_libs/quarto-nav/headroom.min.js"></script>
 <script src="site_libs/clipboard/clipboard.min.js"></script>
 <script src="site_libs/quarto-search/autocomplete.umd.js"></script>
@@ -69,6 +104,14 @@ ul.task-list li input[type="checkbox"] {
     "search-label": "Search"
   }
 }</script>
+<script type="module" src="site_libs/quarto-ojs/quarto-ojs-runtime.js"></script>
+<link href="site_libs/quarto-ojs/quarto-ojs.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
 
 
 <link rel="stylesheet" href="styles.css">
@@ -187,7 +230,75 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>Calibration validation reports comparing modeled results against observed data (HTS, ACS, OBS, and count data). Each report covers every available calibration run — use the “Calibration Run” dropdown at the top of any report page to pick which run’s modeled results to view against observed data; your choice carries over as you move between pages.</p>
+<!--
+Shared global calibration-run selector, spliced into every report page via
+{{< include _calib_run_selector.qmd >}} (a literal text splice before
+Quarto's own processing, so these cells execute in the including page's own
+kernel/OJS runtime -- not a separate document). Requires the including page
+to have already defined a Python `calib_runs` list (every report page's
+config cell already does: `calib_runs = vs.list_available_runs(repo_root)`)
+before this include point.
+
+Produces `globalCalibRun` (an OJS value, via `viewof`) -- every chart/table
+on the page should filter by this instead of defining its own per-section
+run selector. Persists the choice across page navigation via localStorage
+(each Quarto page is a separate static HTML load, so this is what makes one
+control feel global across the whole site rather than resetting on every
+page).
+
+The control is moved into Quarto's docked sidebar DOM (`#quarto-sidebar`,
+between its `.sidebar-header` and `.sidebar-menu-container`) after it
+renders, so it sits above the page-navigation links rather than in the main
+content flow -- see the `setTimeout` below. Falls back to staying inline
+(styled as a `.calib-run-bar`, a sticky bar under the page title) if that
+sidebar structure isn't found, e.g. a future Quarto version restructuring
+the sidebar, or `website.sidebar` not being docked. On narrow/mobile
+viewports, Quarto collapses the docked sidebar into an off-canvas menu, so
+the control is only reachable via the hamburger toggle there -- a real
+trade-off versus the always-visible inline placement, not a bug.
+-->
+<div id="45b20b43" class="cell" data-execution_count="2">
+<div class="cell-output cell-output-display">
+<script type="ojs-define">{"contents": [{"name": "calib_runs_ojs", "value": ["C33"]}]}</script>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb1" data-startfrom="0" data-source-offset="0"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line -1;"><span id="cb1-0"><a href="#cb1-0" aria-hidden="true" tabindex="-1"></a>viewof globalCalibRun <span class="op">=</span> {</span>
+<span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> options <span class="op">=</span> calib_runs_ojs<span class="op">;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (options<span class="op">.</span><span class="at">length</span> <span class="op">===</span> <span class="dv">0</span>) {</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Inputs<span class="op">.</span><span class="fu">select</span>([]<span class="op">,</span> {<span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Run:"</span><span class="op">,</span> <span class="dt">disabled</span><span class="op">:</span> <span class="kw">true</span>})<span class="op">;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> stored <span class="op">=</span> <span class="bu">window</span><span class="op">.</span><span class="at">localStorage</span><span class="op">.</span><span class="fu">getItem</span>(<span class="st">"tdmcalib:selectedRun"</span>)<span class="op">;</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> initial <span class="op">=</span> options<span class="op">.</span><span class="fu">includes</span>(stored) <span class="op">?</span> stored <span class="op">:</span> options[options<span class="op">.</span><span class="at">length</span> <span class="op">-</span> <span class="dv">1</span>]<span class="op">;</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> input <span class="op">=</span> Inputs<span class="op">.</span><span class="fu">select</span>(options<span class="op">,</span> {<span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Run:"</span><span class="op">,</span> <span class="dt">value</span><span class="op">:</span> initial})<span class="op">;</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  input<span class="op">.</span><span class="at">classList</span><span class="op">.</span><span class="fu">add</span>(<span class="st">"calib-run-bar"</span>)<span class="op">;</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  input<span class="op">.</span><span class="fu">addEventListener</span>(<span class="st">"input"</span><span class="op">,</span> () <span class="kw">=&gt;</span> {</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">window</span><span class="op">.</span><span class="at">localStorage</span><span class="op">.</span><span class="fu">setItem</span>(<span class="st">"tdmcalib:selectedRun"</span><span class="op">,</span> input<span class="op">.</span><span class="at">value</span>)<span class="op">;</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  })<span class="op">;</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Quarto's own OJS runtime places this cell's returned node into its</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="co">// normal in-page output slot right after this function returns -- moving</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="co">// it into the sidebar synchronously, before that happens, would just get</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="co">// undone a moment later. Deferring to the next tick runs this after that</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="co">// placement, so the move actually sticks.</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="pp">setTimeout</span>(() <span class="kw">=&gt;</span> {</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> sidebar <span class="op">=</span> <span class="bu">document</span><span class="op">.</span><span class="fu">querySelector</span>(<span class="st">"#quarto-sidebar"</span>)<span class="op">;</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> menu <span class="op">=</span> sidebar<span class="op">?.</span><span class="fu">querySelector</span>(<span class="st">".sidebar-menu-container"</span>)<span class="op">;</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="op">!</span>sidebar <span class="op">||</span> <span class="op">!</span>menu) <span class="cf">return</span><span class="op">;</span> <span class="co">// no docked sidebar -- stays inline as a .calib-run-bar</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    input<span class="op">.</span><span class="at">classList</span><span class="op">.</span><span class="fu">remove</span>(<span class="st">"calib-run-bar"</span>)<span class="op">;</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    input<span class="op">.</span><span class="at">classList</span><span class="op">.</span><span class="fu">add</span>(<span class="st">"calib-run-sidebar"</span>)<span class="op">;</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>    sidebar<span class="op">.</span><span class="fu">insertBefore</span>(input<span class="op">,</span> menu)<span class="op">;</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  }<span class="op">,</span> <span class="dv">0</span>)<span class="op">;</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> input<span class="op">;</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div id="ojs-cell-1" data-nodetype="declaration">
+
+</div>
+</div>
+</div>
+<p>Calibration validation reports comparing modeled results against observed data (HTS, ACS, OBS, and count data). Each report covers every available calibration run — use the “Calibration Run” dropdown in the sidebar to pick which run’s modeled results to view against observed data; your choice carries over as you move between pages.</p>
 <ul>
 <li><a href="./report/0-hhdisag-autoown.html">Household Disaggregation &amp; Auto Ownership</a></li>
 <li><a href="./report/1-tripgen.html">Trip Generation</a></li>
@@ -201,6 +312,17 @@ ul.task-list li input[type="checkbox"] {
 
 
 </main> <!-- /main -->
+<script type="ojs-module-contents">
+eyJjb250ZW50cyI6W3sibWV0aG9kTmFtZSI6ImludGVycHJldCIsImNlbGxOYW1lIjoib2pzLWNlbGwtMSIsImlubGluZSI6ZmFsc2UsInNvdXJjZSI6Ilxudmlld29mIGdsb2JhbENhbGliUnVuID0ge1xuICBjb25zdCBvcHRpb25zID0gY2FsaWJfcnVuc19vanM7XG4gIGlmIChvcHRpb25zLmxlbmd0aCA9PT0gMCkge1xuICAgIHJldHVybiBJbnB1dHMuc2VsZWN0KFtdLCB7bGFiZWw6IFwiQ2FsaWJyYXRpb24gUnVuOlwiLCBkaXNhYmxlZDogdHJ1ZX0pO1xuICB9XG4gIGNvbnN0IHN0b3JlZCA9IHdpbmRvdy5sb2NhbFN0b3JhZ2UuZ2V0SXRlbShcInRkbWNhbGliOnNlbGVjdGVkUnVuXCIpO1xuICBjb25zdCBpbml0aWFsID0gb3B0aW9ucy5pbmNsdWRlcyhzdG9yZWQpID8gc3RvcmVkIDogb3B0aW9uc1tvcHRpb25zLmxlbmd0aCAtIDFdO1xuICBjb25zdCBpbnB1dCA9IElucHV0cy5zZWxlY3Qob3B0aW9ucywge2xhYmVsOiBcIkNhbGlicmF0aW9uIFJ1bjpcIiwgdmFsdWU6IGluaXRpYWx9KTtcbiAgaW5wdXQuY2xhc3NMaXN0LmFkZChcImNhbGliLXJ1bi1iYXJcIik7XG4gIGlucHV0LmFkZEV2ZW50TGlzdGVuZXIoXCJpbnB1dFwiLCAoKSA9PiB7XG4gICAgd2luZG93LmxvY2FsU3RvcmFnZS5zZXRJdGVtKFwidGRtY2FsaWI6c2VsZWN0ZWRSdW5cIiwgaW5wdXQudmFsdWUpO1xuICB9KTtcblxuICAvLyBRdWFydG8ncyBvd24gT0pTIHJ1bnRpbWUgcGxhY2VzIHRoaXMgY2VsbCdzIHJldHVybmVkIG5vZGUgaW50byBpdHNcbiAgLy8gbm9ybWFsIGluLXBhZ2Ugb3V0cHV0IHNsb3QgcmlnaHQgYWZ0ZXIgdGhpcyBmdW5jdGlvbiByZXR1cm5zIC0tIG1vdmluZ1xuICAvLyBpdCBpbnRvIHRoZSBzaWRlYmFyIHN5bmNocm9ub3VzbHksIGJlZm9yZSB0aGF0IGhhcHBlbnMsIHdvdWxkIGp1c3QgZ2V0XG4gIC8vIHVuZG9uZSBhIG1vbWVudCBsYXRlci4gRGVmZXJyaW5nIHRvIHRoZSBuZXh0IHRpY2sgcnVucyB0aGlzIGFmdGVyIHRoYXRcbiAgLy8gcGxhY2VtZW50LCBzbyB0aGUgbW92ZSBhY3R1YWxseSBzdGlja3MuXG4gIHNldFRpbWVvdXQoKCkgPT4ge1xuICAgIGNvbnN0IHNpZGViYXIgPSBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKFwiI3F1YXJ0by1zaWRlYmFyXCIpO1xuICAgIGNvbnN0IG1lbnUgPSBzaWRlYmFyPy5xdWVyeVNlbGVjdG9yKFwiLnNpZGViYXItbWVudS1jb250YWluZXJcIik7XG4gICAgaWYgKCFzaWRlYmFyIHx8ICFtZW51KSByZXR1cm47IC8vIG5vIGRvY2tlZCBzaWRlYmFyIC0tIHN0YXlzIGlubGluZSBhcyBhIC5jYWxpYi1ydW4tYmFyXG4gICAgaW5wdXQuY2xhc3NMaXN0LnJlbW92ZShcImNhbGliLXJ1bi1iYXJcIik7XG4gICAgaW5wdXQuY2xhc3NMaXN0LmFkZChcImNhbGliLXJ1bi1zaWRlYmFyXCIpO1xuICAgIHNpZGViYXIuaW5zZXJ0QmVmb3JlKGlucHV0LCBtZW51KTtcbiAgfSwgMCk7XG5cbiAgcmV0dXJuIGlucHV0O1xufVxuIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0UXVpZXQiLCJzb3VyY2UiOiJzaGlueUlucHV0KCdnbG9iYWxDYWxpYlJ1bicpIn1dfQ==
+</script>
+<script type="module">
+if (window.location.protocol === "file:") { alert("The OJS runtime does not work with file:// URLs. Please use a web server to view this document."); }
+window._ojs.paths.runtimeToDoc = "../..";
+window._ojs.paths.runtimeToRoot = "../..";
+window._ojs.paths.docToRoot = "";
+window._ojs.selfContained = false;
+window._ojs.runtime.interpretFromScriptTags();
+</script>
 <script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
     const icon = "";

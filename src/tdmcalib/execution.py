@@ -186,24 +186,23 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
     # they overwrite any stale copies rather than the other way around) ---
     seeded_from = seed.seed(repo_root, calib_run_id, calib_run, folder)
 
-    # NOTE: ParentDir, not ModelDir -- see module docstring. ScenarioDir must
-    # stay relative to ParentDir (both trailing-separated), matching the
-    # baseline template's own convention (Scenarios/_default/_ControlCenter-
-    # Calib - BY_2023.block sets ScenarioDir to a relative fragment) -- TDM
-    # step scripts throughout 2_ModelScripts/ build paths by literally
-    # concatenating '@ParentDir@@ScenarioDir@', which only forms a valid path
-    # when ParentDir ends in a separator and ScenarioDir is relative to it.
-    # An absolute ScenarioDir (this framework's original approach) instead
-    # produces a garbled double-path and F(102)/F(004) "cannot find" errors --
-    # confirmed by a live C50 run failing exactly this way once the driver
-    # script's own folder-depth issue (see default_driver_script's comment in
-    # config/framework.yaml) was fixed.
+    # NOTE: ModelDir, not ParentDir -- see module docstring. TDM step scripts
+    # throughout 2_ModelScripts/ reference '@ScenarioDir@' standalone (e.g.
+    # 0_FolderSetup.s's `FILEO PRINTO = '@ScenarioDir@\0_FolderSetup.txt'`),
+    # so ScenarioDir must be absolute, not relative -- matching the baseline
+    # template's own convention (Scenarios/_default/_ControlCenter -
+    # BY_2023.block sets `ScenarioDir = ModelDir + 'Scenarios\...\'`, itself
+    # absolute since ModelDir is). A relative ScenarioDir instead produces
+    # F(102) "cannot find the path specified" errors, since RunModel.bat
+    # pushes into the scenario folder before invoking Voyager, so a relative
+    # ScenarioDir resolves against itself. vizToolDir/ModelDir_Py/
+    # ScenarioDir_Py/vizToolDir_Py are left untouched -- they're PILOT
+    # expressions built from ModelDir/ScenarioDir in the baseline itself, so
+    # they resolve correctly once ModelDir is.
     identity_fields = {
         "ScenarioName": calib_run_id,
-        "ScenarioDir": _windows_style(
-            str(folder.resolve().relative_to(tdm_path.resolve())), trailing_sep=True,
-        ),
-        "ParentDir": _windows_style(str(tdm_path.resolve()), trailing_sep=True),
+        "ScenarioDir": _windows_style(str(folder.resolve()), trailing_sep=True),
+        "ModelDir": _windows_style(str(tdm_path.resolve()), trailing_sep=True),
     }
     rendered = cc.render(overrides, cc_local_layer, identity_fields)
     baseline_path = tdm_path / framework["control_center_defaults_dir"] / baseline_filename
@@ -276,14 +275,17 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
     )
     md.write(run_dir, run_metadata)
 
-    # --- re-render the report/ Quarto project so it picks up this run
-    # (only on success -- resolve_latest_run_outputs() only looks at
-    # successful runs anyway, so there's nothing new for a report to show
-    # otherwise). Must run after md.write() above: the report's own
-    # list_available_runs() only sees a run once its run_metadata.json
-    # actually exists on disk -- rendering first would find this run
-    # missing. Re-written into the same file afterward once known. ---
+    # --- cache this run's per-stage report data, then re-render the
+    # report/ Quarto project so it picks up this run (only on success --
+    # resolve_latest_run_outputs() only looks at successful runs anyway, so
+    # there's nothing new for a report to show otherwise). Must run after
+    # md.write() above: the report's own list_available_runs() only sees a
+    # run once its run_metadata.json actually exists on disk -- caching/
+    # rendering first would find this run missing. Caching must run before
+    # rendering, so the freshly-built cache exists by render time.
+    # Re-written into the same file afterward once known. ---
     if status == "success":
+        run_metadata["preprocess"] = pp.build_report_cache(repo_root, calib_run_id)
         run_metadata["postprocess"] = pp.render_validation(repo_root, framework)
         md.write(run_dir, run_metadata)
 
@@ -363,9 +365,11 @@ def import_manual_run(repo_root: Path, calib_run_id: str, scenario_folder: Path 
     )
     md.write(run_dir, run_metadata)
 
-    # --- re-render the report/ Quarto project so it picks up this run
-    # (only on success -- same reasoning/ordering as run()) ---
+    # --- cache this run's per-stage report data, then re-render the
+    # report/ Quarto project so it picks up this run (only on success --
+    # same reasoning/ordering as run()) ---
     if status == "success":
+        run_metadata["preprocess"] = pp.build_report_cache(repo_root, calib_run_id)
         run_metadata["postprocess"] = pp.render_validation(repo_root, framework)
         md.write(run_dir, run_metadata)
 

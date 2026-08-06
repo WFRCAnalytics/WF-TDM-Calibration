@@ -13,19 +13,26 @@ dependencies = [
     "click>=8.0",
     "openmatrix>=0.3.5",
     "geopandas>=0.13",
+    # pandas/dbfread/pyarrow: needed by report/preprocess/ (see
+    # postprocess.build_report_cache(), shelled out to from execution.py as
+    # a plain `sys.executable` subprocess -- so they must be present in
+    # whatever environment runs tdmcalib itself, not just the separate
+    # "reports" Jupyter kernel below). pyarrow is pandas' parquet engine,
+    # for runs/{calib_run_id}/cache/*.parquet.
+    "pandas>=2.0",
+    "dbfread>=2.0",
+    "pyarrow>=14.0",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
 # Everything the report/ Quarto reports need beyond the base dependencies
-# above (pandas/plotly/etc.) -- see report/README.md.
+# above (pandas/dbfread/plotly/etc.) -- see report/README.md.
 reports = [
-    "pandas>=2.0",
     "numpy>=1.24",
     "plotly>=5.0",
     "jupyter>=1.0",
     "ipykernel>=6.0",
-    "dbfread>=2.0",
 ]
 
 [project.scripts]

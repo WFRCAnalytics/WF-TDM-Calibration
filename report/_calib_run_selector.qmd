@@ -13,6 +13,17 @@ run selector. Persists the choice across page navigation via localStorage
 (each Quarto page is a separate static HTML load, so this is what makes one
 control feel global across the whole site rather than resetting on every
 page).
+
+The control is moved into Quarto's docked sidebar DOM (`#quarto-sidebar`,
+between its `.sidebar-header` and `.sidebar-menu-container`) after it
+renders, so it sits above the page-navigation links rather than in the main
+content flow -- see the `setTimeout` below. Falls back to staying inline
+(styled as a `.calib-run-bar`, a sticky bar under the page title) if that
+sidebar structure isn't found, e.g. a future Quarto version restructuring
+the sidebar, or `website.sidebar` not being docked. On narrow/mobile
+viewports, Quarto collapses the docked sidebar into an off-canvas menu, so
+the control is only reachable via the hamburger toggle there -- a real
+trade-off versus the always-visible inline placement, not a bug.
 -->
 
 ```{python}
@@ -35,6 +46,21 @@ viewof globalCalibRun = {
   input.addEventListener("input", () => {
     window.localStorage.setItem("tdmcalib:selectedRun", input.value);
   });
+
+  // Quarto's own OJS runtime places this cell's returned node into its
+  // normal in-page output slot right after this function returns -- moving
+  // it into the sidebar synchronously, before that happens, would just get
+  // undone a moment later. Deferring to the next tick runs this after that
+  // placement, so the move actually sticks.
+  setTimeout(() => {
+    const sidebar = document.querySelector("#quarto-sidebar");
+    const menu = sidebar?.querySelector(".sidebar-menu-container");
+    if (!sidebar || !menu) return; // no docked sidebar -- stays inline as a .calib-run-bar
+    input.classList.remove("calib-run-bar");
+    input.classList.add("calib-run-sidebar");
+    sidebar.insertBefore(input, menu);
+  }, 0);
+
   return input;
 }
 ```

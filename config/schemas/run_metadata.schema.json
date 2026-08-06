@@ -110,6 +110,16 @@
       }
     },
     "error": { "type": ["string", "null"] },
+    "preprocess": {
+      "type": "object",
+      "description": "Result of tdmcalib.postprocess.build_report_cache() building this run's runs/{calib_run_id}/cache/*.parquet (report/preprocess/) before rendering. Absent when the run itself did not succeed.",
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["success", "failed"] },
+        "reason": { "type": "string" },
+        "stdout_tail": { "type": "string" }
+      }
+    },
     "postprocess": {
       "type": "object",
       "description": "Result of tdmcalib.postprocess.render_validation() re-rendering the report/ Quarto project after this run. Absent when the run itself did not succeed (nothing new for a report to show).",

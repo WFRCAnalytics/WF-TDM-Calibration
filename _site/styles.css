@@ -30,3 +30,32 @@
     border-color: #3a3f44;
   }
 }
+
+/* Same control, moved into Quarto's docked sidebar (between its
+   .sidebar-header and .sidebar-menu-container) by
+   report/_calib_run_selector.qmd's OJS cell -- styled to sit above the
+   page-navigation links as a compact, full-width block instead of the
+   sticky top-of-page bar. */
+.calib-run-sidebar {
+  display: block;
+  padding: 0.75rem 1rem 1rem 1rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.calib-run-sidebar label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.8rem;
+  margin-bottom: 0.3rem;
+}
+
+.calib-run-sidebar select {
+  width: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  .calib-run-sidebar {
+    border-color: #3a3f44;
+  }
+}

@@ -231,51 +231,83 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <p>Select any set of calibration runs to compare their headline validation metrics side by side. Data comes from each run’s <code>summary_metrics_*.json</code> (one per stage, written by that stage’s <code>.qmd</code> at render time — see <code>report/README.md</code>), not from re-reading raw model output, so this page stays fast regardless of how many calibration runs accumulate.</p>
-<div id="27bcdabf" class="cell" data-execution_count="1">
+<div id="37daaba2" class="cell" data-execution_count="1">
 <div class="cell-output cell-output-display">
 <script type="ojs-define">{"contents": [{"name": "compare_data", "value": {"calib_run": ["C33", "C33", "C33", "C33", "C33", "C33", "C33", "C33", "C33", "C33"], "stage": ["assignhwy", "assignhwy", "assignhwy", "assignhwy", "modechoice", "modechoice", "modechoice", "tripgen", "tripgen", "tripgen"], "metric": ["total_observed_volume", "total_modeled_volume", "total_pct_diff", "segment_rmse", "transit_mode_share_model", "transit_mode_share_observed", "transit_trips_pct_diff", "HTS 2012", "HTS 2023", "Model"], "value": [5931367.615497676, 5678922.5, -0.0425610301, 2400.4232411039, 0.2157775515, 0.231866166, 0.007172091, {"trips_per_household": 10.8921622776, "trips_per_person": 3.5236913647}, {"trips_per_household": 12.4426672428, "trips_per_person": 4.2502068817}, {"trips_per_household": 12.3306828029, "trips_per_person": 4.2339736766}]}}]}</script>
 </div>
 </div>
+<!--
+Shared global calibration-run selector, spliced into every report page via
+{{< include _calib_run_selector.qmd >}} (a literal text splice before
+Quarto's own processing, so these cells execute in the including page's own
+kernel/OJS runtime -- not a separate document). Requires the including page
+to have already defined a Python `calib_runs` list (every report page's
+config cell already does: `calib_runs = vs.list_available_runs(repo_root)`)
+before this include point.
+
+Produces `globalCalibRun` (an OJS value, via `viewof`) -- every chart/table
+on the page should filter by this instead of defining its own per-section
+run selector. Persists the choice across page navigation via localStorage
+(each Quarto page is a separate static HTML load, so this is what makes one
+control feel global across the whole site rather than resetting on every
+page).
+
+The control is moved into Quarto's docked sidebar DOM (`#quarto-sidebar`,
+between its `.sidebar-header` and `.sidebar-menu-container`) after it
+renders, so it sits above the page-navigation links rather than in the main
+content flow -- see the `setTimeout` below. Falls back to staying inline
+(styled as a `.calib-run-bar`, a sticky bar under the page title) if that
+sidebar structure isn't found, e.g. a future Quarto version restructuring
+the sidebar, or `website.sidebar` not being docked. On narrow/mobile
+viewports, Quarto collapses the docked sidebar into an off-canvas menu, so
+the control is only reachable via the hamburger toggle there -- a real
+trade-off versus the always-visible inline placement, not a bug.
+-->
+<div id="1e0b0237" class="cell" data-execution_count="2">
+<div class="cell-output cell-output-display">
+<script type="ojs-define">{"contents": [{"name": "calib_runs_ojs", "value": ["C33"]}]}</script>
+</div>
+</div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb1" data-startfrom="39" data-source-offset="-0"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line 38;"><span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> <span class="fu">transpose</span>(compare_data)</span>
-<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>runsAvailable <span class="op">=</span> <span class="bu">Array</span><span class="op">.</span><span class="fu">from</span>(<span class="kw">new</span> <span class="bu">Set</span>(data<span class="op">.</span><span class="fu">map</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">calib_run</span>)))<span class="op">.</span><span class="fu">sort</span>()</span>
-<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>stagesAvailable <span class="op">=</span> <span class="bu">Array</span><span class="op">.</span><span class="fu">from</span>(<span class="kw">new</span> <span class="bu">Set</span>(data<span class="op">.</span><span class="fu">map</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">stage</span>)))<span class="op">.</span><span class="fu">sort</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb1" data-startfrom="48" data-source-offset="0"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line 47;"><span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>viewof globalCalibRun <span class="op">=</span> {</span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> options <span class="op">=</span> calib_runs_ojs<span class="op">;</span></span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (options<span class="op">.</span><span class="at">length</span> <span class="op">===</span> <span class="dv">0</span>) {</span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Inputs<span class="op">.</span><span class="fu">select</span>([]<span class="op">,</span> {<span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Run:"</span><span class="op">,</span> <span class="dt">disabled</span><span class="op">:</span> <span class="kw">true</span>})<span class="op">;</span></span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> stored <span class="op">=</span> <span class="bu">window</span><span class="op">.</span><span class="at">localStorage</span><span class="op">.</span><span class="fu">getItem</span>(<span class="st">"tdmcalib:selectedRun"</span>)<span class="op">;</span></span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> initial <span class="op">=</span> options<span class="op">.</span><span class="fu">includes</span>(stored) <span class="op">?</span> stored <span class="op">:</span> options[options<span class="op">.</span><span class="at">length</span> <span class="op">-</span> <span class="dv">1</span>]<span class="op">;</span></span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> input <span class="op">=</span> Inputs<span class="op">.</span><span class="fu">select</span>(options<span class="op">,</span> {<span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Run:"</span><span class="op">,</span> <span class="dt">value</span><span class="op">:</span> initial})<span class="op">;</span></span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>  input<span class="op">.</span><span class="at">classList</span><span class="op">.</span><span class="fu">add</span>(<span class="st">"calib-run-bar"</span>)<span class="op">;</span></span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>  input<span class="op">.</span><span class="fu">addEventListener</span>(<span class="st">"input"</span><span class="op">,</span> () <span class="kw">=&gt;</span> {</span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>    <span class="bu">window</span><span class="op">.</span><span class="at">localStorage</span><span class="op">.</span><span class="fu">setItem</span>(<span class="st">"tdmcalib:selectedRun"</span><span class="op">,</span> input<span class="op">.</span><span class="at">value</span>)<span class="op">;</span></span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>  })<span class="op">;</span></span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Quarto's own OJS runtime places this cell's returned node into its</span></span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>  <span class="co">// normal in-page output slot right after this function returns -- moving</span></span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>  <span class="co">// it into the sidebar synchronously, before that happens, would just get</span></span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>  <span class="co">// undone a moment later. Deferring to the next tick runs this after that</span></span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>  <span class="co">// placement, so the move actually sticks.</span></span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a>  <span class="pp">setTimeout</span>(() <span class="kw">=&gt;</span> {</span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> sidebar <span class="op">=</span> <span class="bu">document</span><span class="op">.</span><span class="fu">querySelector</span>(<span class="st">"#quarto-sidebar"</span>)<span class="op">;</span></span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> menu <span class="op">=</span> sidebar<span class="op">?.</span><span class="fu">querySelector</span>(<span class="st">".sidebar-menu-container"</span>)<span class="op">;</span></span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="op">!</span>sidebar <span class="op">||</span> <span class="op">!</span>menu) <span class="cf">return</span><span class="op">;</span> <span class="co">// no docked sidebar -- stays inline as a .calib-run-bar</span></span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a>    input<span class="op">.</span><span class="at">classList</span><span class="op">.</span><span class="fu">remove</span>(<span class="st">"calib-run-bar"</span>)<span class="op">;</span></span>
+<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a>    input<span class="op">.</span><span class="at">classList</span><span class="op">.</span><span class="fu">add</span>(<span class="st">"calib-run-sidebar"</span>)<span class="op">;</span></span>
+<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a>    sidebar<span class="op">.</span><span class="fu">insertBefore</span>(input<span class="op">,</span> menu)<span class="op">;</span></span>
+<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a>  }<span class="op">,</span> <span class="dv">0</span>)<span class="op">;</span></span>
+<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> input<span class="op">;</span></span>
+<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<div>
-<div id="ojs-cell-1-1" data-nodetype="declaration">
+<div id="ojs-cell-1" data-nodetype="declaration">
 
 </div>
 </div>
 </div>
-<div class="cell-output cell-output-display">
-<div>
-<div id="ojs-cell-1-2" data-nodetype="declaration">
-
-</div>
-</div>
-</div>
-<div class="cell-output cell-output-display">
-<div>
-<div id="ojs-cell-1-3" data-nodetype="declaration">
-
-</div>
-</div>
-</div>
-</div>
-<div class="tabset-margin-container"></div><div class="panel-tabset">
-<ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-1-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-1" role="tab" aria-controls="tabset-1-1" aria-selected="true" href="">Compare</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-2" role="tab" aria-controls="tabset-1-2" aria-selected="false" href="">Data Table</a></li></ul>
-<div class="tab-content">
-<div id="tabset-1-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-1-1-tab">
-<div class="cell panel-input card bg-light p-2">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb2" data-startfrom="51" data-source-offset="-1"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line 50;"><span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>viewof selectedRuns <span class="op">=</span> Inputs<span class="op">.</span><span class="fu">checkbox</span>(runsAvailable<span class="op">,</span> {</span>
-<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>  <span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Runs:"</span><span class="op">,</span></span>
-<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>  <span class="dt">value</span><span class="op">:</span> runsAvailable</span>
-<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>})</span>
-<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>viewof selectedStage <span class="op">=</span> Inputs<span class="op">.</span><span class="fu">select</span>(stagesAvailable<span class="op">,</span> {</span>
-<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>  <span class="dt">label</span><span class="op">:</span> <span class="st">"Stage:"</span><span class="op">,</span></span>
-<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>  <span class="dt">value</span><span class="op">:</span> stagesAvailable[<span class="dv">0</span>]</span>
-<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb2" data-startfrom="58" data-source-offset="-0"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line 57;"><span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> <span class="fu">transpose</span>(compare_data)</span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>runsAvailable <span class="op">=</span> <span class="bu">Array</span><span class="op">.</span><span class="fu">from</span>(<span class="kw">new</span> <span class="bu">Set</span>(data<span class="op">.</span><span class="fu">map</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">calib_run</span>)))<span class="op">.</span><span class="fu">sort</span>()</span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>stagesAvailable <span class="op">=</span> <span class="bu">Array</span><span class="op">.</span><span class="fu">from</span>(<span class="kw">new</span> <span class="bu">Set</span>(data<span class="op">.</span><span class="fu">map</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">stage</span>)))<span class="op">.</span><span class="fu">sort</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div>
 <div id="ojs-cell-2-1" data-nodetype="declaration">
@@ -290,13 +322,28 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
+<div class="cell-output cell-output-display">
+<div>
+<div id="ojs-cell-2-3" data-nodetype="declaration">
+
 </div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb3" data-startfrom="63" data-source-offset="-0"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line 62;"><span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>filtered <span class="op">=</span> data<span class="op">.</span><span class="fu">filter</span>(d <span class="kw">=&gt;</span></span>
-<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a>  selectedRuns<span class="op">.</span><span class="fu">includes</span>(d<span class="op">.</span><span class="at">calib_run</span>) <span class="op">&amp;&amp;</span> d<span class="op">.</span><span class="at">stage</span> <span class="op">===</span> selectedStage</span>
-<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a>metricsInStage <span class="op">=</span> <span class="bu">Array</span><span class="op">.</span><span class="fu">from</span>(<span class="kw">new</span> <span class="bu">Set</span>(filtered<span class="op">.</span><span class="fu">map</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">metric</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+</div>
+<div class="tabset-margin-container"></div><div class="panel-tabset">
+<ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-1-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-1" role="tab" aria-controls="tabset-1-1" aria-selected="true" href="">Compare</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-1-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-1-2" role="tab" aria-controls="tabset-1-2" aria-selected="false" href="">Data Table</a></li></ul>
+<div class="tab-content">
+<div id="tabset-1-1" class="tab-pane active" role="tabpanel" aria-labelledby="tabset-1-1-tab">
+<div class="cell panel-input card bg-light p-2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb3" data-startfrom="74" data-source-offset="-1"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line 73;"><span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a>viewof selectedRuns <span class="op">=</span> Inputs<span class="op">.</span><span class="fu">checkbox</span>(runsAvailable<span class="op">,</span> {</span>
+<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a>  <span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Runs:"</span><span class="op">,</span></span>
+<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a>  <span class="dt">value</span><span class="op">:</span> runsAvailable</span>
+<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb3-78"><a href="#cb3-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-79"><a href="#cb3-79" aria-hidden="true" tabindex="-1"></a>viewof selectedStage <span class="op">=</span> Inputs<span class="op">.</span><span class="fu">select</span>(stagesAvailable<span class="op">,</span> {</span>
+<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a>  <span class="dt">label</span><span class="op">:</span> <span class="st">"Stage:"</span><span class="op">,</span></span>
+<span id="cb3-81"><a href="#cb3-81" aria-hidden="true" tabindex="-1"></a>  <span class="dt">value</span><span class="op">:</span> stagesAvailable[<span class="dv">0</span>]</span>
+<span id="cb3-82"><a href="#cb3-82" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div>
 <div id="ojs-cell-3-1" data-nodetype="declaration">
@@ -313,31 +360,52 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb4" data-startfrom="72" data-source-offset="0"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line 71;"><span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a>filtered<span class="op">.</span><span class="at">length</span></span>
-<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a>  <span class="op">?</span> Plot<span class="op">.</span><span class="fu">plot</span>({</span>
-<span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a>      <span class="dt">grid</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span></span>
-<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a>      <span class="dt">height</span><span class="op">:</span> <span class="bu">Math</span><span class="op">.</span><span class="fu">max</span>(<span class="dv">260</span><span class="op">,</span> metricsInStage<span class="op">.</span><span class="at">length</span> <span class="op">*</span> <span class="dv">220</span>)<span class="op">,</span></span>
-<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>      <span class="dt">marginLeft</span><span class="op">:</span> <span class="dv">70</span><span class="op">,</span></span>
-<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>      <span class="dt">fy</span><span class="op">:</span> { <span class="dt">label</span><span class="op">:</span> <span class="kw">null</span><span class="op">,</span> <span class="dt">domain</span><span class="op">:</span> metricsInStage }<span class="op">,</span></span>
-<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a>      <span class="dt">x</span><span class="op">:</span> { <span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Run"</span> }<span class="op">,</span></span>
-<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a>      <span class="dt">y</span><span class="op">:</span> { <span class="dt">label</span><span class="op">:</span> <span class="st">"Value"</span> }<span class="op">,</span></span>
-<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>      <span class="dt">color</span><span class="op">:</span> { <span class="dt">legend</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span> <span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Run"</span> }<span class="op">,</span></span>
-<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a>      <span class="dt">marks</span><span class="op">:</span> [</span>
-<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a>        Plot<span class="op">.</span><span class="fu">barY</span>(filtered<span class="op">,</span> {</span>
-<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>          <span class="dt">x</span><span class="op">:</span> <span class="st">"calib_run"</span><span class="op">,</span></span>
-<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>          <span class="dt">y</span><span class="op">:</span> <span class="st">"value"</span><span class="op">,</span></span>
-<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>          <span class="dt">fy</span><span class="op">:</span> <span class="st">"metric"</span><span class="op">,</span></span>
-<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a>          <span class="dt">fill</span><span class="op">:</span> <span class="st">"calib_run"</span><span class="op">,</span></span>
-<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>          <span class="dt">tip</span><span class="op">:</span> <span class="kw">true</span></span>
-<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a>        })<span class="op">,</span></span>
-<span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a>        Plot<span class="op">.</span><span class="fu">ruleY</span>([<span class="dv">0</span>])</span>
-<span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a>      ]</span>
-<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a>    })</span>
-<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a>  <span class="op">:</span> <span class="fu">html</span><span class="vs">`&lt;p&gt;&lt;em&gt;No calibration runs have a summary_metrics_*.json for stage "</span><span class="sc">${</span>selectedStage<span class="sc">}</span><span class="vs">" yet.&lt;/em&gt;&lt;/p&gt;`</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb4" data-startfrom="80" data-source-offset="-0"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line 79;"><span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>filtered <span class="op">=</span> data<span class="op">.</span><span class="fu">filter</span>(d <span class="kw">=&gt;</span></span>
+<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a>  selectedRuns<span class="op">.</span><span class="fu">includes</span>(d<span class="op">.</span><span class="at">calib_run</span>) <span class="op">&amp;&amp;</span> d<span class="op">.</span><span class="at">stage</span> <span class="op">===</span> selectedStage</span>
+<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>metricsInStage <span class="op">=</span> <span class="bu">Array</span><span class="op">.</span><span class="fu">from</span>(<span class="kw">new</span> <span class="bu">Set</span>(filtered<span class="op">.</span><span class="fu">map</span>(d <span class="kw">=&gt;</span> d<span class="op">.</span><span class="at">metric</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div>
+<div id="ojs-cell-4-1" data-nodetype="declaration">
+
+</div>
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<div id="ojs-cell-4-2" data-nodetype="declaration">
+
+</div>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb5" data-startfrom="110" data-source-offset="0"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line 109;"><span id="cb5-110"><a href="#cb5-110" aria-hidden="true" tabindex="-1"></a>filtered<span class="op">.</span><span class="at">length</span></span>
+<span id="cb5-111"><a href="#cb5-111" aria-hidden="true" tabindex="-1"></a>  <span class="op">?</span> Plot<span class="op">.</span><span class="fu">plot</span>({</span>
+<span id="cb5-112"><a href="#cb5-112" aria-hidden="true" tabindex="-1"></a>      <span class="dt">grid</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span></span>
+<span id="cb5-113"><a href="#cb5-113" aria-hidden="true" tabindex="-1"></a>      <span class="dt">height</span><span class="op">:</span> <span class="bu">Math</span><span class="op">.</span><span class="fu">max</span>(<span class="dv">260</span><span class="op">,</span> metricsInStage<span class="op">.</span><span class="at">length</span> <span class="op">*</span> <span class="dv">220</span>)<span class="op">,</span></span>
+<span id="cb5-114"><a href="#cb5-114" aria-hidden="true" tabindex="-1"></a>      <span class="dt">marginLeft</span><span class="op">:</span> <span class="dv">70</span><span class="op">,</span></span>
+<span id="cb5-115"><a href="#cb5-115" aria-hidden="true" tabindex="-1"></a>      <span class="dt">fy</span><span class="op">:</span> { <span class="dt">label</span><span class="op">:</span> <span class="kw">null</span><span class="op">,</span> <span class="dt">domain</span><span class="op">:</span> metricsInStage }<span class="op">,</span></span>
+<span id="cb5-116"><a href="#cb5-116" aria-hidden="true" tabindex="-1"></a>      <span class="dt">x</span><span class="op">:</span> { <span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Run"</span> }<span class="op">,</span></span>
+<span id="cb5-117"><a href="#cb5-117" aria-hidden="true" tabindex="-1"></a>      <span class="dt">y</span><span class="op">:</span> { <span class="dt">label</span><span class="op">:</span> <span class="st">"Value"</span> }<span class="op">,</span></span>
+<span id="cb5-118"><a href="#cb5-118" aria-hidden="true" tabindex="-1"></a>      <span class="dt">color</span><span class="op">:</span> { <span class="dt">legend</span><span class="op">:</span> <span class="kw">true</span><span class="op">,</span> <span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Run"</span> }<span class="op">,</span></span>
+<span id="cb5-119"><a href="#cb5-119" aria-hidden="true" tabindex="-1"></a>      <span class="dt">marks</span><span class="op">:</span> [</span>
+<span id="cb5-120"><a href="#cb5-120" aria-hidden="true" tabindex="-1"></a>        Plot<span class="op">.</span><span class="fu">barY</span>(filtered<span class="op">,</span> {</span>
+<span id="cb5-121"><a href="#cb5-121" aria-hidden="true" tabindex="-1"></a>          <span class="dt">x</span><span class="op">:</span> <span class="st">"calib_run"</span><span class="op">,</span></span>
+<span id="cb5-122"><a href="#cb5-122" aria-hidden="true" tabindex="-1"></a>          <span class="dt">y</span><span class="op">:</span> <span class="st">"value"</span><span class="op">,</span></span>
+<span id="cb5-123"><a href="#cb5-123" aria-hidden="true" tabindex="-1"></a>          <span class="dt">fy</span><span class="op">:</span> <span class="st">"metric"</span><span class="op">,</span></span>
+<span id="cb5-124"><a href="#cb5-124" aria-hidden="true" tabindex="-1"></a>          <span class="dt">fill</span><span class="op">:</span> <span class="st">"calib_run"</span><span class="op">,</span></span>
+<span id="cb5-125"><a href="#cb5-125" aria-hidden="true" tabindex="-1"></a>          <span class="dt">tip</span><span class="op">:</span> <span class="kw">true</span></span>
+<span id="cb5-126"><a href="#cb5-126" aria-hidden="true" tabindex="-1"></a>        })<span class="op">,</span></span>
+<span id="cb5-127"><a href="#cb5-127" aria-hidden="true" tabindex="-1"></a>        Plot<span class="op">.</span><span class="fu">ruleY</span>([<span class="dv">0</span>])</span>
+<span id="cb5-128"><a href="#cb5-128" aria-hidden="true" tabindex="-1"></a>      ]</span>
+<span id="cb5-129"><a href="#cb5-129" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb5-130"><a href="#cb5-130" aria-hidden="true" tabindex="-1"></a>  <span class="op">:</span> <span class="fu">html</span><span class="vs">`&lt;p&gt;&lt;em&gt;No calibration runs have a summary_metrics_*.json for stage "</span><span class="sc">${</span>selectedStage<span class="sc">}</span><span class="vs">" yet.&lt;/em&gt;&lt;/p&gt;`</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div id="fig-compare-runs" class="cell-output cell-output-display quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-compare-runs-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div id="ojs-cell-4" data-nodetype="expression">
+<div id="ojs-cell-5" data-nodetype="expression">
 
 </div>
 </div>
@@ -350,14 +418,14 @@ Figure&nbsp;1: Headline metrics by calibration run
 </div>
 <div id="tabset-1-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-1-2-tab">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb5" data-startfrom="99" data-source-offset="0"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line 98;"><span id="cb5-99"><a href="#cb5-99" aria-hidden="true" tabindex="-1"></a>Inputs<span class="op">.</span><span class="fu">table</span>(filtered<span class="op">,</span> {</span>
-<span id="cb5-100"><a href="#cb5-100" aria-hidden="true" tabindex="-1"></a>  <span class="dt">columns</span><span class="op">:</span> [<span class="st">"calib_run"</span><span class="op">,</span> <span class="st">"stage"</span><span class="op">,</span> <span class="st">"metric"</span><span class="op">,</span> <span class="st">"value"</span>]<span class="op">,</span></span>
-<span id="cb5-101"><a href="#cb5-101" aria-hidden="true" tabindex="-1"></a>  <span class="dt">header</span><span class="op">:</span> { <span class="dt">calib_run</span><span class="op">:</span> <span class="st">"Run"</span><span class="op">,</span> <span class="dt">stage</span><span class="op">:</span> <span class="st">"Stage"</span><span class="op">,</span> <span class="dt">metric</span><span class="op">:</span> <span class="st">"Metric"</span><span class="op">,</span> <span class="dt">value</span><span class="op">:</span> <span class="st">"Value"</span> }<span class="op">,</span></span>
-<span id="cb5-102"><a href="#cb5-102" aria-hidden="true" tabindex="-1"></a>  <span class="dt">sort</span><span class="op">:</span> <span class="st">"calib_run"</span><span class="op">,</span></span>
-<span id="cb5-103"><a href="#cb5-103" aria-hidden="true" tabindex="-1"></a>  <span class="dt">rows</span><span class="op">:</span> <span class="dv">20</span></span>
-<span id="cb5-104"><a href="#cb5-104" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code hidden" id="cb6" data-startfrom="-1" data-source-offset="0"><pre class="sourceCode js code-with-copy"><code class="sourceCode javascript" style="counter-reset: source-line -2;"><span id="cb6--1"><a href="#cb6--1" aria-hidden="true" tabindex="-1"></a>Inputs<span class="op">.</span><span class="fu">table</span>(filtered<span class="op">,</span> {</span>
+<span id="cb6-0"><a href="#cb6-0" aria-hidden="true" tabindex="-1"></a>  <span class="dt">columns</span><span class="op">:</span> [<span class="st">"calib_run"</span><span class="op">,</span> <span class="st">"stage"</span><span class="op">,</span> <span class="st">"metric"</span><span class="op">,</span> <span class="st">"value"</span>]<span class="op">,</span></span>
+<span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>  <span class="dt">header</span><span class="op">:</span> { <span class="dt">calib_run</span><span class="op">:</span> <span class="st">"Run"</span><span class="op">,</span> <span class="dt">stage</span><span class="op">:</span> <span class="st">"Stage"</span><span class="op">,</span> <span class="dt">metric</span><span class="op">:</span> <span class="st">"Metric"</span><span class="op">,</span> <span class="dt">value</span><span class="op">:</span> <span class="st">"Value"</span> }<span class="op">,</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">sort</span><span class="op">:</span> <span class="st">"calib_run"</span><span class="op">,</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">rows</span><span class="op">:</span> <span class="dv">20</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<div id="ojs-cell-5" data-nodetype="expression">
+<div id="ojs-cell-6" data-nodetype="expression">
 
 </div>
 </div>
@@ -370,7 +438,7 @@ Figure&nbsp;1: Headline metrics by calibration run
 
 </main> <!-- /main -->
 <script type="ojs-module-contents">
-eyJjb250ZW50cyI6W3sibWV0aG9kTmFtZSI6ImludGVycHJldCIsImNlbGxOYW1lIjoib2pzLWNlbGwtMSIsImlubGluZSI6ZmFsc2UsInNvdXJjZSI6ImRhdGEgPSB0cmFuc3Bvc2UoY29tcGFyZV9kYXRhKVxucnVuc0F2YWlsYWJsZSA9IEFycmF5LmZyb20obmV3IFNldChkYXRhLm1hcChkID0+IGQuY2FsaWJfcnVuKSkpLnNvcnQoKVxuc3RhZ2VzQXZhaWxhYmxlID0gQXJyYXkuZnJvbShuZXcgU2V0KGRhdGEubWFwKGQgPT4gZC5zdGFnZSkpKS5zb3J0KClcbiJ9LHsibWV0aG9kTmFtZSI6ImludGVycHJldCIsImNlbGxOYW1lIjoib2pzLWNlbGwtMiIsImlubGluZSI6ZmFsc2UsInNvdXJjZSI6Ilxudmlld29mIHNlbGVjdGVkUnVucyA9IElucHV0cy5jaGVja2JveChydW5zQXZhaWxhYmxlLCB7XG4gIGxhYmVsOiBcIkNhbGlicmF0aW9uIFJ1bnM6XCIsXG4gIHZhbHVlOiBydW5zQXZhaWxhYmxlXG59KVxuXG52aWV3b2Ygc2VsZWN0ZWRTdGFnZSA9IElucHV0cy5zZWxlY3Qoc3RhZ2VzQXZhaWxhYmxlLCB7XG4gIGxhYmVsOiBcIlN0YWdlOlwiLFxuICB2YWx1ZTogc3RhZ2VzQXZhaWxhYmxlWzBdXG59KVxuIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0IiwiY2VsbE5hbWUiOiJvanMtY2VsbC0zIiwiaW5saW5lIjpmYWxzZSwic291cmNlIjoiZmlsdGVyZWQgPSBkYXRhLmZpbHRlcihkID0+XG4gIHNlbGVjdGVkUnVucy5pbmNsdWRlcyhkLmNhbGliX3J1bikgJiYgZC5zdGFnZSA9PT0gc2VsZWN0ZWRTdGFnZVxuKVxuXG5tZXRyaWNzSW5TdGFnZSA9IEFycmF5LmZyb20obmV3IFNldChmaWx0ZXJlZC5tYXAoZCA9PiBkLm1ldHJpYykpKVxuIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0IiwiY2VsbE5hbWUiOiJvanMtY2VsbC00IiwiaW5saW5lIjpmYWxzZSwic291cmNlIjoiXG5maWx0ZXJlZC5sZW5ndGhcbiAgPyBQbG90LnBsb3Qoe1xuICAgICAgZ3JpZDogdHJ1ZSxcbiAgICAgIGhlaWdodDogTWF0aC5tYXgoMjYwLCBtZXRyaWNzSW5TdGFnZS5sZW5ndGggKiAyMjApLFxuICAgICAgbWFyZ2luTGVmdDogNzAsXG4gICAgICBmeTogeyBsYWJlbDogbnVsbCwgZG9tYWluOiBtZXRyaWNzSW5TdGFnZSB9LFxuICAgICAgeDogeyBsYWJlbDogXCJDYWxpYnJhdGlvbiBSdW5cIiB9LFxuICAgICAgeTogeyBsYWJlbDogXCJWYWx1ZVwiIH0sXG4gICAgICBjb2xvcjogeyBsZWdlbmQ6IHRydWUsIGxhYmVsOiBcIkNhbGlicmF0aW9uIFJ1blwiIH0sXG4gICAgICBtYXJrczogW1xuICAgICAgICBQbG90LmJhclkoZmlsdGVyZWQsIHtcbiAgICAgICAgICB4OiBcImNhbGliX3J1blwiLFxuICAgICAgICAgIHk6IFwidmFsdWVcIixcbiAgICAgICAgICBmeTogXCJtZXRyaWNcIixcbiAgICAgICAgICBmaWxsOiBcImNhbGliX3J1blwiLFxuICAgICAgICAgIHRpcDogdHJ1ZVxuICAgICAgICB9KSxcbiAgICAgICAgUGxvdC5ydWxlWShbMF0pXG4gICAgICBdXG4gICAgfSlcbiAgOiBodG1sYDxwPjxlbT5ObyBjYWxpYnJhdGlvbiBydW5zIGhhdmUgYSBzdW1tYXJ5X21ldHJpY3NfKi5qc29uIGZvciBzdGFnZSBcIiR7c2VsZWN0ZWRTdGFnZX1cIiB5ZXQuPC9lbT48L3A+YFxuIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0IiwiY2VsbE5hbWUiOiJvanMtY2VsbC01IiwiaW5saW5lIjpmYWxzZSwic291cmNlIjoiSW5wdXRzLnRhYmxlKGZpbHRlcmVkLCB7XG4gIGNvbHVtbnM6IFtcImNhbGliX3J1blwiLCBcInN0YWdlXCIsIFwibWV0cmljXCIsIFwidmFsdWVcIl0sXG4gIGhlYWRlcjogeyBjYWxpYl9ydW46IFwiUnVuXCIsIHN0YWdlOiBcIlN0YWdlXCIsIG1ldHJpYzogXCJNZXRyaWNcIiwgdmFsdWU6IFwiVmFsdWVcIiB9LFxuICBzb3J0OiBcImNhbGliX3J1blwiLFxuICByb3dzOiAyMFxufSlcbiJ9LHsibWV0aG9kTmFtZSI6ImludGVycHJldFF1aWV0Iiwic291cmNlIjoic2hpbnlJbnB1dCgnc2VsZWN0ZWRSdW5zJykifSx7Im1ldGhvZE5hbWUiOiJpbnRlcnByZXRRdWlldCIsInNvdXJjZSI6InNoaW55SW5wdXQoJ3NlbGVjdGVkU3RhZ2UnKSJ9XX0=
+eyJjb250ZW50cyI6W3sibWV0aG9kTmFtZSI6ImludGVycHJldCIsImNlbGxOYW1lIjoib2pzLWNlbGwtMSIsImlubGluZSI6ZmFsc2UsInNvdXJjZSI6Ilxudmlld29mIGdsb2JhbENhbGliUnVuID0ge1xuICBjb25zdCBvcHRpb25zID0gY2FsaWJfcnVuc19vanM7XG4gIGlmIChvcHRpb25zLmxlbmd0aCA9PT0gMCkge1xuICAgIHJldHVybiBJbnB1dHMuc2VsZWN0KFtdLCB7bGFiZWw6IFwiQ2FsaWJyYXRpb24gUnVuOlwiLCBkaXNhYmxlZDogdHJ1ZX0pO1xuICB9XG4gIGNvbnN0IHN0b3JlZCA9IHdpbmRvdy5sb2NhbFN0b3JhZ2UuZ2V0SXRlbShcInRkbWNhbGliOnNlbGVjdGVkUnVuXCIpO1xuICBjb25zdCBpbml0aWFsID0gb3B0aW9ucy5pbmNsdWRlcyhzdG9yZWQpID8gc3RvcmVkIDogb3B0aW9uc1tvcHRpb25zLmxlbmd0aCAtIDFdO1xuICBjb25zdCBpbnB1dCA9IElucHV0cy5zZWxlY3Qob3B0aW9ucywge2xhYmVsOiBcIkNhbGlicmF0aW9uIFJ1bjpcIiwgdmFsdWU6IGluaXRpYWx9KTtcbiAgaW5wdXQuY2xhc3NMaXN0LmFkZChcImNhbGliLXJ1bi1iYXJcIik7XG4gIGlucHV0LmFkZEV2ZW50TGlzdGVuZXIoXCJpbnB1dFwiLCAoKSA9PiB7XG4gICAgd2luZG93LmxvY2FsU3RvcmFnZS5zZXRJdGVtKFwidGRtY2FsaWI6c2VsZWN0ZWRSdW5cIiwgaW5wdXQudmFsdWUpO1xuICB9KTtcblxuICAvLyBRdWFydG8ncyBvd24gT0pTIHJ1bnRpbWUgcGxhY2VzIHRoaXMgY2VsbCdzIHJldHVybmVkIG5vZGUgaW50byBpdHNcbiAgLy8gbm9ybWFsIGluLXBhZ2Ugb3V0cHV0IHNsb3QgcmlnaHQgYWZ0ZXIgdGhpcyBmdW5jdGlvbiByZXR1cm5zIC0tIG1vdmluZ1xuICAvLyBpdCBpbnRvIHRoZSBzaWRlYmFyIHN5bmNocm9ub3VzbHksIGJlZm9yZSB0aGF0IGhhcHBlbnMsIHdvdWxkIGp1c3QgZ2V0XG4gIC8vIHVuZG9uZSBhIG1vbWVudCBsYXRlci4gRGVmZXJyaW5nIHRvIHRoZSBuZXh0IHRpY2sgcnVucyB0aGlzIGFmdGVyIHRoYXRcbiAgLy8gcGxhY2VtZW50LCBzbyB0aGUgbW92ZSBhY3R1YWxseSBzdGlja3MuXG4gIHNldFRpbWVvdXQoKCkgPT4ge1xuICAgIGNvbnN0IHNpZGViYXIgPSBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKFwiI3F1YXJ0by1zaWRlYmFyXCIpO1xuICAgIGNvbnN0IG1lbnUgPSBzaWRlYmFyPy5xdWVyeVNlbGVjdG9yKFwiLnNpZGViYXItbWVudS1jb250YWluZXJcIik7XG4gICAgaWYgKCFzaWRlYmFyIHx8ICFtZW51KSByZXR1cm47IC8vIG5vIGRvY2tlZCBzaWRlYmFyIC0tIHN0YXlzIGlubGluZSBhcyBhIC5jYWxpYi1ydW4tYmFyXG4gICAgaW5wdXQuY2xhc3NMaXN0LnJlbW92ZShcImNhbGliLXJ1bi1iYXJcIik7XG4gICAgaW5wdXQuY2xhc3NMaXN0LmFkZChcImNhbGliLXJ1bi1zaWRlYmFyXCIpO1xuICAgIHNpZGViYXIuaW5zZXJ0QmVmb3JlKGlucHV0LCBtZW51KTtcbiAgfSwgMCk7XG5cbiAgcmV0dXJuIGlucHV0O1xufVxuIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0IiwiY2VsbE5hbWUiOiJvanMtY2VsbC0yIiwiaW5saW5lIjpmYWxzZSwic291cmNlIjoiZGF0YSA9IHRyYW5zcG9zZShjb21wYXJlX2RhdGEpXG5ydW5zQXZhaWxhYmxlID0gQXJyYXkuZnJvbShuZXcgU2V0KGRhdGEubWFwKGQgPT4gZC5jYWxpYl9ydW4pKSkuc29ydCgpXG5zdGFnZXNBdmFpbGFibGUgPSBBcnJheS5mcm9tKG5ldyBTZXQoZGF0YS5tYXAoZCA9PiBkLnN0YWdlKSkpLnNvcnQoKVxuIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0IiwiY2VsbE5hbWUiOiJvanMtY2VsbC0zIiwiaW5saW5lIjpmYWxzZSwic291cmNlIjoiXG52aWV3b2Ygc2VsZWN0ZWRSdW5zID0gSW5wdXRzLmNoZWNrYm94KHJ1bnNBdmFpbGFibGUsIHtcbiAgbGFiZWw6IFwiQ2FsaWJyYXRpb24gUnVuczpcIixcbiAgdmFsdWU6IHJ1bnNBdmFpbGFibGVcbn0pXG5cbnZpZXdvZiBzZWxlY3RlZFN0YWdlID0gSW5wdXRzLnNlbGVjdChzdGFnZXNBdmFpbGFibGUsIHtcbiAgbGFiZWw6IFwiU3RhZ2U6XCIsXG4gIHZhbHVlOiBzdGFnZXNBdmFpbGFibGVbMF1cbn0pXG4ifSx7Im1ldGhvZE5hbWUiOiJpbnRlcnByZXQiLCJjZWxsTmFtZSI6Im9qcy1jZWxsLTQiLCJpbmxpbmUiOmZhbHNlLCJzb3VyY2UiOiJmaWx0ZXJlZCA9IGRhdGEuZmlsdGVyKGQgPT5cbiAgc2VsZWN0ZWRSdW5zLmluY2x1ZGVzKGQuY2FsaWJfcnVuKSAmJiBkLnN0YWdlID09PSBzZWxlY3RlZFN0YWdlXG4pXG5cbm1ldHJpY3NJblN0YWdlID0gQXJyYXkuZnJvbShuZXcgU2V0KGZpbHRlcmVkLm1hcChkID0+IGQubWV0cmljKSkpXG4ifSx7Im1ldGhvZE5hbWUiOiJpbnRlcnByZXQiLCJjZWxsTmFtZSI6Im9qcy1jZWxsLTUiLCJpbmxpbmUiOmZhbHNlLCJzb3VyY2UiOiJcbmZpbHRlcmVkLmxlbmd0aFxuICA/IFBsb3QucGxvdCh7XG4gICAgICBncmlkOiB0cnVlLFxuICAgICAgaGVpZ2h0OiBNYXRoLm1heCgyNjAsIG1ldHJpY3NJblN0YWdlLmxlbmd0aCAqIDIyMCksXG4gICAgICBtYXJnaW5MZWZ0OiA3MCxcbiAgICAgIGZ5OiB7IGxhYmVsOiBudWxsLCBkb21haW46IG1ldHJpY3NJblN0YWdlIH0sXG4gICAgICB4OiB7IGxhYmVsOiBcIkNhbGlicmF0aW9uIFJ1blwiIH0sXG4gICAgICB5OiB7IGxhYmVsOiBcIlZhbHVlXCIgfSxcbiAgICAgIGNvbG9yOiB7IGxlZ2VuZDogdHJ1ZSwgbGFiZWw6IFwiQ2FsaWJyYXRpb24gUnVuXCIgfSxcbiAgICAgIG1hcmtzOiBbXG4gICAgICAgIFBsb3QuYmFyWShmaWx0ZXJlZCwge1xuICAgICAgICAgIHg6IFwiY2FsaWJfcnVuXCIsXG4gICAgICAgICAgeTogXCJ2YWx1ZVwiLFxuICAgICAgICAgIGZ5OiBcIm1ldHJpY1wiLFxuICAgICAgICAgIGZpbGw6IFwiY2FsaWJfcnVuXCIsXG4gICAgICAgICAgdGlwOiB0cnVlXG4gICAgICAgIH0pLFxuICAgICAgICBQbG90LnJ1bGVZKFswXSlcbiAgICAgIF1cbiAgICB9KVxuICA6IGh0bWxgPHA+PGVtPk5vIGNhbGlicmF0aW9uIHJ1bnMgaGF2ZSBhIHN1bW1hcnlfbWV0cmljc18qLmpzb24gZm9yIHN0YWdlIFwiJHtzZWxlY3RlZFN0YWdlfVwiIHlldC48L2VtPjwvcD5gXG4ifSx7Im1ldGhvZE5hbWUiOiJpbnRlcnByZXQiLCJjZWxsTmFtZSI6Im9qcy1jZWxsLTYiLCJpbmxpbmUiOmZhbHNlLCJzb3VyY2UiOiJJbnB1dHMudGFibGUoZmlsdGVyZWQsIHtcbiAgY29sdW1uczogW1wiY2FsaWJfcnVuXCIsIFwic3RhZ2VcIiwgXCJtZXRyaWNcIiwgXCJ2YWx1ZVwiXSxcbiAgaGVhZGVyOiB7IGNhbGliX3J1bjogXCJSdW5cIiwgc3RhZ2U6IFwiU3RhZ2VcIiwgbWV0cmljOiBcIk1ldHJpY1wiLCB2YWx1ZTogXCJWYWx1ZVwiIH0sXG4gIHNvcnQ6IFwiY2FsaWJfcnVuXCIsXG4gIHJvd3M6IDIwXG59KVxuIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0UXVpZXQiLCJzb3VyY2UiOiJzaGlueUlucHV0KCdnbG9iYWxDYWxpYlJ1bicpIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0UXVpZXQiLCJzb3VyY2UiOiJzaGlueUlucHV0KCdzZWxlY3RlZFJ1bnMnKSJ9LHsibWV0aG9kTmFtZSI6ImludGVycHJldFF1aWV0Iiwic291cmNlIjoic2hpbnlJbnB1dCgnc2VsZWN0ZWRTdGFnZScpIn1dfQ==
 </script>
 <script type="module">
 if (window.location.protocol === "file:") { alert("The OJS runtime does not work with file:// URLs. Please use a web server to view this document."); }
