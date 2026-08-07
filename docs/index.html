@@ -66,6 +66,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
 <link href="./report/0-hhdisag-autoown.html" rel="next">
+<link href="site_libs\quarto-contrib\quarto-project\WFRCAnalytics\wfrc-brand\assets\logo\abbreviated\WFRC_logo_abbreviated_color_transparent.png" rel="icon" type="image/png">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
@@ -73,16 +74,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-8caf6eaa0938078aad3b4e3e78d03e50.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-391dc9eaa9d5ee7385b50e8209b8eefe.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-8caf6eaa0938078aad3b4e3e78d03e50.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-30ae6b2e5328ac7375bd033934d6d19c.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-0e26515e92672f1dad7a464ce130b0a4.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-40216293e875977a9f64f943ac7624d9.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-0e26515e92672f1dad7a464ce130b0a4.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
-  "location": "sidebar",
+  "location": "navbar",
   "copy-button": false,
   "collapse-after": 3,
-  "panel-placement": "start",
-  "type": "textbox",
+  "panel-placement": "end",
+  "type": "overlay",
   "limit": 50,
   "keyboard-shortcut": [
     "f",
@@ -115,12 +120,253 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="TDM Calibration Reports – WF-TDM Calibration">
+<meta property="og:description" content="">
+<meta property="og:site_name" content="WF-TDM Calibration">
+<meta name="twitter:title" content="TDM Calibration Reports – WF-TDM Calibration">
+<meta name="twitter:description" content="">
+<meta name="twitter:creator" content="@wasatchcouncil">
+<meta name="twitter:site" content="@wasatchcouncil">
+<meta name="twitter:card" content="summary_large_image">
 </head>
 
-<body class="nav-sidebar docked fullcontent quarto-light">
+<body class="nav-sidebar docked nav-fixed fullcontent quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="site_libs\quarto-contrib\quarto-project\WFRCAnalytics\wfrc-brand\assets\logo\abbreviated\WFRC_logo_abbreviated_color_transparent.png" alt="" class="navbar-logo light-content">
+    <img src="site_libs\quarto-contrib\quarto-project\WFRCAnalytics\wfrc-brand\assets\logo\abbreviated\WFRC_logo_abbreviated_white_transparent.png" alt="" class="navbar-logo dark-content">
+    </a>
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">WF-TDM Calibration</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-follow-us" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Follow Us</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-follow-us">    
+        <li>
+    <a class="dropdown-item" href="https://www.facebook.com/WasatchFrontRegionalCouncil/" target="_blank"><i class="bi bi-facebook" role="img">
+</i> 
+ <span class="dropdown-text">Facebook</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://twitter.com/wasatchcouncil/" target="_blank"><i class="bi bi-twitter-x" role="img">
+</i> 
+ <span class="dropdown-text">X (Twitter)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://www.instagram.com/wasatchfrontregionalcouncil/" target="_blank"><i class="bi bi-instagram" role="img">
+</i> 
+ <span class="dropdown-text">Instagram</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://www.linkedin.com/company/wasatch-front-regional-council/" target="_blank"><i class="bi bi-linkedin" role="img">
+</i> 
+ <span class="dropdown-text">LinkedIn</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://www.youtube.com/user/wfrcvideo/" target="_blank"><i class="bi bi-youtube" role="img">
+</i> 
+ <span class="dropdown-text">YouTube</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+    <div class="dropdown">
+      <a href="" title="" id="quarto-navigation-tool-dropdown-0" class="quarto-navigation-tool dropdown-toggle px-1" data-bs-toggle="dropdown" aria-expanded="false" role="link" aria-label=""><i class="bi bi-github"></i></a>
+      <ul class="dropdown-menu" aria-labelledby="quarto-navigation-tool-dropdown-0">
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="https://github.com/WFRCAnalytics/WF-TDM-Calibration" target="_blank">
+            Source Code
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item quarto-navbar-tools-item" href="https://github.com/WFRCAnalytics/WF-TDM-Calibration/issues/new" target="_blank">
+            Report a Bug
+            </a>
+          </li>
+      </ul>
+    </div>
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
   <nav class="quarto-secondary-nav">
     <div class="container-fluid d-flex">
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
@@ -133,13 +379,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </nav>
 </header>
 <!-- content -->
-<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
   <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
     <div class="pt-lg-2 mt-2 text-left sidebar-header">
-    <div class="sidebar-title mb-0 py-0">
-      <a href="./">WF-TDM Calibration</a> 
-    </div>
+      <a href="./index.html" class="sidebar-logo-link">
+      <img src="site_libs\quarto-contrib\quarto-project\WFRCAnalytics\wfrc-brand\assets\logo\stacked\WFRC_logo_stacked_color_transparent.png" alt="" class="sidebar-logo light-content py-0 d-lg-inline d-none">
+      <img src="site_libs\quarto-contrib\quarto-project\WFRCAnalytics\wfrc-brand\assets\logo\stacked\WFRC_logo_stacked_white_transparent.png" alt="" class="sidebar-logo dark-content py-0 d-lg-inline d-none">
+      </a>
       </div>
     <div class="sidebar-menu-container"> 
     <ul class="list-unstyled mt-1">
@@ -211,6 +458,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
+
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
 <h1 class="title">TDM Calibration Reports</h1>
@@ -257,7 +505,7 @@ viewports, Quarto collapses the docked sidebar into an off-canvas menu, so
 the control is only reachable via the hamburger toggle there -- a real
 trade-off versus the always-visible inline placement, not a bug.
 -->
-<div id="dc026be1" class="cell" data-execution_count="2">
+<div id="77baa006" class="cell" data-execution_count="2">
 <div class="cell-output cell-output-display">
 <script type="ojs-define">{"contents": [{"name": "calib_runs_ojs", "value": ["C33", "C50"]}]}</script>
 </div>
@@ -268,30 +516,44 @@ trade-off versus the always-visible inline placement, not a bug.
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (options<span class="op">.</span><span class="at">length</span> <span class="op">===</span> <span class="dv">0</span>) {</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> Inputs<span class="op">.</span><span class="fu">select</span>([]<span class="op">,</span> {<span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Run:"</span><span class="op">,</span> <span class="dt">disabled</span><span class="op">:</span> <span class="kw">true</span>})<span class="op">;</span></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> stored <span class="op">=</span> <span class="bu">window</span><span class="op">.</span><span class="at">localStorage</span><span class="op">.</span><span class="fu">getItem</span>(<span class="st">"tdmcalib:selectedRun"</span>)<span class="op">;</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> initial <span class="op">=</span> options<span class="op">.</span><span class="fu">includes</span>(stored) <span class="op">?</span> stored <span class="op">:</span> options[options<span class="op">.</span><span class="at">length</span> <span class="op">-</span> <span class="dv">1</span>]<span class="op">;</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> input <span class="op">=</span> Inputs<span class="op">.</span><span class="fu">select</span>(options<span class="op">,</span> {<span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Run:"</span><span class="op">,</span> <span class="dt">value</span><span class="op">:</span> initial})<span class="op">;</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  input<span class="op">.</span><span class="at">classList</span><span class="op">.</span><span class="fu">add</span>(<span class="st">"calib-run-bar"</span>)<span class="op">;</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  input<span class="op">.</span><span class="fu">addEventListener</span>(<span class="st">"input"</span><span class="op">,</span> () <span class="kw">=&gt;</span> {</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="bu">window</span><span class="op">.</span><span class="at">localStorage</span><span class="op">.</span><span class="fu">setItem</span>(<span class="st">"tdmcalib:selectedRun"</span><span class="op">,</span> input<span class="op">.</span><span class="at">value</span>)<span class="op">;</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  })<span class="op">;</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Quarto's own OJS runtime places this cell's returned node into its</span></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="co">// normal in-page output slot right after this function returns -- moving</span></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="co">// it into the sidebar synchronously, before that happens, would just get</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="co">// undone a moment later. Deferring to the next tick runs this after that</span></span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="co">// placement, so the move actually sticks.</span></span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="pp">setTimeout</span>(() <span class="kw">=&gt;</span> {</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> sidebar <span class="op">=</span> <span class="bu">document</span><span class="op">.</span><span class="fu">querySelector</span>(<span class="st">"#quarto-sidebar"</span>)<span class="op">;</span></span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> menu <span class="op">=</span> sidebar<span class="op">?.</span><span class="fu">querySelector</span>(<span class="st">".sidebar-menu-container"</span>)<span class="op">;</span></span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="op">!</span>sidebar <span class="op">||</span> <span class="op">!</span>menu) <span class="cf">return</span><span class="op">;</span> <span class="co">// no docked sidebar -- stays inline as a .calib-run-bar</span></span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    input<span class="op">.</span><span class="at">classList</span><span class="op">.</span><span class="fu">remove</span>(<span class="st">"calib-run-bar"</span>)<span class="op">;</span></span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    input<span class="op">.</span><span class="at">classList</span><span class="op">.</span><span class="fu">add</span>(<span class="st">"calib-run-sidebar"</span>)<span class="op">;</span></span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>    sidebar<span class="op">.</span><span class="fu">insertBefore</span>(input<span class="op">,</span> menu)<span class="op">;</span></span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  }<span class="op">,</span> <span class="dv">0</span>)<span class="op">;</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Default to the run with the highest numeric ID (e.g. "C50" over "C33"),</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="co">// not just the last entry in `options` -- that list comes from a plain</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="co">// alphabetical sort (see list_available_runs in _validation_scripts.py),</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="co">// which only happens to match numeric order today because both IDs have</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="co">// the same digit count ("C9" would sort after "C50" alphabetically despite</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="co">// being numerically earlier).</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> runNumber <span class="op">=</span> id <span class="kw">=&gt;</span> {</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> m <span class="op">=</span> <span class="ss">/</span><span class="sc">(\d+)</span><span class="ss">/</span><span class="op">.</span><span class="fu">exec</span>(id)<span class="op">;</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> m <span class="op">?</span> <span class="pp">parseInt</span>(m[<span class="dv">1</span>]<span class="op">,</span> <span class="dv">10</span>) <span class="op">:</span> <span class="op">-</span><span class="kw">Infinity</span><span class="op">;</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  }<span class="op">;</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> latestRun <span class="op">=</span> options<span class="op">.</span><span class="fu">reduce</span>((best<span class="op">,</span> id) <span class="kw">=&gt;</span> <span class="fu">runNumber</span>(id) <span class="op">&gt;</span> <span class="fu">runNumber</span>(best) <span class="op">?</span> id <span class="op">:</span> best<span class="op">,</span> options[<span class="dv">0</span>])<span class="op">;</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> stored <span class="op">=</span> <span class="bu">window</span><span class="op">.</span><span class="at">localStorage</span><span class="op">.</span><span class="fu">getItem</span>(<span class="st">"tdmcalib:selectedRun"</span>)<span class="op">;</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> initial <span class="op">=</span> options<span class="op">.</span><span class="fu">includes</span>(stored) <span class="op">?</span> stored <span class="op">:</span> latestRun<span class="op">;</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> input <span class="op">=</span> Inputs<span class="op">.</span><span class="fu">select</span>(options<span class="op">,</span> {<span class="dt">label</span><span class="op">:</span> <span class="st">"Calibration Run:"</span><span class="op">,</span> <span class="dt">value</span><span class="op">:</span> initial})<span class="op">;</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Inputs.select nests the &lt;select&gt; inside the &lt;label&gt;, so the label text</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  <span class="co">// and dropdown share a line by default -- force them onto separate lines.</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  input<span class="op">.</span><span class="fu">querySelector</span>(<span class="st">"label"</span>)<span class="op">?.</span><span class="fu">insertBefore</span>(<span class="bu">document</span><span class="op">.</span><span class="fu">createElement</span>(<span class="st">"br"</span>)<span class="op">,</span> input<span class="op">.</span><span class="fu">querySelector</span>(<span class="st">"select"</span>))<span class="op">;</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  input<span class="op">.</span><span class="at">classList</span><span class="op">.</span><span class="fu">add</span>(<span class="st">"calib-run-bar"</span>)<span class="op">;</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  input<span class="op">.</span><span class="fu">addEventListener</span>(<span class="st">"input"</span><span class="op">,</span> () <span class="kw">=&gt;</span> {</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>    <span class="bu">window</span><span class="op">.</span><span class="at">localStorage</span><span class="op">.</span><span class="fu">setItem</span>(<span class="st">"tdmcalib:selectedRun"</span><span class="op">,</span> input<span class="op">.</span><span class="at">value</span>)<span class="op">;</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  })<span class="op">;</span></span>
 <span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> input<span class="op">;</span></span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Quarto's own OJS runtime places this cell's returned node into its</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  <span class="co">// normal in-page output slot right after this function returns -- moving</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>  <span class="co">// it into the sidebar synchronously, before that happens, would just get</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>  <span class="co">// undone a moment later. Deferring to the next tick runs this after that</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>  <span class="co">// placement, so the move actually sticks.</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>  <span class="pp">setTimeout</span>(() <span class="kw">=&gt;</span> {</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> sidebar <span class="op">=</span> <span class="bu">document</span><span class="op">.</span><span class="fu">querySelector</span>(<span class="st">"#quarto-sidebar"</span>)<span class="op">;</span></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> menu <span class="op">=</span> sidebar<span class="op">?.</span><span class="fu">querySelector</span>(<span class="st">".sidebar-menu-container"</span>)<span class="op">;</span></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="op">!</span>sidebar <span class="op">||</span> <span class="op">!</span>menu) <span class="cf">return</span><span class="op">;</span> <span class="co">// no docked sidebar -- stays inline as a .calib-run-bar</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>    input<span class="op">.</span><span class="at">classList</span><span class="op">.</span><span class="fu">remove</span>(<span class="st">"calib-run-bar"</span>)<span class="op">;</span></span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>    input<span class="op">.</span><span class="at">classList</span><span class="op">.</span><span class="fu">add</span>(<span class="st">"calib-run-sidebar"</span>)<span class="op">;</span></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>    sidebar<span class="op">.</span><span class="fu">insertBefore</span>(input<span class="op">,</span> menu)<span class="op">;</span></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>  }<span class="op">,</span> <span class="dv">0</span>)<span class="op">;</span></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> input<span class="op">;</span></span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
 <div id="ojs-cell-1" data-nodetype="declaration">
 
@@ -313,7 +575,7 @@ trade-off versus the always-visible inline placement, not a bug.
 
 </main> <!-- /main -->
 <script type="ojs-module-contents">
-eyJjb250ZW50cyI6W3sibWV0aG9kTmFtZSI6ImludGVycHJldCIsImNlbGxOYW1lIjoib2pzLWNlbGwtMSIsImlubGluZSI6ZmFsc2UsInNvdXJjZSI6Ilxudmlld29mIGdsb2JhbENhbGliUnVuID0ge1xuICBjb25zdCBvcHRpb25zID0gY2FsaWJfcnVuc19vanM7XG4gIGlmIChvcHRpb25zLmxlbmd0aCA9PT0gMCkge1xuICAgIHJldHVybiBJbnB1dHMuc2VsZWN0KFtdLCB7bGFiZWw6IFwiQ2FsaWJyYXRpb24gUnVuOlwiLCBkaXNhYmxlZDogdHJ1ZX0pO1xuICB9XG4gIGNvbnN0IHN0b3JlZCA9IHdpbmRvdy5sb2NhbFN0b3JhZ2UuZ2V0SXRlbShcInRkbWNhbGliOnNlbGVjdGVkUnVuXCIpO1xuICBjb25zdCBpbml0aWFsID0gb3B0aW9ucy5pbmNsdWRlcyhzdG9yZWQpID8gc3RvcmVkIDogb3B0aW9uc1tvcHRpb25zLmxlbmd0aCAtIDFdO1xuICBjb25zdCBpbnB1dCA9IElucHV0cy5zZWxlY3Qob3B0aW9ucywge2xhYmVsOiBcIkNhbGlicmF0aW9uIFJ1bjpcIiwgdmFsdWU6IGluaXRpYWx9KTtcbiAgaW5wdXQuY2xhc3NMaXN0LmFkZChcImNhbGliLXJ1bi1iYXJcIik7XG4gIGlucHV0LmFkZEV2ZW50TGlzdGVuZXIoXCJpbnB1dFwiLCAoKSA9PiB7XG4gICAgd2luZG93LmxvY2FsU3RvcmFnZS5zZXRJdGVtKFwidGRtY2FsaWI6c2VsZWN0ZWRSdW5cIiwgaW5wdXQudmFsdWUpO1xuICB9KTtcblxuICAvLyBRdWFydG8ncyBvd24gT0pTIHJ1bnRpbWUgcGxhY2VzIHRoaXMgY2VsbCdzIHJldHVybmVkIG5vZGUgaW50byBpdHNcbiAgLy8gbm9ybWFsIGluLXBhZ2Ugb3V0cHV0IHNsb3QgcmlnaHQgYWZ0ZXIgdGhpcyBmdW5jdGlvbiByZXR1cm5zIC0tIG1vdmluZ1xuICAvLyBpdCBpbnRvIHRoZSBzaWRlYmFyIHN5bmNocm9ub3VzbHksIGJlZm9yZSB0aGF0IGhhcHBlbnMsIHdvdWxkIGp1c3QgZ2V0XG4gIC8vIHVuZG9uZSBhIG1vbWVudCBsYXRlci4gRGVmZXJyaW5nIHRvIHRoZSBuZXh0IHRpY2sgcnVucyB0aGlzIGFmdGVyIHRoYXRcbiAgLy8gcGxhY2VtZW50LCBzbyB0aGUgbW92ZSBhY3R1YWxseSBzdGlja3MuXG4gIHNldFRpbWVvdXQoKCkgPT4ge1xuICAgIGNvbnN0IHNpZGViYXIgPSBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKFwiI3F1YXJ0by1zaWRlYmFyXCIpO1xuICAgIGNvbnN0IG1lbnUgPSBzaWRlYmFyPy5xdWVyeVNlbGVjdG9yKFwiLnNpZGViYXItbWVudS1jb250YWluZXJcIik7XG4gICAgaWYgKCFzaWRlYmFyIHx8ICFtZW51KSByZXR1cm47IC8vIG5vIGRvY2tlZCBzaWRlYmFyIC0tIHN0YXlzIGlubGluZSBhcyBhIC5jYWxpYi1ydW4tYmFyXG4gICAgaW5wdXQuY2xhc3NMaXN0LnJlbW92ZShcImNhbGliLXJ1bi1iYXJcIik7XG4gICAgaW5wdXQuY2xhc3NMaXN0LmFkZChcImNhbGliLXJ1bi1zaWRlYmFyXCIpO1xuICAgIHNpZGViYXIuaW5zZXJ0QmVmb3JlKGlucHV0LCBtZW51KTtcbiAgfSwgMCk7XG5cbiAgcmV0dXJuIGlucHV0O1xufVxuIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0UXVpZXQiLCJzb3VyY2UiOiJzaGlueUlucHV0KCdnbG9iYWxDYWxpYlJ1bicpIn1dfQ==
+eyJjb250ZW50cyI6W3sibWV0aG9kTmFtZSI6ImludGVycHJldCIsImNlbGxOYW1lIjoib2pzLWNlbGwtMSIsImlubGluZSI6ZmFsc2UsInNvdXJjZSI6Ilxudmlld29mIGdsb2JhbENhbGliUnVuID0ge1xuICBjb25zdCBvcHRpb25zID0gY2FsaWJfcnVuc19vanM7XG4gIGlmIChvcHRpb25zLmxlbmd0aCA9PT0gMCkge1xuICAgIHJldHVybiBJbnB1dHMuc2VsZWN0KFtdLCB7bGFiZWw6IFwiQ2FsaWJyYXRpb24gUnVuOlwiLCBkaXNhYmxlZDogdHJ1ZX0pO1xuICB9XG4gIC8vIERlZmF1bHQgdG8gdGhlIHJ1biB3aXRoIHRoZSBoaWdoZXN0IG51bWVyaWMgSUQgKGUuZy4gXCJDNTBcIiBvdmVyIFwiQzMzXCIpLFxuICAvLyBub3QganVzdCB0aGUgbGFzdCBlbnRyeSBpbiBgb3B0aW9uc2AgLS0gdGhhdCBsaXN0IGNvbWVzIGZyb20gYSBwbGFpblxuICAvLyBhbHBoYWJldGljYWwgc29ydCAoc2VlIGxpc3RfYXZhaWxhYmxlX3J1bnMgaW4gX3ZhbGlkYXRpb25fc2NyaXB0cy5weSksXG4gIC8vIHdoaWNoIG9ubHkgaGFwcGVucyB0byBtYXRjaCBudW1lcmljIG9yZGVyIHRvZGF5IGJlY2F1c2UgYm90aCBJRHMgaGF2ZVxuICAvLyB0aGUgc2FtZSBkaWdpdCBjb3VudCAoXCJDOVwiIHdvdWxkIHNvcnQgYWZ0ZXIgXCJDNTBcIiBhbHBoYWJldGljYWxseSBkZXNwaXRlXG4gIC8vIGJlaW5nIG51bWVyaWNhbGx5IGVhcmxpZXIpLlxuICBjb25zdCBydW5OdW1iZXIgPSBpZCA9PiB7XG4gICAgY29uc3QgbSA9IC8oXFxkKykvLmV4ZWMoaWQpO1xuICAgIHJldHVybiBtID8gcGFyc2VJbnQobVsxXSwgMTApIDogLUluZmluaXR5O1xuICB9O1xuICBjb25zdCBsYXRlc3RSdW4gPSBvcHRpb25zLnJlZHVjZSgoYmVzdCwgaWQpID0+IHJ1bk51bWJlcihpZCkgPiBydW5OdW1iZXIoYmVzdCkgPyBpZCA6IGJlc3QsIG9wdGlvbnNbMF0pO1xuICBjb25zdCBzdG9yZWQgPSB3aW5kb3cubG9jYWxTdG9yYWdlLmdldEl0ZW0oXCJ0ZG1jYWxpYjpzZWxlY3RlZFJ1blwiKTtcbiAgY29uc3QgaW5pdGlhbCA9IG9wdGlvbnMuaW5jbHVkZXMoc3RvcmVkKSA/IHN0b3JlZCA6IGxhdGVzdFJ1bjtcbiAgY29uc3QgaW5wdXQgPSBJbnB1dHMuc2VsZWN0KG9wdGlvbnMsIHtsYWJlbDogXCJDYWxpYnJhdGlvbiBSdW46XCIsIHZhbHVlOiBpbml0aWFsfSk7XG4gIC8vIElucHV0cy5zZWxlY3QgbmVzdHMgdGhlIDxzZWxlY3Q+IGluc2lkZSB0aGUgPGxhYmVsPiwgc28gdGhlIGxhYmVsIHRleHRcbiAgLy8gYW5kIGRyb3Bkb3duIHNoYXJlIGEgbGluZSBieSBkZWZhdWx0IC0tIGZvcmNlIHRoZW0gb250byBzZXBhcmF0ZSBsaW5lcy5cbiAgaW5wdXQucXVlcnlTZWxlY3RvcihcImxhYmVsXCIpPy5pbnNlcnRCZWZvcmUoZG9jdW1lbnQuY3JlYXRlRWxlbWVudChcImJyXCIpLCBpbnB1dC5xdWVyeVNlbGVjdG9yKFwic2VsZWN0XCIpKTtcbiAgaW5wdXQuY2xhc3NMaXN0LmFkZChcImNhbGliLXJ1bi1iYXJcIik7XG4gIGlucHV0LmFkZEV2ZW50TGlzdGVuZXIoXCJpbnB1dFwiLCAoKSA9PiB7XG4gICAgd2luZG93LmxvY2FsU3RvcmFnZS5zZXRJdGVtKFwidGRtY2FsaWI6c2VsZWN0ZWRSdW5cIiwgaW5wdXQudmFsdWUpO1xuICB9KTtcblxuICAvLyBRdWFydG8ncyBvd24gT0pTIHJ1bnRpbWUgcGxhY2VzIHRoaXMgY2VsbCdzIHJldHVybmVkIG5vZGUgaW50byBpdHNcbiAgLy8gbm9ybWFsIGluLXBhZ2Ugb3V0cHV0IHNsb3QgcmlnaHQgYWZ0ZXIgdGhpcyBmdW5jdGlvbiByZXR1cm5zIC0tIG1vdmluZ1xuICAvLyBpdCBpbnRvIHRoZSBzaWRlYmFyIHN5bmNocm9ub3VzbHksIGJlZm9yZSB0aGF0IGhhcHBlbnMsIHdvdWxkIGp1c3QgZ2V0XG4gIC8vIHVuZG9uZSBhIG1vbWVudCBsYXRlci4gRGVmZXJyaW5nIHRvIHRoZSBuZXh0IHRpY2sgcnVucyB0aGlzIGFmdGVyIHRoYXRcbiAgLy8gcGxhY2VtZW50LCBzbyB0aGUgbW92ZSBhY3R1YWxseSBzdGlja3MuXG4gIHNldFRpbWVvdXQoKCkgPT4ge1xuICAgIGNvbnN0IHNpZGViYXIgPSBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKFwiI3F1YXJ0by1zaWRlYmFyXCIpO1xuICAgIGNvbnN0IG1lbnUgPSBzaWRlYmFyPy5xdWVyeVNlbGVjdG9yKFwiLnNpZGViYXItbWVudS1jb250YWluZXJcIik7XG4gICAgaWYgKCFzaWRlYmFyIHx8ICFtZW51KSByZXR1cm47IC8vIG5vIGRvY2tlZCBzaWRlYmFyIC0tIHN0YXlzIGlubGluZSBhcyBhIC5jYWxpYi1ydW4tYmFyXG4gICAgaW5wdXQuY2xhc3NMaXN0LnJlbW92ZShcImNhbGliLXJ1bi1iYXJcIik7XG4gICAgaW5wdXQuY2xhc3NMaXN0LmFkZChcImNhbGliLXJ1bi1zaWRlYmFyXCIpO1xuICAgIHNpZGViYXIuaW5zZXJ0QmVmb3JlKGlucHV0LCBtZW51KTtcbiAgfSwgMCk7XG5cbiAgcmV0dXJuIGlucHV0O1xufVxuIn0seyJtZXRob2ROYW1lIjoiaW50ZXJwcmV0UXVpZXQiLCJzb3VyY2UiOiJzaGlueUlucHV0KCdnbG9iYWxDYWxpYlJ1bicpIn1dfQ==
 </script>
 <script type="module">
 if (window.location.protocol === "file:") { alert("The OJS runtime does not work with file:// URLs. Please use a web server to view this document."); }
@@ -325,6 +587,19 @@ window._ojs.runtime.interpretFromScriptTags();
 </script>
 <script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
     const icon = "";
     const anchorJS = new window.AnchorJS();
     anchorJS.options = {
@@ -396,7 +671,7 @@ window._ojs.runtime.interpretFromScriptTags();
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
+        var filterRegex = new RegExp("https:\/\/wfrcanalytics\.github\.io\/WF-TDM-Calibration\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
@@ -733,6 +1008,67 @@ window._ojs.runtime.interpretFromScriptTags();
   </div>
 </nav>
 </div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>© 2025 <a href="https://wfrc.utah.gov/">Wasatch Front Regional Council</a></p>
+</div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/WFRCAnalytics/" target="_blank">
+      <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://www.facebook.com/WasatchFrontRegionalCouncil/" target="_blank">
+      <i class="bi bi-facebook" role="img" aria-label="Facebook">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com/wasatchcouncil/" target="_blank">
+      <i class="bi bi-twitter-x" role="img" aria-label="X (Twitter)">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://www.instagram.com/wasatchfrontregionalcouncil/" target="_blank">
+      <i class="bi bi-instagram" role="img" aria-label="Instagram">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/company/wasatch-front-regional-council/" target="_blank">
+      <i class="bi bi-linkedin" role="img" aria-label="LinkedIn">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://www.youtube.com/user/wfrcvideo/" target="_blank">
+      <i class="bi bi-youtube" role="img" aria-label="YouTube">
+</i> 
+    </a>
+  </li>  
+</ul>
+    </div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="https://wfrcanalytics.github.io/contact/" target="_blank">
+<p>Contact</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://wfrcanalytics.github.io/license/" target="_blank">
+<p>License</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
 
 
 

@@ -109,8 +109,8 @@ loader that needs it recomputing it independently rather than restructuring
 2. Nothing under `report/` needs to change — every `.qmd` discovers `C5N` on its own
    via `_validation_scripts.list_available_runs()`.
 3. If rendering locally instead of relying on the automatic post-run render: `quarto
-   render` from the repo root, then commit `_site/` — CI does **not** render (it can't
-   reach `tdm/`/Cube Voyager); it only publishes the already-rendered `_site/` to
+   render` from the repo root, then commit `docs/` — CI does **not** render (it can't
+   reach `tdm/`/Cube Voyager); it only publishes the already-rendered `docs/` to
    GitHub Pages on push to `main` (`.github/workflows/publish-pages.yml`).
 
 ## Post-run rendering
@@ -122,7 +122,7 @@ section controls this — `render_validation: false` to disable, plus the Quarto
 executable path and a timeout). A rendering failure is logged into the attempt's
 `run_info/{run_id}.json` under `postprocess` but does **not** fail the run itself — the
 curated outputs are already safely on disk regardless of whether the report
-re-rendered cleanly. Commit the resulting `_site/` to publish.
+re-rendered cleanly. Commit the resulting `docs/` to publish.
 
 ## Cross-run comparison (`compare.qmd`)
 

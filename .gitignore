@@ -26,9 +26,10 @@ env/
 .conda/
 
 # Quarto calibration reports (report/) — local build state only.
-# _site/ (the rendered HTML) is intentionally NOT ignored: it's committed so the
-# publish-pages workflow can deploy it without re-rendering (rendering needs
-# tdm/ + Cube Voyager, which aren't available to the Actions runner).
+# docs/ (the rendered HTML, per project.output-dir in _quarto.yml) is
+# intentionally NOT ignored: it's committed so the publish-pages workflow can
+# deploy it without re-rendering (rendering needs tdm/ + Cube Voyager, which
+# aren't available to the Actions runner).
 /.quarto/
 /_freeze/
 report/**/.quarto_ipynb
