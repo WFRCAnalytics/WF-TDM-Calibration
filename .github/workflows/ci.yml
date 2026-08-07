@@ -12,6 +12,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive   # required — without this, tdm/ is checked out empty
+          # tdm/ is a private repo (WFRCAnalytics/WF-TDM-Development); the default
+          # GITHUB_TOKEN is scoped to this repo only and can't clone it, so a PAT
+          # with access to both repos must be supplied here.
+          token: ${{ secrets.TDM_SUBMODULE_PAT }}
 
       - name: Show pinned TDM version
         run: git -C tdm log -1 --oneline
