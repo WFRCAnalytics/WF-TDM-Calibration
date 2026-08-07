@@ -21,7 +21,7 @@
 }
 
 .calib-run-bar select {
-  min-width: 8rem;
+  min-width: 12rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -52,6 +52,7 @@
 
 .calib-run-sidebar select {
   width: 100%;
+  min-width: 10rem;
 }
 
 @media (prefers-color-scheme: dark) {

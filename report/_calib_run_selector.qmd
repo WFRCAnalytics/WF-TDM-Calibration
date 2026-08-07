@@ -39,8 +39,19 @@ viewof globalCalibRun = {
   if (options.length === 0) {
     return Inputs.select([], {label: "Calibration Run:", disabled: true});
   }
+  // Default to the run with the highest numeric ID (e.g. "C50" over "C33"),
+  // not just the last entry in `options` -- that list comes from a plain
+  // alphabetical sort (see list_available_runs in _validation_scripts.py),
+  // which only happens to match numeric order today because both IDs have
+  // the same digit count ("C9" would sort after "C50" alphabetically despite
+  // being numerically earlier).
+  const runNumber = id => {
+    const m = /(\d+)/.exec(id);
+    return m ? parseInt(m[1], 10) : -Infinity;
+  };
+  const latestRun = options.reduce((best, id) => runNumber(id) > runNumber(best) ? id : best, options[0]);
   const stored = window.localStorage.getItem("tdmcalib:selectedRun");
-  const initial = options.includes(stored) ? stored : options[options.length - 1];
+  const initial = options.includes(stored) ? stored : latestRun;
   const input = Inputs.select(options, {label: "Calibration Run:", value: initial});
   input.classList.add("calib-run-bar");
   input.addEventListener("input", () => {

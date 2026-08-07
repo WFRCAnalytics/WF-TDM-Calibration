@@ -1762,6 +1762,45 @@ function formatNumber(value, isPercentage=false) {
 }
 
 widthsVmt = ['100px', '88px', '88px', '88px', '88px']; // Define the widths
+
+function renderVmtRow(row, isTotal=false) {
+    const rowStyle = isTotal
+        ? 'background-color: #e0e0e0; border-top: 2px solid #999;'
+        : 'border-bottom: 1px solid lightgrey;';
+    return html`<tr style='${rowStyle}'>
+        ${["FTCLASS", "VMT_Mod", "VMT_Target", "vmtDiff", "vmtDiffPct"].map((d, i) => {
+            // Check if the current cell is one of the numeric columns that need formatting
+            let formattedValue;
+            if (i === 4) {
+                formattedValue = formatNumber(row[d], true);  // True for percentage formatting
+            } else if (i >= 1 && i <= 3) {
+                formattedValue = formatNumber(row[d]);
+            } else {
+                formattedValue = row[d];
+            }
+            return html`<td style='text-align: ${i === 0 ? "left" : "right"}; padding: 5px; font-weight: ${isTotal ? 'bold' : 'normal'};'>${formattedValue}</td>`;
+        })}
+    </tr>`;
+}
+```
+
+```{ojs}
+// Body rows exclude any precomputed "All Roadways" row (only present for the
+// FTCLASS grouping) -- the totals row below is derived instead, so it also
+// shows up (correctly summed) for the FTGROUP grouping, which has no such row.
+bodyRows = filtered_vmtData.filter(d => d.FTCLASS !== 'All Roadways')
+
+totalRow = filtered_vmtData.find(d => d.FTCLASS === 'All Roadways') ?? (() => {
+    const modSum = d3.sum(bodyRows, d => d.VMT_Mod);
+    const targetSum = d3.sum(bodyRows, d => d.VMT_Target);
+    return {
+        FTCLASS: 'All Roadways',
+        VMT_Mod: modSum,
+        VMT_Target: targetSum,
+        vmtDiff: modSum - targetSum,
+        vmtDiffPct: targetSum ? (modSum - targetSum) / targetSum : undefined
+    };
+})()
 ```
 
 ```{ojs}
@@ -1776,24 +1815,11 @@ html`
     </tr>
     </thead>
     <tbody>
-        ${filtered_vmtData.map(row => {
-            const isBold = row['FTCLASS'] === 'All Roadways';
-            return html`<tr style='border-bottom: 1px solid lightgrey;'>
-                ${["FTCLASS", "VMT_Mod", "VMT_Target", "vmtDiff", "vmtDiffPct"].map((d, i) => {
-                    // Check if the current cell is one of the numeric columns that need formatting
-                    let formattedValue;
-                    if (i === 4 || i === 6) {
-                        formattedValue = formatNumber(row[d], true);  // True for percentage formatting
-                    } else if ((i >= 1 && i <= 3) || i==5) {
-                        formattedValue = formatNumber(row[d]);
-                    } else {
-                        formattedValue = row[d];
-                    }
-                    return html`<td style='text-align: ${i === 0 ? "left" : "right"}; padding: 5px; font-weight: ${isBold ? 'bold' : 'normal'};'>${formattedValue}</td>`;
-                })}
-            </tr>`;
-        })}
+        ${bodyRows.map(row => renderVmtRow(row))}
     </tbody>
+    <tfoot>
+        ${renderVmtRow(totalRow, true)}
+    </tfoot>
 </table>`
 ```
 

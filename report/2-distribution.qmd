@@ -1140,7 +1140,7 @@ viewof vSource_2 = Inputs.select(
 // Observed Data Selection
 viewof vRemoveOutliers_2 = Inputs.toggle({
   label: "Remove outliers",
-  value: false
+  value: true
 })
 
 // 2. DATA PROCESSING (Matches selected model source to selected observed data)
