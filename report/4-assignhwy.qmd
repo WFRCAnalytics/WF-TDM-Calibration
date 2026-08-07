@@ -1869,8 +1869,8 @@ viewof mapMetric = Inputs.select(
 )
 
 viewof mapType = Inputs.radio(
-  [ "Percent", "Absolute" ],
-  { value: "Percent", label: "Difference Type:" }
+  [ "Absolute", "Percent" ],
+  { value: "Absolute", label: "Difference Type:" }
 )
 ```
 

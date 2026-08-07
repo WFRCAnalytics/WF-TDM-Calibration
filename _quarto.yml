@@ -39,7 +39,6 @@ website:
           - report/2-distribution.qmd
           - report/3-modechoice.qmd
           - report/4-assignhwy.qmd
-          - report/7-modelresults.qmd
       - report/compare.qmd
   navbar:
     logo-alt: "Wasatch Front Regional Council"
@@ -118,6 +117,18 @@ website:
 format:
   html:
     css: styles.css
+    # Restated explicitly (not just relying on the extension's own defaults)
+    # since testing showed page-layout was resolving to "article" here
+    # rather than the extension's declared "full".
+    page-layout: full
+    # Quarto splits this value across several grid margin tracks rather than
+    # using it as the docked sidebar's literal rendered width (measured via
+    # headless-browser bounding box: rendered width = 25.5px + 0.8 * this
+    # value). 406px was chosen empirically to land the actual on-screen
+    # sidebar at ~350px -- re-measure and adjust if this stops holding after
+    # a Quarto/extension upgrade.
+    grid:
+      sidebar-width: 406px
 
 # specify kernel to use to render jupyter notebooks (must match the local env name)
 jupyter: wftdm-docs
