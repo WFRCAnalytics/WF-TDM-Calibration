@@ -43,6 +43,7 @@ ojs_define(compare_data=compare_df)
 ```
 
 {{< include _calib_run_selector.qmd >}}
+{{< include _chart_theme.qmd >}}
 
 ```{ojs}
 data = transpose(compare_data)

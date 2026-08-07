@@ -406,8 +406,19 @@ def load_crt_dist(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.Data
         else pd.DataFrame(columns=["Distance", "Trips", "Period", "AccessMode", "Source"])
     )
 
-    return (
+    df_all = (
         pd.concat([df_crt_model, df_crt_obs], ignore_index=True)
         .query("Distance > 0 and Distance < 200")  # guard against skim fill-values
-        .round({"Distance": 2, "Trips": 4})
+    )
+    # Raw skim/trip-matrix rows are one per non-zero OD cell (millions of
+    # rows, most with near-zero trip weight) -- the chart only ever needs
+    # total trips per distance value (client-side binning in 3-modechoice.qmd
+    # sums Trips within each bucket), so collapse OD pairs sharing the same
+    # rounded distance before this ever reaches ojs_define(). Non-lossy for
+    # the chart, ~2000x smaller payload.
+    df_all["Distance"] = df_all["Distance"].round(2)
+    return (
+        df_all.groupby(["Distance", "Period", "AccessMode", "Source"], as_index=False)["Trips"]
+        .sum()
+        .round({"Trips": 4})
     )

@@ -45,6 +45,7 @@ tazv10_wf = tazv10[['TAZID', 'DISTLRG']]
 ```
 
 {{< include _calib_run_selector.qmd >}}
+{{< include _chart_theme.qmd >}}
 
 ## Trip Distribution
 
@@ -191,7 +192,7 @@ Plot.plot({
   x: {tickFormat: "s", grid: true},
   color: {
     domain: ["Model", "Observed"],
-    range: ["#376092", "#77933c"],
+    range: [themeModel, themeObserved],
     legend: true
   },
   facet: {
@@ -202,7 +203,7 @@ Plot.plot({
     marginTop: 4,
     marginBottom: 4
   },
-  style: {fontSize: 16},
+  style: {fontSize: 16, fontFamily: "Inter, system-ui, sans-serif"},
   marginTop: 10,
   marginBottom: 40,
   marginRight: 40,
@@ -398,11 +399,6 @@ freqT_filtered_Mod = freqT.filter(function(freqData) {
     freqData.calib_run === globalCalibRun &&
     'freqMod' == freqData.freqSource;
 })
-
-colorScale = d3.scaleOrdinal()
-  .domain(["Model", "Observed"])
-  .range(["#376092", "#77933c"]);
-key2 = Legend(colorScale, {title: "Data Source"})
 ```
 
 ```{ojs}
@@ -421,6 +417,16 @@ maxXValue = filtered_x.length > 0 ? Math.max(...filtered_x.map(function(dx){
 minXValue = filtered_x.length > 0 ? Math.max(...filtered_x.map(function(dx){
     return dx.minX;
 })) : 0;
+```
+
+```{ojs}
+// Legend moved here (immediately above the plot it labels) rather than up
+// near the purpose/type selectors, so it's not easy to lose track of while
+// reading the chart below.
+colorScale = d3.scaleOrdinal()
+  .domain(["Model", "Observed"])
+  .range([themeModel, themeObserved]);
+key2 = Legend(colorScale, {title: "Data Source"})
 ```
 
 ```{ojs}
@@ -444,18 +450,18 @@ Plot.plot({
   marginLeft: 60,
   marginTop: 40,
   marginBottom: 50,
-  style: { fontSize: 15 },
+  style: { fontSize: 15, fontFamily: "Inter, system-ui, sans-serif" },
   marks: [
     Plot.line(freqT_filtered_Mod, Plot.groupX({y: "sum"}, {
       x: d => Math.floor(d.BIN / binSize) * binSize,
       y: 'freq',
-      stroke: "#376092",
+      stroke: themeModel,
       strokeWidth: 3
     })),
     Plot.line(freqT_filtered_Obs, Plot.groupX({y: "sum"}, {
       x: d => Math.floor(d.BIN / binSize) * binSize,
       y: 'freq',
-      stroke: "#77933c",
+      stroke: themeObserved,
       strokeWidth: 3
     })),
     Plot.frame({ strokeOpacity: 0.2 })
@@ -584,7 +590,7 @@ Plot.plot({
   x: {tickFormat: "s", grid: true},
   color: {
     domain: ["Model", "Observed"],
-    range: ["#376092", "#77933c"],
+    range: [themeModel, themeObserved],
     legend: true
   },
   facet: {
@@ -595,7 +601,7 @@ Plot.plot({
     marginTop: 4,
     marginBottom: 4
   },
-  style: {fontSize: 16},
+  style: {fontSize: 16, fontFamily: "Inter, system-ui, sans-serif"},
   marginTop: 10,
   marginBottom: 40,
   marginRight: 40,
@@ -736,7 +742,7 @@ Plot.plot({
     }),
     Plot.dot(dc_filtered_final, {
       x: "tmeObs", y: "tmeMod", r: 3.5,
-      fill: "rgb(80, 116, 230)", fillOpacity: 0.5,
+      fill: themeModel, fillOpacity: 0.5,
       tip: true,
       title: (d) =>
         `${d.Geo}: ${d.p_Loc} to ${d.a_Loc}\n` +
@@ -745,7 +751,7 @@ Plot.plot({
     }),
     Plot.linearRegressionY(dc_filtered_final, {
       x: "tmeObs", y: "tmeMod",
-      stroke: "rgb(80, 116, 230)", strokeDasharray: "4 4"
+      stroke: themeModel, strokeDasharray: "4 4"
     })
   ]
 })
@@ -768,7 +774,7 @@ Plot.plot({
     Plot.ruleY([0], { stroke: "#000", strokeWidth: 1.5 }),
     Plot.dot(dc_filtered_final, {
       x: "tmeObs", y: "tmeErrorPct", r: 3.5,
-      fill: "rgb(80, 116, 230)", fillOpacity: 0.5,
+      fill: themeModel, fillOpacity: 0.5,
       tip: true,
       title: (d) =>
         `${d.Geo}: ${d.p_Loc} to ${d.a_Loc}\n` +
@@ -1039,7 +1045,7 @@ Plot.plot({
       x: "tmeObs",
       y: "tmeMod",
       r: 3, // Slightly larger dots are easier to hover
-      fill: "rgb(80, 116, 230)",
+      fill: themeModel,
       fillOpacity: 0.5,
       // Add Tooltip data here:
       tip: true,
@@ -1051,7 +1057,7 @@ Plot.plot({
     // Regression Line
     Plot.linearRegressionY(dc_filtered, {
       x: "tmeObs", y: "tmeMod",
-      stroke: "rgb(80, 116, 230)", strokeDasharray: "4 4"
+      stroke: themeModel, strokeDasharray: "4 4"
     })
   ]
 })
@@ -1075,7 +1081,7 @@ Plot.plot({
       x: "tmeObs",
       y: "tmeErrorPct",
       r: 3,
-      fill: "rgb(80, 116, 230)",
+      fill: themeModel,
       fillOpacity: 0.5,
       // Add Tooltip data here:
       tip: true,
@@ -1236,7 +1242,7 @@ segment_chart = (summary) => {
           x: "tmeObs",
           y: "tmeMod",
           r: 3,
-          fill: "rgb(80, 116, 230)",
+          fill: themeModel,
           fillOpacity: 0.6,
           tip: true,
           title: (d) =>
@@ -1252,7 +1258,7 @@ segment_chart = (summary) => {
           {
             x: "x",
             y: "y",
-            stroke: "rgb(80, 116, 230)",
+            stroke: themeModel,
             strokeWidth: 2,
             strokeDasharray: "4 4"
           }

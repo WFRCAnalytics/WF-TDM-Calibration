@@ -37,6 +37,10 @@ reports = [
     "google-cloud-bigquery>=3.0",
     "google-auth>=2.0",
     "db-dtypes>=1.0",
+    "matplotlib>=3.7",
+    "contextily>=1.4",
+    "openpyxl>=3.1",
+    "mapclassify>=2.6",
 ]
 
 [project.scripts]

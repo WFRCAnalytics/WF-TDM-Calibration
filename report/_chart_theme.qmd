@@ -1,0 +1,35 @@
+<!--
+Shared chart color palette, spliced into every report page via
+{{< include _chart_theme.qmd >}} (same literal-text-splice mechanism as
+_calib_run_selector.qmd -- these cells execute in the including page's own
+OJS runtime, not a separate document). Pure OJS, no Python dependency, so
+include order relative to _calib_run_selector.qmd doesn't matter.
+
+Replaces the old, inconsistent per-page defaults (navy/olive #376092 /
+#77933c on most pages, "steelblue"/"forestgreen"/"orange" on others) with
+one palette used everywhere -- muted/earthy tones (denim, red rock,
+sagebrush, aspen) rather than saturated web-safe colors. Meaning stays
+consistent site-wide:
+
+  themeModel          Modeled data, always
+  themeObserved       Observed/survey data (primary source)
+  themeObservedAlt    A second, distinct observed source in the same chart
+                       (e.g. an older survey year shown alongside a newer one)
+  themeObservedLight  Faded/secondary variant of Observed (e.g. a
+                       distribution band behind an Observed mean marker)
+  themeAccent         Extra category beyond Model/Observed (e.g. a
+                       calibration target line)
+  themeNeutral        Neutral/reference series, not itself Model or Observed
+  themeDanger         Over-threshold / error highlight
+-->
+
+```{ojs}
+//| echo: false
+themeModel = "#6E8CA0"
+themeObserved = "#C68958"
+themeObservedAlt = "#7C9A78"
+themeObservedLight = "#E6D6B8"
+themeAccent = "#8B7398"
+themeNeutral = "#7D7568"
+themeDanger = "#A8412C"
+```

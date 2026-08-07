@@ -48,6 +48,7 @@ nameMod = "Model"
 ```
 
 {{< include _calib_run_selector.qmd >}}
+{{< include _chart_theme.qmd >}}
 
 ---
 
@@ -349,9 +350,9 @@ hh_agg_facet = {
 
 hh_xy_cfg = {
   const fm = {
-    "PUMS":    { field: "Observed_Count", pctField: "Observed_Pct", label: "Observed (PUMS)", color: "steelblue" },
-    "HTS":     { field: "HTS_Count",      pctField: "HTS_Pct",      label: "Observed (HTS)",  color: "#2ca02c"  },
-    "Modeled": { field: "Modeled_Count",  pctField: "Modeled_Pct",  label: "Modeled",          color: "orange"  }
+    "PUMS":    { field: "Observed_Count", pctField: "Observed_Pct", label: "Observed (PUMS)", color: themeObserved },
+    "HTS":     { field: "HTS_Count",      pctField: "HTS_Pct",      label: "Observed (HTS)",  color: themeObservedAlt  },
+    "Modeled": { field: "Modeled_Count",  pctField: "Modeled_Pct",  label: "Modeled",          color: themeModel  }
   };
   const errMap = {
     "PUMS|Modeled": "Mod_vs_PUMS",  "PUMS|HTS": "HTS_vs_PUMS",
@@ -948,9 +949,9 @@ vo_agg_facet = {
 
 vo_xy_cfg = {
   const fm = {
-    "ACS":     { field: "ACS_HH",   pctField: "ACS_Pct",    label: "Observed (ACS)", color: "steelblue" },
-    "HTS":     { field: "HTS_HH",   pctField: "HTS_Pct_vo", label: "Observed (HTS)", color: "#2ca02c"   },
-    "Modeled": { field: "Model_HH", pctField: "Model_Pct",  label: "Modeled",        color: "orange"    }
+    "ACS":     { field: "ACS_HH",   pctField: "ACS_Pct",    label: "Observed (ACS)", color: themeObserved },
+    "HTS":     { field: "HTS_HH",   pctField: "HTS_Pct_vo", label: "Observed (HTS)", color: themeObservedAlt   },
+    "Modeled": { field: "Model_HH", pctField: "Model_Pct",  label: "Modeled",        color: themeModel    }
   };
   const errMap = {
     "ACS|Modeled": "Pct_Error",       "ACS|HTS":     "Pct_HTS_vs_ACS",

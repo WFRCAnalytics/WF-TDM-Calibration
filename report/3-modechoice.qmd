@@ -192,6 +192,7 @@ config_tdm_map = {
 ```
 
 {{< include _calib_run_selector.qmd >}}
+{{< include _chart_theme.qmd >}}
 
 ```{python}
 # ==============================================================================
@@ -433,6 +434,7 @@ df_final_melt = pd.melt(
         "TripPurpose",
         config_output["mode_group"],
         "Mode",
+        "calib_run",
     ],
     value_vars=["Model", "Observed"],
     var_name="DataSource",
@@ -677,7 +679,7 @@ xDomain = {
 
 {
   const legend = Legend(
-    d3.scaleOrdinal(["Model", "Observed"], ["#376092", "#77933c"]),
+    d3.scaleOrdinal(["Model", "Observed"], [themeModel, themeObserved]),
     {title: "Data Source"}
   )
 
@@ -689,7 +691,7 @@ xDomain = {
     marginTop : 40,
     facetMarginTop: 30,
 
-    style: { backgroundColor: "transparent", fontSize: "0.85em" },
+    style: { backgroundColor: "transparent", fontSize: "0.85em", fontFamily: "Inter, system-ui, sans-serif" },
 
     fx: {
       domain: ["All Purposes", "Home-Based Work", "Home-Based College", "Home-Based Other", "Non-Home Based"],
@@ -714,7 +716,7 @@ xDomain = {
 
     color: {
       domain: ["Model", "Observed"],
-      range:  ["#376092", "#77933c"],
+      range:  [themeModel, themeObserved],
     },
 
     marks: [
@@ -890,7 +892,7 @@ bChart = GroupedBarChart(filtered_bDataC, {
     zDomain: ['Model','Observed'],
     width: 500,
     height: 225,
-    colors: ["#376092", "#77933c"]
+    colors: [themeModel, themeObserved]
 })
 
 filtered_bData2 = dataBLC.filter(function(dataBLC) {
@@ -1219,7 +1221,8 @@ Plot.plot({
   // Global Style Adjustment
   style: {
     backgroundColor: 'transparent',
-    fontSize: "0.85em" // Increases base font size by ~1.4-1.5x
+    fontSize: "0.85em", // Increases base font size by ~1.4-1.5x
+    fontFamily: "Inter, system-ui, sans-serif"
   },
 
   // Facet X: The Station Names
@@ -1246,7 +1249,7 @@ Plot.plot({
   color: {
     legend: true,
     domain: ["On-Board Survey", "Passenger Counts", "Modeled"],
-    range: ["#f28e2b", "#59a14f", "#4e79a7"]
+    range: [themeObserved, themeObservedAlt, themeModel]
   },
   marks: [
     Plot.barY(filtered_data_boarding,
@@ -1442,6 +1445,7 @@ Plot.plot({
   style: {
     backgroundColor: "transparent",
     fontSize: "0.85em",
+    fontFamily: "Inter, system-ui, sans-serif",
   },
 
   caption: [
@@ -1466,7 +1470,7 @@ Plot.plot({
   color: {
     legend : true,
     domain : ["Observed", "Modeled"],
-    range  : ["#77933c", "#376092"],
+    range  : [themeObserved, themeModel],
   },
 
   marks: [
@@ -1474,8 +1478,8 @@ Plot.plot({
     Plot.areaY(crtBinned.filter(d => d.Source === "Modeled"), {
       x          : "BinLo",
       y          : crtViewSel === "Trip Count" ? "Trips" : "Share",
-      fill       : "#376092",
-      stroke     : "#376092",
+      fill       : themeModel,
+      stroke     : themeModel,
       fillOpacity: 0.35,
       strokeWidth: 1.5,
       curve      : "step-after",
@@ -1485,8 +1489,8 @@ Plot.plot({
     Plot.areaY(crtBinned.filter(d => d.Source === "Observed"), {
       x          : "BinLo",
       y          : crtViewSel === "Trip Count" ? "Trips" : "Share",
-      fill       : "#77933c",
-      stroke     : "#77933c",
+      fill       : themeObserved,
+      stroke     : themeObserved,
       fillOpacity: 0.35,
       strokeWidth: 1.5,
       curve      : "step-after",

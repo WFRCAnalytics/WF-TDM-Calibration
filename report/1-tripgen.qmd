@@ -33,6 +33,7 @@ nameMod = "Model"
 ```
 
 {{< include _calib_run_selector.qmd >}}
+{{< include _chart_theme.qmd >}}
 
 ```{python}
 #| echo: false
@@ -762,7 +763,7 @@ import {Swatches} from "@d3/color-legend"
     z: d => d["Data Source"],
     xDomain: purposes,
     zDomain: ["HTS 2012", "HTS 2023", "Model"],
-    colors: ["lightgray", "steelblue", "forestgreen"],
+    colors: ["lightgray", themeObserved, themeModel],
     width: 900
   });
 
@@ -772,7 +773,7 @@ import {Swatches} from "@d3/color-legend"
   // Legend
   const color = d3.scaleOrdinal(
     ["HTS 2012", "HTS 2023", "BY 2023 Model"],
-    ["lightgray", "steelblue", "forestgreen"]
+    ["lightgray", themeObserved, themeModel]
   );
   container.append(Swatches(color, { label: "Data Source" }));
 

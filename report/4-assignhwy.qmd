@@ -48,6 +48,7 @@ config_paths = {
 ```
 
 {{< include _calib_run_selector.qmd >}}
+{{< include _chart_theme.qmd >}}
 
 ```{python}
 # read segment shapefile into spatial enabled dataframe
@@ -702,7 +703,7 @@ Plot.plot({
       x: "x", y: "y", stroke: "currentColor", strokeOpacity: 0.5, strokeWidth: 1.5
     }),
     Plot.linearRegressionY(dash_data.scatter, {
-      x: "Obs_K", y: "Mod_K", stroke: "rgb(80, 116, 230)",
+      x: "Obs_K", y: "Mod_K", stroke: themeModel,
       strokeDasharray: "4 4", strokeWidth: 2
     }),
     Plot.dot(dash_data.scatter, {
@@ -750,8 +751,8 @@ bar_data = dash_data.summary.fold(["Obs_Total", "Mod_Total"], { as: ["Metric", "
 Plot.plot({
   marginLeft: 80,
   height: Math.max(400, dash_data.summary.numRows() * 40),
-  color: { domain: ["Observed", "Modeled"], range: ["#77933c", "#376092"], legend: true, label: "Data Source" },
-  style: { backgroundColor: 'transparent' },
+  color: { domain: ["Observed", "Modeled"], range: [themeObserved, themeModel], legend: true, label: "Data Source" },
+  style: { backgroundColor: 'transparent', fontFamily: "Inter, system-ui, sans-serif" },
   x: { label: "Total Volume", grid: true, tickFormat: "s" },
   y: { axis: null },
   fy: { label: null, axis: "left" },
@@ -867,7 +868,7 @@ map_display = {
     style: (feature) => {
       const segid = String(feature.properties.SEGID).trim();
       const stats = data_map.get(segid);
-      let finalColor = "#376092";
+      let finalColor = themeModel;
       if (enable_color && stats) finalColor = color_map.get(stats.Label) || finalColor;
       return { color: finalColor, weight: 4, opacity: 0.9 };
     },
@@ -903,7 +904,7 @@ map_display = {
       const segid = String(feature.properties.MATCHED_SEGID).trim();
       const stats = data_map.get(segid);
 
-      let finalColor = "#77933c";
+      let finalColor = themeObserved;
       if (enable_color && stats) finalColor = color_map.get(stats.Label) || finalColor;
 
       return L.circleMarker(latlng, { radius: 4, fillColor: finalColor, color: "#1e1e1e", weight: 1, opacity: 0.9, fillOpacity: 0.9 });
@@ -923,7 +924,7 @@ map_display = {
       layer.on('mouseout', () => resetAll());
 
       if (stats) {
-        const diffColor = stats.Pct_Error > 0 ? '#d9534f' : '#5cb85c';
+        const diffColor = stats.Pct_Error > 0 ? themeDanger : themeObserved;
         layer.bindPopup(`<div style="font-family: sans-serif; min-width: 160px;">
          <strong>Station(s): ${stats.Stations}</strong><hr style="margin:4px 0; border:0; border-top:1px solid #eee;">
          Group: <b>${stats.Label}</b><br/>
@@ -1184,10 +1185,10 @@ filteredStations = daily_data
 
   // ─── Configuration ───────────────────────────────────────────────────────────
   const palette = {
-    ccs:   "#2c3e50", // Dark Slate
-    hpms:  "#77933c", // Green
-    model: "#376092", // Blue
-    cal:   "#f39c12"  // Orange
+    ccs:   themeNeutral, // Slate
+    hpms:  themeObserved, // Amber
+    model: themeModel, // Indigo
+    cal:   themeAccent  // Violet
   };
 
   const yMaxVol = stationHasData
@@ -1290,28 +1291,26 @@ import {howto, altplot} from "@d3/example-components"
 
 ```{python}
 # ---------------------------------------------------------
-# 0. LOAD MODEL SEGMENT SUMMARY (KNOWN GAP: latest available run only --
-#    this VMT Validation section, unlike the CCS Volume dashboard/Station
-#    Level Daily Volume sections above, was never rebuilt for multi-run
-#    selection; see report/README.md's "Known gaps". mod_df_wide used to be
-#    a leftover module-level name from before that -- restored here as an
-#    explicit single-run load so this section renders again.)
+# 0. LOAD MODEL SEGMENT SUMMARY (every available run, tagged with calib_run
+#    -- see report/README.md's "Known gaps": this VMT Validation section
+#    used to load only calib_runs[-1], unlike the CCS Volume dashboard/
+#    Station Level Daily Volume sections above, which already used this
+#    load_per_run() pattern)
 # ---------------------------------------------------------
-_vmt_calib_run = calib_runs[-1]
-_vmt_outputs_dir = vs.resolve_latest_run_outputs(repo_root, _vmt_calib_run)
-mod_df_wide = pd.read_csv(vs.find_one(_vmt_outputs_dir, "*Summary_SEGID.csv"))
-if "DY_Vol" not in mod_df_wide.columns:
-    mod_df_wide["DY_Vol"] = (
-        mod_df_wide["DY_Vol_PC"]
-        + mod_df_wide["DY_Vol_LT"]
-        + mod_df_wide["DY_Vol_MD"]
-        + mod_df_wide["DY_Vol_HV"]
-    )
+def _load_vmt_segid(calib_run, outputs_dir):
+    df = pd.read_csv(vs.find_one(outputs_dir, "*Summary_SEGID.csv"))
+    if "DY_Vol" not in df.columns:
+        df["DY_Vol"] = df["DY_Vol_PC"] + df["DY_Vol_LT"] + df["DY_Vol_MD"] + df["DY_Vol_HV"]
+    return df
+
+mod_df_wide = vs.load_per_run(repo_root, _load_vmt_segid)
 
 # ---------------------------------------------------------
 # 1. PREP FTCLASS & RATIOS FIRST
 # ---------------------------------------------------------
 # Pull FTCLASS early so we can use it to map the ratios to the observed data
+# (a static network attribute -- not expected to vary by run, so this stays
+# a plain SEGID/FTCLASS lookup rather than per-run)
 ft_df = mod_df_wide[["SEGID", "FTCLASS"]].drop_duplicates()
 
 # Load the ratio dataframe (as seen in image_46fa9a.png)
@@ -1375,7 +1374,7 @@ mod_df["All"] = mod_df["DY_Vol"]
 
 # Melt the model dataframe to match the format of obs_df
 mod_df = mod_df.melt(
-    id_vars=["SEGID"],
+    id_vars=["SEGID", "calib_run"],
     value_vars=["All", "PCLT", "MD", "HV"],
     var_name="vehType",
     value_name="AWDT",
@@ -1416,7 +1415,7 @@ for vt in veh_types:
 # 1. Pivot the Long Data (mod_obs_df) back to Wide Format
 #    We use mod_obs_df because it already contains the merged Model and Observed data
 df_wide = mod_obs_df.pivot(
-    index="SEGID", columns="vehType", values=["AWDT_Mod", "AWDT_Obs"]
+    index=["SEGID", "calib_run"], columns="vehType", values=["AWDT_Mod", "AWDT_Obs"]
 )
 
 # Flatten the hierarchical columns created by pivot (e.g., ('AWDT_Mod', 'All') -> 'AWDT_Mod_All')
@@ -1461,6 +1460,7 @@ gdf_vol_diff = segShp[["SEGID", "geometry"]].merge(
     df_wide[
         [
             "SEGID",
+            "calib_run",
             "FTCLASS",
             "Diff_Total",
             "Diff_PCLT",
@@ -1525,18 +1525,18 @@ agg_functions_all = {'SEGID'     : 'count',
                      'VMT_Obs'   : 'sum'}
 
 # 1. Summarize by FTCLASS
-sum_class = all_df.groupby(['CO_FIPS','FTCLASS','vehType'], as_index=False).agg(agg_functions_all)
+sum_class = all_df.groupby(['CO_FIPS','FTCLASS','vehType','calib_run'], as_index=False).agg(agg_functions_all)
 sum_class['ClassLevel'] = 'FTCLASS'
 
 # 2. Summarize by FTGROUP
-sum_group = all_df.groupby(['CO_FIPS','FTGROUP','vehType'], as_index=False).agg(agg_functions_all)
+sum_group = all_df.groupby(['CO_FIPS','FTGROUP','vehType','calib_run'], as_index=False).agg(agg_functions_all)
 # Rename FTGROUP to FTCLASS so they stack neatly in the same column for OJS
 sum_group.rename(columns={'FTGROUP': 'FTCLASS'}, inplace=True)
 sum_group['ClassLevel'] = 'FTGROUP'
 
 # 3. Combine them
 sum_all_df = pd.concat([sum_class, sum_group], ignore_index=True)
-sum_all_df = sum_all_df.drop_duplicates(subset=['CO_FIPS', 'FTCLASS', 'vehType', 'ClassLevel'])
+sum_all_df = sum_all_df.drop_duplicates(subset=['CO_FIPS', 'FTCLASS', 'vehType', 'ClassLevel', 'calib_run'])
 
 sum_all_df = sum_all_df.rename(columns={'SEGID':'numSegs','volDiffSq':'volRmse'})
 
@@ -1555,29 +1555,29 @@ sum_all_df_copy = sum_all_df.copy()
 ```{python}
 # create summary comparison tables for ojs
 
-allveh_vol = sum_all_df[['CO_FIPS','FTCLASS','vehType','ClassLevel','numSegs','AWDT_Mod','AWDT_Obs','volDiff','volDiffPct','volRmse','volRmsePct']]
-allveh_vmt = sum_all_df[['CO_FIPS','FTCLASS','vehType','ClassLevel','numSegs','VMT_Mod','VMT_Obs','vmtDiff','vmtDiffPct']]
+allveh_vol = sum_all_df[['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run','numSegs','AWDT_Mod','AWDT_Obs','volDiff','volDiffPct','volRmse','volRmsePct']]
+allveh_vmt = sum_all_df[['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run','numSegs','VMT_Mod','VMT_Obs','vmtDiff','vmtDiffPct']]
 ```
 
 ```{python}
 # create summary comparison tables for ojs - percent difference table
 
-allveh_pct = sum_all_df[['CO_FIPS','FTCLASS','vehType','ClassLevel','volDiffPct','vmtDiffPct']]
+allveh_pct = sum_all_df[['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run','volDiffPct','vmtDiffPct']]
 
 allveh_pct = allveh_pct.melt(
-    id_vars=['CO_FIPS','FTCLASS','vehType','ClassLevel'], 
-    value_vars=['volDiffPct','vmtDiffPct'], 
-    var_name='Variable', 
+    id_vars=['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run'],
+    value_vars=['volDiffPct','vmtDiffPct'],
+    var_name='Variable',
     value_name='Value'
 )
 
 allveh_pct = allveh_pct.pivot(
-    index=['FTCLASS','vehType','ClassLevel','Variable'], 
-    columns='CO_FIPS', 
+    index=['FTCLASS','vehType','ClassLevel','calib_run','Variable'],
+    columns='CO_FIPS',
     values='Value'
 ).reset_index()
 
-allveh_pct = allveh_pct[['Variable', 'FTCLASS', 'vehType', 'ClassLevel', 3, 57, 11, 35, 49, 99]] #99:Region
+allveh_pct = allveh_pct[['Variable', 'FTCLASS', 'vehType', 'ClassLevel', 'calib_run', 3, 57, 11, 35, 49, 99]] #99:Region
 #allveh_pct
 ```
 
@@ -1585,28 +1585,28 @@ allveh_pct = allveh_pct[['Variable', 'FTCLASS', 'vehType', 'ClassLevel', 3, 57, 
 # create summary comparison tables for ojs - percent difference table - exact version for summary comparison charts. The above table is reformatted to be more human readable for the tables in the report. The below table is formatted to be more machine readable for the charts in the report.
 
 allveh_pct_exact = sum_all_df_copy[
-    ["CO_FIPS", "FTCLASS", "vehType", "ClassLevel", "volDiffPct", "vmtDiffPct"]
+    ["CO_FIPS", "FTCLASS", "vehType", "ClassLevel", "calib_run", "volDiffPct", "vmtDiffPct"]
 ]
 
 allveh_pct_exact = allveh_pct_exact.melt(
-    id_vars=["CO_FIPS", "FTCLASS", "vehType", "ClassLevel"],
+    id_vars=["CO_FIPS", "FTCLASS", "vehType", "ClassLevel", "calib_run"],
     value_vars=["volDiffPct", "vmtDiffPct"],
     var_name="Variable",
     value_name="Value",
 )
 
 allveh_pct_exact = allveh_pct_exact.pivot(
-    index=["FTCLASS", "vehType", "ClassLevel", "Variable"], 
-    columns="CO_FIPS", 
+    index=["FTCLASS", "vehType", "ClassLevel", "calib_run", "Variable"],
+    columns="CO_FIPS",
     values="Value"
 ).reset_index()
 
 allveh_pct_exact = allveh_pct_exact[
-    ["Variable", "FTCLASS", "vehType", "ClassLevel", 3, 57, 11, 35, 49, 99]
+    ["Variable", "FTCLASS", "vehType", "ClassLevel", "calib_run", 3, 57, 11, 35, 49, 99]
 ]
 
 allveh_pct_exact = allveh_pct_exact.melt(
-    id_vars=["FTCLASS", "vehType", "ClassLevel", "Variable"],
+    id_vars=["FTCLASS", "vehType", "ClassLevel", "calib_run", "Variable"],
     value_vars=[3, 57, 11, 35, 49, 99],
     value_name="Value",
     var_name="Geography",
@@ -1617,11 +1617,11 @@ allveh_pct_exact = allveh_pct_exact.melt(
 ```{python}
 # create summary comparison tables for ojs - absolute difference table - exact version for summary comparison charts. The above table is reformatted to be more human readable for the tables in the report. The below table is formatted to be more machine readable for the charts in the report.
 
-allveh_abs_exact = sum_all_df_copy[['CO_FIPS', 'FTCLASS', 'ClassLevel', 'AWDT_Mod', 'AWDT_Obs', 'VMT_Mod', 'VMT_Obs']]
+allveh_abs_exact = sum_all_df_copy[['CO_FIPS', 'FTCLASS', 'ClassLevel', 'calib_run', 'AWDT_Mod', 'AWDT_Obs', 'VMT_Mod', 'VMT_Obs']]
 
 allveh_abs_exact = allveh_abs_exact.melt(
-    id_vars = ['CO_FIPS','FTCLASS','ClassLevel'], 
-    value_vars = ['AWDT_Mod', 'AWDT_Obs', 'VMT_Mod', 'VMT_Obs'], 
+    id_vars = ['CO_FIPS','FTCLASS','ClassLevel','calib_run'],
+    value_vars = ['AWDT_Mod', 'AWDT_Obs', 'VMT_Mod', 'VMT_Obs'],
     var_name = 'DataSource',
     value_name = 'Value'
 )
@@ -1637,7 +1637,7 @@ allveh_abs_region = allveh_abs_exact[allveh_abs_exact['CO_FIPS'] == 99]
 # create summary comparison tables for ojs - long format for model vs observed comparison charts
 allveh_vol_long = allveh_vol.rename(columns={'AWDT_Mod':'Model','AWDT_Obs':'Observed'})
 allveh_vol_long = pd.melt(allveh_vol_long,
-                          id_vars =['CO_FIPS','FTCLASS','vehType','ClassLevel'], 
+                          id_vars =['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run'],
                           value_vars = ['Model', 'Observed'],
                           var_name = 'DataSource',
                           value_name = 'ViewValue')
@@ -1645,7 +1645,7 @@ allveh_vol_long['ViewValue'] = allveh_vol_long['ViewValue'] / 1000
 
 allveh_vmt_long = allveh_vmt.rename(columns={'VMT_Mod':'Model','VMT_Obs':'Observed'})
 allveh_vmt_long = pd.melt(allveh_vmt_long,
-                          id_vars =['CO_FIPS','FTCLASS','vehType','ClassLevel'], 
+                          id_vars =['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run'],
                           value_vars = ['Model', 'Observed'],
                           var_name = 'DataSource',
                           value_name = 'ViewValue')
@@ -1653,13 +1653,13 @@ allveh_vmt_long['ViewValue'] = allveh_vmt_long['ViewValue'] / 1000000
 
 # summary chart
 allveh_vol_diff_long = pd.melt(allveh_vol,
-                               id_vars =['CO_FIPS','FTCLASS','vehType','ClassLevel'], 
+                               id_vars =['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run'],
                                value_vars = ['volDiff', 'volDiffPct'],
                                var_name = 'View',
                                value_name = 'ViewValue')
 
 allveh_vmt_diff_long = pd.melt(allveh_vmt,
-                               id_vars =['CO_FIPS','FTCLASS','vehType','ClassLevel'], 
+                               id_vars =['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run'],
                                value_vars = ['vmtDiff', 'vmtDiffPct'],
                                var_name = 'View',
                                value_name = 'ViewValue')
@@ -1689,7 +1689,7 @@ max_abs_value_volDiffPct = round_up_to_next_significant(allveh_vol_diff_long.que
 max_abs_value_vmtDiffPct = round_up_to_next_significant(allveh_vmt_diff_long.query("View == 'vmtDiffPct'")['ViewValue'].abs().max())
 
 # scatter plot dataframe
-allvehplot = all_df[['SEGID','CO_FIPS','FTCLASS','vehType','AWDT_Mod','AWDT_Obs','volErrorPct']].copy()
+allvehplot = all_df[['SEGID','CO_FIPS','FTCLASS','vehType','calib_run','AWDT_Mod','AWDT_Obs','volErrorPct']].copy()
 allvehplot['AWDT_Mod'] = allvehplot['AWDT_Mod'] / 1000 # reduce so axis labels are shorter
 allvehplot['AWDT_Obs'] = allvehplot['AWDT_Obs'] / 1000 # reduce so axis labels are shorter
 
@@ -1752,13 +1752,15 @@ volDiffLongT_filtered = volDiffLongT.filter(function(dataL) {
     return bSummaryFTCLASS == dataL.FTCLASS &&
            bSummaryVehType == dataL.vehType &&
            (('vol' + bSummaryDiffType) == dataL.View) &&
-           dataL.ClassLevel == 'FTCLASS'; 
+           dataL.ClassLevel == 'FTCLASS' &&
+           dataL.calib_run == globalCalibRun;
 })
 vmtDiffLongT_filtered = vmtDiffLongT.filter(function(dataL) {
     return bSummaryFTCLASS == dataL.FTCLASS &&
            bSummaryVehType == dataL.vehType &&
            (('vmt' + bSummaryDiffType) == dataL.View) &&
-           dataL.ClassLevel == 'FTCLASS'; 
+           dataL.ClassLevel == 'FTCLASS' &&
+           dataL.calib_run == globalCalibRun;
 })
 
 vvp = transpose(vvpct)
@@ -1873,13 +1875,15 @@ vmtT = transpose(vmt)
 filtered_volData = volT.filter(function(dataL) {
     return bCountySelect == dataL.CO_FIPS &&
            bVehType == dataL.vehType &&
-           bClassLevel == dataL.ClassLevel; 
+           bClassLevel == dataL.ClassLevel &&
+           dataL.calib_run == globalCalibRun;
 }).sort((a, b) => sortOrder.indexOf(a.FTCLASS) - sortOrder.indexOf(b.FTCLASS));
 
 filtered_vmtData = vmtT.filter(function(dataL){
     return bCountySelect == dataL.CO_FIPS &&
            bVehType == dataL.vehType &&
-           bClassLevel == dataL.ClassLevel;
+           bClassLevel == dataL.ClassLevel &&
+           dataL.calib_run == globalCalibRun;
 }).sort((a, b) => sortOrder.indexOf(a.FTCLASS) - sortOrder.indexOf(b.FTCLASS));
 
 volTL = transpose(volLong)
@@ -1888,20 +1892,23 @@ vmtTL = transpose(vmtLong)
 filtered_volDataL = volTL.filter(function(dataL) {
     return bCountySelect == dataL.CO_FIPS &&
            bVehType == dataL.vehType &&
-           bClassLevel == dataL.ClassLevel;
+           bClassLevel == dataL.ClassLevel &&
+           dataL.calib_run == globalCalibRun;
 }).sort((a, b) => sortOrder.indexOf(a.FTCLASS) - sortOrder.indexOf(b.FTCLASS));
 
 filtered_vmtDataL = vmtTL.filter(function(dataL){
     return bCountySelect == dataL.CO_FIPS &&
            bVehType == dataL.vehType &&
-           bClassLevel == dataL.ClassLevel;
+           bClassLevel == dataL.ClassLevel &&
+           dataL.calib_run == globalCalibRun;
 }).sort((a, b) => sortOrder.indexOf(a.FTCLASS) - sortOrder.indexOf(b.FTCLASS));
 
 
 allvehplotT = transpose(allvehplot)
 filtered_allvehplotData = allvehplotT.filter(function(dataL) {
     return bCountySelect == dataL.CO_FIPS &&
-           bVehType == dataL.vehType;
+           bVehType == dataL.vehType &&
+           dataL.calib_run == globalCalibRun;
 });
 ```
 
@@ -1978,7 +1985,7 @@ bChartVol = GroupedBarChart(filtered_volDataL, {
     zDomain: ['Model','Observed'],
     width: 320,
     height: 175,
-    colors: ["#376092", "#77933c"]
+    colors: [themeModel, themeObserved]
 })
 ```
 
@@ -2037,7 +2044,7 @@ bChartVmt = GroupedBarChart(filtered_vmtDataL, {
     zDomain: ['Model','Observed'],
     width: 320,
     height: 175,
-    colors: ["#376092", "#77933c"]
+    colors: [themeModel, themeObserved]
 })
 ```
 
@@ -2082,7 +2089,7 @@ Plot.plot({
       x: "AWDT_Obs",
       y: "AWDT_Mod",
       r: 1,
-      fill: "rgb(80, 116, 230)",
+      fill: themeModel,
       fillOpacity: 0.5,
       stroke: "none"
     }),
@@ -2114,7 +2121,7 @@ Plot.plot({
     Plot.linearRegressionY(filtered_allvehplotData, {
         x: "AWDT_Obs",
         y: "AWDT_Mod",
-        stroke: "rgb(80, 116, 230)",
+        stroke: themeModel,
         strokeDasharray: "4 4",  // This creates a dashed line pattern,
         strokeWidth: 2
     })
@@ -2147,7 +2154,7 @@ Plot.plot({
       x: "AWDT_Obs",
       y: "volErrorPct",
       r: 1,
-      fill: "rgb(80, 116, 230)",
+      fill: themeModel,
       fillOpacity: 0.5,
       stroke: "none"
     }),
@@ -2404,9 +2411,14 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
     maxZoom: 19
   }).addTo(map);
 
-  // GeoJSON Layer
-  if (typeof vol_diff_geojson !== "undefined" && vol_diff_geojson && vol_diff_geojson.features) {
-    LM.geoJSON(vol_diff_geojson, {
+  // GeoJSON Layer -- vol_diff_geojson carries every calib_run's features
+  // together (one polyline per SEGID per run), so filter to the selected
+  // run before drawing, or every run's segments would overlap on the map.
+  const runFeatures = (typeof vol_diff_geojson !== "undefined" && vol_diff_geojson && vol_diff_geojson.features)
+    ? vol_diff_geojson.features.filter(f => f.properties.calib_run === globalCalibRun)
+    : [];
+  if (runFeatures.length) {
+    LM.geoJSON({type: "FeatureCollection", features: runFeatures}, {
       style: (feature) => {
         const val = feature.properties[activeCol]; // Use dynamic column
         const ft = feature.properties.FTCLASS;
@@ -2787,11 +2799,12 @@ Plot.plot({
   marginBottom: 120,
   marginLeft: 60,
   grid: true,
+  style: { fontFamily: "Inter, system-ui, sans-serif" },
 
   color: {
     legend: true,
     domain: ["Modeled", "Observed Mean", "Observed Distribution"],
-    range: ["#376092",  "#77933c", "#c8d6a3"]
+    range: [themeModel,  themeObserved, themeObservedLight]
   },
 
   fx: {
@@ -2810,12 +2823,12 @@ Plot.plot({
     plot_type === "Absolute" ? [
        // The Violin Plot
        Plot.areaX(plot_data, Plot.binY({ x1: bin => -bin.length, x2: "count" }, {
-           y: "obs_val", fx: "CO_SEG", fill: "#c8d6a3", fillOpacity: 0.7, curve: "basis", thresholds: 15
+           y: "obs_val", fx: "CO_SEG", fill: themeObservedLight, fillOpacity: 0.7, curve: "basis", thresholds: 15
        })),
 
        // Observed Mean Dot
        Plot.dot(plot_data, {
-           y: "mean_obs", fx: "CO_SEG", x: 0, fill: "#77933c", r: 4.5, symbol: "circle",
+           y: "mean_obs", fx: "CO_SEG", x: 0, fill: themeObserved, r: 4.5, symbol: "circle",
            // UNIFIED TOOLTIP (Shows all info)
            title: d => `Segment: ${d.CO_SEG}\nObserved Mean: ${Math.round(d.mean_obs)}\nModeled Value: ${Math.round(d.mod_val)}\nDifference: ${Math.round(d.mod_val - d.mean_obs)}`,
            tip: true
@@ -2823,7 +2836,7 @@ Plot.plot({
 
        // Model Value Dot
        Plot.dot(plot_data, {
-           y: "mod_val", fx: "CO_SEG", x: 0, fill: "#376092", r: 5, stroke: "white",
+           y: "mod_val", fx: "CO_SEG", x: 0, fill: themeModel, r: 5, stroke: "white",
            // UNIFIED TOOLTIP (Exact same as above, so it doesn't matter which dot you hit!)
            title: d => `Segment: ${d.CO_SEG}\nObserved Mean: ${Math.round(d.mean_obs)}\nModeled Value: ${Math.round(d.mod_val)}\nDifference: ${Math.round(d.mod_val - d.mean_obs)}`,
            tip: true
@@ -2842,12 +2855,12 @@ Plot.plot({
 
        // The Relative Violin Plot
        Plot.areaX(plot_data, Plot.binY({ x1: bin => -bin.length, x2: "count" }, {
-           y: "diff_from_mean", fx: "CO_SEG", fill: "#c8d6a3", fillOpacity: 0.7, curve: "basis", thresholds: 15
+           y: "diff_from_mean", fx: "CO_SEG", fill: themeObservedLight, fillOpacity: 0.7, curve: "basis", thresholds: 15
        })),
 
        // Observed Mean Anchor Dot
        Plot.dot(plot_data, {
-           y: 0, fx: "CO_SEG", x: 0, fill: "#77933c", r: 4.5, symbol: "circle",
+           y: 0, fx: "CO_SEG", x: 0, fill: themeObserved, r: 4.5, symbol: "circle",
            // UNIFIED TOOLTIP
            title: d => `Segment: ${d.CO_SEG}\nObserved Mean: ${Math.round(d.mean_obs)}\nModeled Value: ${Math.round(d.mod_val)}\nDifference: ${Math.round(d.model_diff)}`,
            tip: true
@@ -2855,7 +2868,7 @@ Plot.plot({
 
        // Model Difference Dot
        Plot.dot(plot_data, {
-           y: "model_diff", fx: "CO_SEG", x: 0, fill: "#376092", r: 5, stroke: "white",
+           y: "model_diff", fx: "CO_SEG", x: 0, fill: themeModel, r: 5, stroke: "white",
            // UNIFIED TOOLTIP
            title: d => `Segment: ${d.CO_SEG}\nObserved Mean: ${Math.round(d.mean_obs)}\nModeled Value: ${Math.round(d.mod_val)}\nDifference: ${Math.round(d.model_diff)}`,
            tip: true
@@ -2921,9 +2934,9 @@ map_display2 = {
 
       let finalColor = "#999999";
       if (stats) {
-          if (stats.pct_err > 15) finalColor = "#d9534f";
-          else if (stats.pct_err < -15) finalColor = "#376092";
-          else finalColor = "#77933c";
+          if (stats.pct_err > 15) finalColor = themeDanger;
+          else if (stats.pct_err < -15) finalColor = themeModel;
+          else finalColor = themeObserved;
       }
       return { color: finalColor, weight: 6, opacity: 0.9 };
     },
@@ -2932,7 +2945,7 @@ map_display2 = {
       const stats = map_stats.get(segid);
 
       if (stats) {
-          const diffColor = stats.diff > 0 ? '#d9534f' : '#376092';
+          const diffColor = stats.diff > 0 ? themeDanger : themeModel;
           layer.bindPopup(`<div style="font-family: sans-serif; min-width: 180px;">
              <strong>Segment: ${segid}</strong><hr style="margin:4px 0; border:0; border-top:1px solid #eee;">
              Observed Mean: <b>${Math.round(stats.mean_obs).toLocaleString()}</b><br/>
@@ -2968,9 +2981,9 @@ map_display2 = {
       // Match the color of the segment
       let finalColor = "#1e1e1e";
       if (stats) {
-          if (stats.pct_err > 15) finalColor = "#d9534f"; // Red
-          else if (stats.pct_err < -15) finalColor = "#376092"; // Blue
-          else finalColor = "#77933c"; // Green
+          if (stats.pct_err > 15) finalColor = themeDanger; // over threshold
+          else if (stats.pct_err < -15) finalColor = themeModel; // under threshold
+          else finalColor = themeObserved; // within tolerance
       }
 
       // Draw a nice crisp circle
@@ -2989,7 +3002,7 @@ map_display2 = {
       const stats = map_stats.get(segid);
 
       if (stats) {
-          const diffColor = stats.diff > 0 ? '#d9534f' : '#376092';
+          const diffColor = stats.diff > 0 ? themeDanger : themeModel;
           layer.bindPopup(`<div style="font-family: sans-serif; min-width: 180px;">
              <strong>Station: ${station}</strong><br>
              <span style="color:#666; font-size:11px;">Segment: ${segid}</span>
@@ -3164,7 +3177,7 @@ Plot.plot({
       x: "tmeObs", 
       y: "tmeMod", 
       r: 3.5,
-      fill: "rgb(80, 116, 230)", 
+      fill: themeModel, 
       fillOpacity: 0.5,
       stroke: "white",
       strokeWidth: 0.5,
@@ -3179,7 +3192,7 @@ Plot.plot({
     Plot.line([{ x: 0, y: 0 }, { x: chartMaxTime, y: yMaxLine }], {
       x: "x",
       y: "y",
-      stroke: "rgb(80, 116, 230)", 
+      stroke: themeModel, 
       strokeDasharray: "4 4",
       strokeWidth: 2
     })
@@ -3206,7 +3219,7 @@ Plot.plot({
       x: "tmeObs", 
       y: "tmeErrorPct", 
       r: 3.5,
-      fill: "rgb(80, 116, 230)", 
+      fill: themeModel, 
       fillOpacity: 0.5,
       stroke: "white",
       strokeWidth: 0.5,

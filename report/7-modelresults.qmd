@@ -30,6 +30,7 @@ config_paths = {
 ```
 
 {{< include _calib_run_selector.qmd >}}
+{{< include _chart_theme.qmd >}}
 
 ## Access to CRT Stations
 
@@ -288,7 +289,7 @@ Plot.plot({
 
   color: {
     domain: ["Observed", "Modeled"],
-    range: ["#77933c", "#376092"],
+    range: [themeObserved, themeModel],
     legend: true
   },
 
@@ -302,7 +303,7 @@ Plot.plot({
         weight: "boarding_weight",
         thresholds: 50,
         curve: "basis",
-        fill: "#376092",
+        fill: themeModel,
         fillOpacity: 0.5,
         sort: { fy: null }
       }
@@ -316,12 +317,12 @@ Plot.plot({
         weight: "boarding_weight",
         thresholds: 50,
         curve: "basis",
-        stroke: "#376092",
+        stroke: themeModel,
         strokeWidth: 1.5
       }
     )) : null,
 
-    // --- OBSERVED LAYER (Green) ---
+    // --- OBSERVED LAYER (Amber) ---
     layersInput.includes("Observed") ? Plot.areaY(filteredObs, Plot.binX(
       { y: "sum" },
       {
@@ -330,7 +331,7 @@ Plot.plot({
         weight: "boarding_weight",
         thresholds: 50,
         curve: "basis",
-        fill: "#77933c",
+        fill: themeObserved,
         fillOpacity: 0.5,
         sort: { fy: null }
       }
@@ -344,7 +345,7 @@ Plot.plot({
         weight: "boarding_weight",
         thresholds: 50,
         curve: "basis",
-        stroke: "#77933c",
+        stroke: themeObserved,
         strokeWidth: 1.5
       }
     )) : null,
@@ -359,7 +360,7 @@ Plot.plot({
         x: metricInfo.col,
         fy: "Stop_Name",
         weight: "boarding_weight",
-        stroke: "#376092",
+        stroke: themeModel,
         strokeWidth: 2,
         strokeDasharray: "4,2",
         tip: {
@@ -381,7 +382,7 @@ Plot.plot({
         x: metricInfo.col,
         fy: "Stop_Name",
         weight: "boarding_weight",
-        stroke: "#77933c",
+        stroke: themeObserved,
         strokeWidth: 2,
         strokeDasharray: "4,2",
         tip: {
