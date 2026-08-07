@@ -89,6 +89,16 @@ def resolved_driver_script(calib_run: dict) -> str:
 
 
 def resolved_output_spec(framework: dict, calib_run: dict) -> dict:
+    """Resolve a calibration run's effective output-curation spec.
+
+    include/max_file_size_mb both fall back to config/framework.yaml's
+    outputs section when a calibration run doesn't declare its own -- the
+    default include list matches the raw TDM Scenario folder layout that a
+    live `tdmcalib run` produces, so most calibration runs never need to
+    declare their own. A run only needs its own `include` when its raw output
+    lives at different paths (e.g. a manually-imported historical run whose
+    archive used a different folder layout than the live TDM output).
+    """
     spec = calib_run.get("outputs", {})
     max_mb = spec.get("max_file_size_mb", framework["outputs"]["max_file_size_mb"])
     if max_mb > framework["outputs"]["max_file_size_mb"]:
@@ -96,7 +106,8 @@ def resolved_output_spec(framework: dict, calib_run: dict) -> dict:
             f"max_file_size_mb ({max_mb}) exceeds the framework-wide ceiling "
             f"({framework['outputs']['max_file_size_mb']}) set in config/framework.yaml."
         )
-    return {"include": spec.get("include", []), "max_file_size_mb": max_mb}
+    include = spec.get("include", framework["outputs"].get("include", []))
+    return {"include": include, "max_file_size_mb": max_mb}
 
 
 def resolved_manual_run_folder(

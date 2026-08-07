@@ -1,18 +1,15 @@
 #========================================================================================
 # calibration_runs/C50.yaml
 #
-# outputs.include below is built from tdm/2_ModelScripts/_Python/
-# pp_ValidationDocumentation.py's own copy_files list (the TDM's existing,
-# working post-processing step, which normally copies these same raw files
-# into WF-TDM-Documentation -- this repo's own pipeline never runs that
-# script itself, see config/framework.yaml's scenario_folder_template comment,
-# but its copy_files list is still the best record of where the TDM actually
-# writes each file within a run's working folder). Filenames/paths/matrix
-# tab names have been cross-checked against a real archived calibration
-# run's converted output (F:\SHARED\Chris\large_files_calibration\v1000\
-# v1000-C33\, imported here as calibration_runs/C33.yaml) but this exact
-# config has NOT yet been exercised end to end against a live `tdmcalib run
-# --run C50` -- adjust after the first real run if anything doesn't match.
+# This run declares no outputs section of its own -- it uses
+# config/framework.yaml's default outputs.include/max_file_size_mb, which is
+# built from tdm/2_ModelScripts/_Python/pp_ValidationDocumentation.py's own
+# copy_files list (the TDM's existing, working post-processing step, which
+# normally copies these same raw files into WF-TDM-Documentation -- this
+# repo's own pipeline never runs that script itself, see
+# config/framework.yaml's scenario_folder_template comment, but its
+# copy_files list is still the best record of where the TDM actually writes
+# each file within a run's working folder).
 #========================================================================================
 calib_run_id: C50
 author: ""
@@ -30,102 +27,6 @@ overrides:
   UserCompany: "WFRC"
   keyOutputPrfx: "_"
 
-outputs:
-  max_file_size_mb: 95
-  include:
-    - datafile: "0_InputProcessing/SE_File.dbf"
-    - datafile: "1_HHDisag_AutoOwn/Joint_HHSize_Income_Worker.dbf"
-    - datafile: "1_HHDisag_AutoOwn/VO_HHSize_VehOwn.dbf"
-    - datafile: "1_HHDisag_AutoOwn/VO_HH1_IncLoHi_Worker_VehOwn.dbf"
-    - datafile: "1_HHDisag_AutoOwn/VO_HH2_IncLoHi_Worker_VehOwn.dbf"
-    - datafile: "1_HHDisag_AutoOwn/VO_HH3_IncLoHi_Worker_VehOwn.dbf"
-    - datafile: "1_HHDisag_AutoOwn/VO_HH4_IncLoHi_Worker_VehOwn.dbf"
-    - datafile: "1_HHDisag_AutoOwn/VO_HH5_IncLoHi_Worker_VehOwn.dbf"
-    - datafile: "1_HHDisag_AutoOwn/VO_HH6_IncLoHi_Worker_VehOwn.dbf"
-    - datafile: "3_Distribute/pa_final.csv"
-    - datafile: "3_Distribute/SumToDistricts/DISTLRG_PA_Gravity_AllPurp.csv"
-    - datafile: "3_Distribute/TLF/TLF_Cost.csv"
-    - datafile: "3_Distribute/TLF/TLF_Dist.csv"
-    - datafile: "3_Distribute/TLF/TLF_Time.csv"
-    - datafile: "4_ModeChoice/5_DistrictSummary/DISTLRG_PA_AllPurp.csv"
-    - datafile: "4_ModeChoice/2_DetailedTripMatrices/IMZ_TripTotals.csv"
-    - datafile: "4_ModeChoice/3_TransitAssign/_transit_brding_summary_node.csv"
-    - datafile: "4_ModeChoice/3_TransitAssign/_transit_rider_summary_link.csv"
-    - datafile: "4_ModeChoice/4_Shares/*RegionShares_Ok.csv"
-    - datafile: "4_ModeChoice/4_Shares/*RegionShares_Pk.csv"
-    - datafile: "5_AssignHwy/4_Summaries/*Summary_SEGID.csv"
-    - datafile: "5_AssignHwy/4_Summaries/*Summary_SEGID_Detailed.csv"
-    # Matrix conversions (Cube .MTX -> .omx). source_format defaults to "mtx"
-    # (Cube's native format, the real Scenarios/C50/ working folder's actual
-    # output -- this repo's pipeline deliberately never runs
-    # pp_ValidationDocumentation.py's own CONVERTMAT step, see
-    # config/framework.yaml's scenario_folder_template comment) -- requires
-    # config/local.yaml's Voyager_EXE to be set at curation time. format is
-    # the destination format written to runs/; explicit here even though
-    # "omx" is also the default, so intent isn't left implicit.
-    #
-    # GP_IVT added alongside GP_Dist on the Skm_*.MTX entries -- confirmed
-    # present (via a real archived run's converted skims) for
-    # 4-assignhwy.qmd's OD travel-time section.
-    - matrix: "3_Distribute/PA_AllPurp_GRAVITY.MTX"
-      tabs: [HBW, HBShp, HBOth, HBSch_Pr, HBSch_Sc, HBC, NHBW, NHBNW]
-      format: omx
-    - matrix: "3_Distribute/skm_DY_GC.MTX"
-      tabs: [HBW, HBShp, HBOth, NHBW, NHBNW, HBS, LT, MD, HV, Ext]
-      format: omx
-    - matrix: "3_Distribute/skm_DY_Dist.MTX"
-      tabs: [HBW, HBShp, HBOth, NHBW, NHBNW, HBS, LT, MD, HV, Ext]
-      format: omx
-    - matrix: "5_AssignHwy/5_FinalNetSkims/Skm_AM.MTX"
-      tabs: [GP_Dist, GP_IVT]
-      format: omx
-    - matrix: "5_AssignHwy/5_FinalNetSkims/Skm_MD.MTX"
-      tabs: [GP_Dist, GP_IVT]
-      format: omx
-    - matrix: "5_AssignHwy/5_FinalNetSkims/Skm_PM.MTX"
-      tabs: [GP_Dist, GP_IVT]
-      format: omx
-    - matrix: "5_AssignHwy/5_FinalNetSkims/Skm_EV.MTX"
-      tabs: [GP_Dist, GP_IVT]
-      format: omx
-    # Previously missing entirely (not just unconfirmed tabs) -- needed by
-    # 2-distribution.qmd's HBW-by-vehicle/income section. Tab name ("trips")
-    # confirmed via a real archived run's converted copies.
-    - matrix: "Temp/4_ModeChoice/pa_HBW_0veh_hi.MTX"
-      tabs: [trips]
-      format: omx
-    - matrix: "Temp/4_ModeChoice/pa_HBW_0veh_lo.MTX"
-      tabs: [trips]
-      format: omx
-    - matrix: "Temp/4_ModeChoice/pa_HBW_1veh_hi.MTX"
-      tabs: [trips]
-      format: omx
-    - matrix: "Temp/4_ModeChoice/pa_HBW_1veh_lo.MTX"
-      tabs: [trips]
-      format: omx
-    - matrix: "Temp/4_ModeChoice/pa_HBW_2veh_hi_noXI.MTX"
-      tabs: [trips]
-      format: omx
-    - matrix: "Temp/4_ModeChoice/pa_HBW_2veh_lo_noXI.MTX"
-      tabs: [trips]
-      format: omx
-    # Previously flagged as unconfirmed -- tab names ("wCRT"/"dCRT" on
-    # AllTrips_*, "D8" on skm_w8/d8_*) confirmed via a real archived run.
-    - matrix: "4_ModeChoice/2_DetailedTripMatrices/AllTrips_Pk.MTX"
-      tabs: [wCRT, dCRT]
-      format: omx
-    - matrix: "4_ModeChoice/2_DetailedTripMatrices/AllTrips_Ok.MTX"
-      tabs: [wCRT, dCRT]
-      format: omx
-    - matrix: "4_ModeChoice/1a_Skims/skm_w8_Pk.MTX"
-      tabs: [D8]
-      format: omx
-    - matrix: "4_ModeChoice/1a_Skims/skm_w8_Ok.MTX"
-      tabs: [D8]
-      format: omx
-    - matrix: "4_ModeChoice/1a_Skims/skm_d8_Pk.MTX"
-      tabs: [D8]
-      format: omx
-    - matrix: "4_ModeChoice/1a_Skims/skm_d8_Ok.MTX"
-      tabs: [D8]
-      format: omx
+# No outputs section: this run's raw output matches the raw TDM Scenario
+# folder layout, so it uses config/framework.yaml's default outputs.include
+# (and default max_file_size_mb) as-is.

@@ -61,10 +61,109 @@ execution:
   args: ["{control_center_path}", "{scenario_folder}"]
   timeout_seconds: 86400
 
-# Output curation. An individual calibration run's config may override
-# max_file_size_mb, but never above this hard ceiling.
+# Output curation defaults, shared across calibration runs.
+#
+# max_file_size_mb: an individual calibration run's config may override this,
+# but never above this hard ceiling.
+#
+# include: the default curation list, matching the raw TDM Scenario folder
+# layout (0_InputProcessing/, 1_HHDisag_AutoOwn/, 3_Distribute/,
+# 4_ModeChoice/, 5_AssignHwy/) that a live `tdmcalib run` produces -- see
+# tdm/2_ModelScripts/_Python/pp_ValidationDocumentation.py's copy_files list,
+# whose *source* paths are this same raw layout (its *destination* paths are
+# a differently-named staging layout used only for WF-TDM-Documentation
+# renders, which this repo's pipeline never runs). A calibration run only
+# needs its own outputs.include when its raw output doesn't match this raw
+# layout -- e.g. calibration_runs/C33.yaml, imported from an archive of that
+# staging layout rather than a live run's raw output.
 outputs:
-  max_file_size_mb: 100
+  max_file_size_mb: 95
+  include:
+    - datafile: "0_InputProcessing/SE_File.dbf"
+    - datafile: "1_HHDisag_AutoOwn/Joint_HHSize_Income_Worker.dbf"
+    - datafile: "1_HHDisag_AutoOwn/VO_HHSize_VehOwn.dbf"
+    - datafile: "1_HHDisag_AutoOwn/VO_HH1_IncLoHi_Worker_VehOwn.dbf"
+    - datafile: "1_HHDisag_AutoOwn/VO_HH2_IncLoHi_Worker_VehOwn.dbf"
+    - datafile: "1_HHDisag_AutoOwn/VO_HH3_IncLoHi_Worker_VehOwn.dbf"
+    - datafile: "1_HHDisag_AutoOwn/VO_HH4_IncLoHi_Worker_VehOwn.dbf"
+    - datafile: "1_HHDisag_AutoOwn/VO_HH5_IncLoHi_Worker_VehOwn.dbf"
+    - datafile: "1_HHDisag_AutoOwn/VO_HH6_IncLoHi_Worker_VehOwn.dbf"
+    - datafile: "3_Distribute/pa_final.csv"
+    - datafile: "3_Distribute/SumToDistricts/DISTLRG_PA_Gravity_AllPurp.csv"
+    - datafile: "3_Distribute/TLF/TLF_Cost.csv"
+    - datafile: "3_Distribute/TLF/TLF_Dist.csv"
+    - datafile: "3_Distribute/TLF/TLF_Time.csv"
+    - datafile: "4_ModeChoice/5_DistrictSummary/DISTLRG_PA_AllPurp.csv"
+    - datafile: "4_ModeChoice/2_DetailedTripMatrices/IMZ_TripTotals.csv"
+    - datafile: "4_ModeChoice/3_TransitAssign/_transit_brding_summary_node.csv"
+    - datafile: "4_ModeChoice/3_TransitAssign/_transit_rider_summary_link.csv"
+    - datafile: "4_ModeChoice/4_Shares/*RegionShares_Ok.csv"
+    - datafile: "4_ModeChoice/4_Shares/*RegionShares_Pk.csv"
+    - datafile: "5_AssignHwy/4_Summaries/*Summary_SEGID.csv"
+    - datafile: "5_AssignHwy/4_Summaries/*Summary_SEGID_Detailed.csv"
+    # Matrix conversions (Cube .MTX -> .omx). source_format defaults to "mtx"
+    # (Cube's native format, the real Scenarios/{calib_run_id}/ working
+    # folder's actual output) -- requires config/local.yaml's Voyager_EXE to
+    # be set at curation time. format is the destination format written to
+    # runs/; explicit here even though "omx" is also the default, so intent
+    # isn't left implicit.
+    - matrix: "3_Distribute/PA_AllPurp_GRAVITY.MTX"
+      tabs: [HBW, HBShp, HBOth, HBSch_Pr, HBSch_Sc, HBC, NHBW, NHBNW]
+      format: omx
+    - matrix: "3_Distribute/skm_DY_GC.MTX"
+      tabs: [HBW, HBShp, HBOth, NHBW, NHBNW, HBS, LT, MD, HV, Ext]
+      format: omx
+    - matrix: "3_Distribute/skm_DY_Dist.MTX"
+      tabs: [HBW, HBShp, HBOth, NHBW, NHBNW, HBS, LT, MD, HV, Ext]
+      format: omx
+    - matrix: "5_AssignHwy/5_FinalNetSkims/Skm_AM.MTX"
+      tabs: [GP_Dist, GP_IVT]
+      format: omx
+    - matrix: "5_AssignHwy/5_FinalNetSkims/Skm_MD.MTX"
+      tabs: [GP_Dist, GP_IVT]
+      format: omx
+    - matrix: "5_AssignHwy/5_FinalNetSkims/Skm_PM.MTX"
+      tabs: [GP_Dist, GP_IVT]
+      format: omx
+    - matrix: "5_AssignHwy/5_FinalNetSkims/Skm_EV.MTX"
+      tabs: [GP_Dist, GP_IVT]
+      format: omx
+    - matrix: "Temp/4_ModeChoice/pa_HBW_0veh_hi.MTX"
+      tabs: [trips]
+      format: omx
+    - matrix: "Temp/4_ModeChoice/pa_HBW_0veh_lo.MTX"
+      tabs: [trips]
+      format: omx
+    - matrix: "Temp/4_ModeChoice/pa_HBW_1veh_hi.MTX"
+      tabs: [trips]
+      format: omx
+    - matrix: "Temp/4_ModeChoice/pa_HBW_1veh_lo.MTX"
+      tabs: [trips]
+      format: omx
+    - matrix: "Temp/4_ModeChoice/pa_HBW_2veh_hi_noXI.MTX"
+      tabs: [trips]
+      format: omx
+    - matrix: "Temp/4_ModeChoice/pa_HBW_2veh_lo_noXI.MTX"
+      tabs: [trips]
+      format: omx
+    - matrix: "4_ModeChoice/2_DetailedTripMatrices/AllTrips_Pk.MTX"
+      tabs: [wCRT, dCRT]
+      format: omx
+    - matrix: "4_ModeChoice/2_DetailedTripMatrices/AllTrips_Ok.MTX"
+      tabs: [wCRT, dCRT]
+      format: omx
+    - matrix: "4_ModeChoice/1a_Skims/skm_w8_Pk.MTX"
+      tabs: [D8]
+      format: omx
+    - matrix: "4_ModeChoice/1a_Skims/skm_w8_Ok.MTX"
+      tabs: [D8]
+      format: omx
+    - matrix: "4_ModeChoice/1a_Skims/skm_d8_Pk.MTX"
+      tabs: [D8]
+      format: omx
+    - matrix: "4_ModeChoice/1a_Skims/skm_d8_Ok.MTX"
+      tabs: [D8]
+      format: omx
 
 # Run metadata schema version this version of the framework writes. Bump this,
 # and add a migration note, if the metadata shape changes.
