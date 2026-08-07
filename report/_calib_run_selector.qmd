@@ -53,9 +53,12 @@ viewof globalCalibRun = {
   const stored = window.localStorage.getItem("tdmcalib:selectedRun");
   const initial = options.includes(stored) ? stored : latestRun;
   const input = Inputs.select(options, {label: "Calibration Run:", value: initial});
-  // Inputs.select nests the <select> inside the <label>, so the label text
-  // and dropdown share a line by default -- force them onto separate lines.
-  input.querySelector("label")?.insertBefore(document.createElement("br"), input.querySelector("select"));
+  // Inputs.select renders the label text and <select> on the same line by
+  // default -- force them onto separate lines. Insert relative to the
+  // select's actual parent (not assumed to be the <label>, which varies by
+  // Inputs version) so this doesn't throw if they aren't nested.
+  const selectEl = input.querySelector("select");
+  selectEl?.parentNode.insertBefore(document.createElement("br"), selectEl);
   input.classList.add("calib-run-bar");
   input.addEventListener("input", () => {
     window.localStorage.setItem("tdmcalib:selectedRun", input.value);
