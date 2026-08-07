@@ -113,7 +113,7 @@ def load_mod_trips_dist_gc(calib_run: str, outputs_dir: Path, repo_root: Path) -
     obs_trips = _extract_omx_to_df(
         repo_root / SKM_OBS_OMX,
         PURP_MATS_OBS + TRUCK_MATS_OBS + EXT_MATS_OBS,
-        "Trips_Obs",
+        "Trips_Tgt",
         rename_dict=OBS_TRIP_MAP,
     )
 
@@ -128,7 +128,7 @@ def load_mod_trips_dist_gc(calib_run: str, outputs_dir: Path, repo_root: Path) -
 
     df = pd.merge(mod_trips, obs_trips, on=["i", "j", "Purpose"], how="outer")
     df["Trips_Mod"] = df["Trips_Mod"].fillna(0)
-    df["Trips_Obs"] = df["Trips_Obs"].fillna(0)
+    df["Trips_Tgt"] = df["Trips_Tgt"].fillna(0)
 
     df["Skim_Purpose"] = df["Purpose"].apply(lambda x: SKIM_JOIN_MAP.get(x, x))
     mod_dist = mod_dist.rename(columns={"Purpose": "Skim_Purpose"})

@@ -11,24 +11,25 @@ one palette used everywhere -- muted/earthy tones (denim, red rock,
 sagebrush, aspen) rather than saturated web-safe colors. Meaning stays
 consistent site-wide:
 
-  themeModel          Modeled data, always
-  themeObserved       Observed/survey data (primary source)
-  themeObservedAlt    A second, distinct observed source in the same chart
-                       (e.g. an older survey year shown alongside a newer one)
-  themeObservedLight  Faded/secondary variant of Observed (e.g. a
-                       distribution band behind an Observed mean marker)
-  themeAccent         Extra category beyond Model/Observed (e.g. a
-                       calibration target line)
-  themeNeutral        Neutral/reference series, not itself Model or Observed
-  themeDanger         Over-threshold / error highlight
+  themeModel        Modeled data, always
+  themeTarget       Target/comparison-baseline data (primary source, e.g.
+                     survey, count, or calibration target)
+  themeTargetAlt    A second, distinct target source in the same chart
+                     (e.g. an older survey year shown alongside a newer one)
+  themeTargetLight  Faded/secondary variant of Target (e.g. a
+                     distribution band behind a Target mean marker)
+  themeAccent       Extra category beyond Model/Target (e.g. a
+                     calibration target line)
+  themeNeutral      Neutral/reference series, not itself Model or Target
+  themeDanger       Over-threshold / error highlight
 -->
 
 ```{ojs}
 //| echo: false
 themeModel = "#6E8CA0"
-themeObserved = "#C68958"
-themeObservedAlt = "#7C9A78"
-themeObservedLight = "#E6D6B8"
+themeTarget = "#C68958"
+themeTargetAlt = "#7C9A78"
+themeTargetLight = "#E6D6B8"
 themeAccent = "#8B7398"
 themeNeutral = "#7D7568"
 themeDanger = "#A8412C"

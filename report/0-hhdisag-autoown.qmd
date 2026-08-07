@@ -194,7 +194,7 @@ df_hts_agg_p1 = (
 )
 ```
 
-### Modeled vs. Observed
+### Modeled vs. Target
 
 ```{python}
 # ==============================================================================
@@ -350,8 +350,8 @@ hh_agg_facet = {
 
 hh_xy_cfg = {
   const fm = {
-    "PUMS":    { field: "Observed_Count", pctField: "Observed_Pct", label: "Observed (PUMS)", color: themeObserved },
-    "HTS":     { field: "HTS_Count",      pctField: "HTS_Pct",      label: "Observed (HTS)",  color: themeObservedAlt  },
+    "PUMS":    { field: "Observed_Count", pctField: "Observed_Pct", label: "Target (PUMS)", color: themeTarget },
+    "HTS":     { field: "HTS_Count",      pctField: "HTS_Pct",      label: "Target (HTS)",  color: themeTargetAlt  },
     "Modeled": { field: "Modeled_Count",  pctField: "Modeled_Pct",  label: "Modeled",          color: themeModel  }
   };
   const errMap = {
@@ -514,8 +514,8 @@ Plot.plot({
         `<i style="font-size:10px;color:#666">${hh_xy_cfg.yCfg.label} vs. ${hh_xy_cfg.xCfg.label}</i><br>` +
         `Pct Error: ${noData ? "N/A" : (err * 100).toFixed(1) + "%"}<br>` +
         `Modeled: ${d3.format(",.0f")(p.Modeled_Count)}<br>` +
-        `Observed (PUMS): ${d3.format(",.0f")(p.Observed_Count)}<br>` +
-        `Observed (HTS): ${d3.format(",.0f")(p.HTS_Count)}`
+        `Target (PUMS): ${d3.format(",.0f")(p.Observed_Count)}<br>` +
+        `Target (HTS): ${d3.format(",.0f")(p.HTS_Count)}`
       );
       layer.on("mouseover", () => layer.setStyle({fillOpacity: 0.95, weight: 2}));
       layer.on("mouseout",  () => geojsonLayer.resetStyle(layer));
@@ -860,7 +860,7 @@ ojs_define(
 )
 ```
 
-### Modeled vs. Observed
+### Modeled vs. Target
 
 ```{ojs}
 // Sorted unique facet dimension values (fixed to match ACS/model categories)
@@ -949,8 +949,8 @@ vo_agg_facet = {
 
 vo_xy_cfg = {
   const fm = {
-    "ACS":     { field: "ACS_HH",   pctField: "ACS_Pct",    label: "Observed (ACS)", color: themeObserved },
-    "HTS":     { field: "HTS_HH",   pctField: "HTS_Pct_vo", label: "Observed (HTS)", color: themeObservedAlt   },
+    "ACS":     { field: "ACS_HH",   pctField: "ACS_Pct",    label: "Target (ACS)", color: themeTarget },
+    "HTS":     { field: "HTS_HH",   pctField: "HTS_Pct_vo", label: "Target (HTS)", color: themeTargetAlt   },
     "Modeled": { field: "Model_HH", pctField: "Model_Pct",  label: "Modeled",        color: themeModel    }
   };
   const errMap = {
@@ -1118,8 +1118,8 @@ Plot.plot({
         `<i style="font-size:10px;color:#666">${vo_xy_cfg.yCfg.label} vs. ${vo_xy_cfg.xCfg.label}</i><br>` +
         `Pct Error: ${noData ? "N/A" : (err * 100).toFixed(1) + "%"}<br>` +
         `Modeled: ${d3.format(",.0f")(p.Model_HH)}<br>` +
-        `Observed (ACS): ${d3.format(",.0f")(p.ACS_HH)}<br>` +
-        `Observed (HTS): ${d3.format(",.0f")(p.HTS_HH)}`
+        `Target (ACS): ${d3.format(",.0f")(p.ACS_HH)}<br>` +
+        `Target (HTS): ${d3.format(",.0f")(p.HTS_HH)}`
       );
       layer.on("mouseover", () => layer.setStyle({fillOpacity: 0.95, weight: 2}));
       layer.on("mouseout",  () => geojsonLayer.resetStyle(layer));

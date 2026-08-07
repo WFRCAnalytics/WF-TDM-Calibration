@@ -143,7 +143,7 @@ def plot_volume_diff(dfFiltered, varVehType, segShp):
     import contextily as ctx
     import matplotlib.pyplot as plt
 
-    dfFiltered["diff"] = round(dfFiltered["AWDT_Mod"] - dfFiltered["AWDT_Obs"], 1)
+    dfFiltered["diff"] = round(dfFiltered["AWDT_Mod"] - dfFiltered["AWDT_Tgt"], 1)
 
     dfShp = segShp.merge(dfFiltered, on="SEGID")
 

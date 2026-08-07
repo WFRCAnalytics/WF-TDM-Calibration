@@ -26,7 +26,7 @@ import openpyxl
 repo_root = Path("..")
 calib_runs = vs.list_available_runs(repo_root)
 
-# static reference / shared observed paths (not run-specific) -- per-run
+# static reference / shared target paths (not run-specific) -- per-run
 # filenames (Summary_SEGID(_Detailed).csv, carrying a Cube-generated
 # `___{runId}___` prefix -- see 3-modechoice.qmd's note) are resolved inside
 # the per-run loader functions below, against each run's own outputs_dir
@@ -38,6 +38,7 @@ config_paths = {
     "path_in_ccs_counts": r"data/4-assignhwy/UDOT_VehicleClassificationCounts/JKLP_Length_WFRC_2023_Sept_Nov.csv",
     "path_in_ccs_split_factors": r"data/4-assignhwy/UDOT_VehicleClassificationCounts/LT_MD_HV_Split_Factors_2025.csv",
     "path_in_ccs_reclass_ratio": r"data/4-assignhwy/UDOT_VehicleClassificationCounts/CCS_Reclass_Ratio_2025_2003.csv",
+    "path_in_vmt_targets": r"data/4-assignhwy/VMT_Targets_by_SuperDistrict_FacilityType.csv",
     "path_in_ccs_daily": r"../inputs/CCS_Observed_Counts_Raw.csv",
     "path_in_ccs_locations": r"data/4-assignhwy/UDOT_VehicleClassificationCounts/SiteData.csv",
     "google_speeds_mag": r"data/4-assignhwy/google-api-speeds/MAG/both_time_*_2023.csv",
@@ -99,7 +100,7 @@ if not Path(config_paths['geojson_file']).exists():
 
 ## Volume Validation
 
-### Observed Traffic Counts (CCS)
+### Target Traffic Counts (CCS)
 
 ```{python}
 # | label: ccs-region
@@ -303,7 +304,7 @@ df_obs_tidy = (
     .mean()
     .reset_index()
     # C. Melt -> Tidy Format
-    .melt(id_vars=["SITE", "PERIOD"], var_name="TYPE_RAW", value_name="OBSERVED")
+    .melt(id_vars=["SITE", "PERIOD"], var_name="TYPE_RAW", value_name="TARGET")
     .assign(
         VEHICLE_TYPE=lambda x: x["TYPE_RAW"].map(
             {"LT": "Auto", "MD": "SUT", "HV": "CUT"}
@@ -323,7 +324,7 @@ df_mod_tidy = vs.load_cached_per_run(repo_root, "mod_tidy")
 ```{python}
 # | label: ccs-merge
 
-# --- 1. Map Observed to Bridge ---
+# --- 1. Map Target to Bridge ---
 # df_bridge comes from the earlier 'ccs-bridge' chunk
 df_merged_obs = df_obs_tidy.merge(
     df_bridge,
@@ -331,13 +332,13 @@ df_merged_obs = df_obs_tidy.merge(
     how="inner",
 )
 
-# --- 2. AGGREGATION: Sum Observed by Segment ---
+# --- 2. AGGREGATION: Sum Target by Segment ---
 # This step combines multiple sites (e.g., -675, -676) into one record per segment
 df_obs_by_segment = (
     df_merged_obs.groupby(["MATCHED_SEGID", "COUNTY_NAME", "PERIOD", "VEHICLE_TYPE"])
     .agg(
         {
-            "OBSERVED": "sum",
+            "TARGET": "sum",
             "SITE": lambda x: ",".join(
                 sorted(x.unique())
             ),  # Create string list e.g. "-675,-676"
@@ -346,7 +347,7 @@ df_obs_by_segment = (
     .reset_index()
 )
 
-# --- 6. Final Join: Model + Observed (at Segment Level) ---
+# --- 6. Final Join: Model + Target (at Segment Level) ---
 df_final = pd.merge(
     df_obs_by_segment,
     df_mod_tidy,
@@ -365,17 +366,17 @@ df_final = df_final[
         "COUNTY_NAME",
         "PERIOD",
         "VEHICLE_TYPE",
-        "OBSERVED",
+        "TARGET",
         "MODELED",
         "calib_run",
     ]
 ].copy()
 
 # Add Calc Columns for CSV export
-df_final["DIFF"] = df_final["MODELED"] - df_final["OBSERVED"]
+df_final["DIFF"] = df_final["MODELED"] - df_final["TARGET"]
 # Handle division by zero for CSV readability
 df_final["PCT_DIFF"] = np.where(
-    df_final["OBSERVED"] > 0, df_final["DIFF"] / df_final["OBSERVED"], 0
+    df_final["TARGET"] > 0, df_final["DIFF"] / df_final["TARGET"], 0
 ).round(3)
 ```
 
@@ -386,17 +387,17 @@ df_final["PCT_DIFF"] = np.where(
 # ======================================================================
 for _calib_run in calib_runs:
     _df_run = df_final[df_final["calib_run"] == _calib_run]
-    _obs_total = _df_run["OBSERVED"].sum()
+    _tgt_total = _df_run["TARGET"].sum()
     _mod_total = _df_run["MODELED"].sum()
-    _rmse = ((_df_run["MODELED"] - _df_run["OBSERVED"]) ** 2).mean() ** 0.5
+    _rmse = ((_df_run["MODELED"] - _df_run["TARGET"]) ** 2).mean() ** 0.5
 
     _summary_metrics = {
         "calib_run": _calib_run,
         "stage": "assignhwy",
         "metrics": {
-            "total_observed_volume": float(_obs_total),
+            "total_target_volume": float(_tgt_total),
             "total_modeled_volume": float(_mod_total),
-            "total_pct_diff": float((_mod_total - _obs_total) / _obs_total) if _obs_total else None,
+            "total_pct_diff": float((_mod_total - _tgt_total) / _tgt_total) if _tgt_total else None,
             "segment_rmse": float(_rmse),
         },
     }
@@ -539,14 +540,14 @@ dash_data = {
     .groupby( "MATCHED_SEGID", group_by)
     .rollup({
       Stations: op.any("SITE"),
-      Obs_Total: op.sum('OBSERVED'),
+      Tgt_Total: op.sum('TARGET'),
       Mod_Total: op.sum('MODELED')
     })
     .derive({
       Label: (d, $) => d[$.gb],
-      Obs_K: d => d.Obs_Total / 1000,
+      Tgt_K: d => d.Tgt_Total / 1000,
       Mod_K: d => d.Mod_Total / 1000,
-      Pct_Error: d => d.Obs_Total > 0 ? (d.Mod_Total - d.Obs_Total) / d.Obs_Total : 0
+      Pct_Error: d => d.Tgt_Total > 0 ? (d.Mod_Total - d.Tgt_Total) / d.Tgt_Total : 0
     })
 
   // B. Summary Data (Aggregate Level)
@@ -555,18 +556,18 @@ dash_data = {
     .rollup({
       Segments: op.count(),
       Stations: op.distinct('SITE'),
-      Obs_Total: op.sum('OBSERVED'),
+      Tgt_Total: op.sum('TARGET'),
       Mod_Total: op.sum('MODELED'),
-      Diff_Sq_Sum: d => op.sum(op.pow(d.MODELED - d.OBSERVED, 2))
+      Diff_Sq_Sum: d => op.sum(op.pow(d.MODELED - d.TARGET, 2))
     });
 
   let total_row = base
     .rollup({
       Segments: op.count(),
       Stations: op.distinct('SITE'),
-      Obs_Total: op.sum('OBSERVED'),
+      Tgt_Total: op.sum('TARGET'),
       Mod_Total: op.sum('MODELED'),
-      Diff_Sq_Sum: d => op.sum(op.pow(d.MODELED - d.OBSERVED, 2))
+      Diff_Sq_Sum: d => op.sum(op.pow(d.MODELED - d.TARGET, 2))
     })
     .derive({ [group_by]: d => "TOTAL" });
 
@@ -581,17 +582,17 @@ dash_data = {
 
   let summary = summary_base
     .derive({
-      Difference: d => d.Mod_Total - d.Obs_Total,
-      Percent_Difference: d => (d.Mod_Total - d.Obs_Total) / d.Obs_Total,
+      Difference: d => d.Mod_Total - d.Tgt_Total,
+      Percent_Difference: d => (d.Mod_Total - d.Tgt_Total) / d.Tgt_Total,
       RMSE: d => Math.sqrt(d.Diff_Sq_Sum / d.Segments),
-      Percent_RMSE: d => d.Obs_Total > 0 ? Math.sqrt(d.Diff_Sq_Sum / d.Segments) / (d.Obs_Total / d.Segments) : 0,
+      Percent_RMSE: d => d.Tgt_Total > 0 ? Math.sqrt(d.Diff_Sq_Sum / d.Segments) / (d.Tgt_Total / d.Segments) : 0,
       Label: (d, $) => d[$.gb]
     })
     .concat(total_row.derive({
-      Difference: d => d.Mod_Total - d.Obs_Total,
-      Percent_Difference: d => (d.Mod_Total - d.Obs_Total) / d.Obs_Total,
+      Difference: d => d.Mod_Total - d.Tgt_Total,
+      Percent_Difference: d => (d.Mod_Total - d.Tgt_Total) / d.Tgt_Total,
       RMSE: d => Math.sqrt(d.Diff_Sq_Sum / d.Segments),
-      Percent_RMSE: d => d.Obs_Total > 0 ? Math.sqrt(d.Diff_Sq_Sum / d.Segments) / (d.Obs_Total / d.Segments) : 0,
+      Percent_RMSE: d => d.Tgt_Total > 0 ? Math.sqrt(d.Diff_Sq_Sum / d.Segments) / (d.Tgt_Total / d.Segments) : 0,
       Label: (d, $) => d[$.gb]
     }));
 
@@ -646,7 +647,7 @@ trendlines = {
 
 // 6. HELPER: ERROR BOUNDS
 error_bounds = {
-  const max_k = dash_data.scatter.rollup({ max: op.max("Obs_K") }).get("max") || 1;
+  const max_k = dash_data.scatter.rollup({ max: op.max("Tgt_K") }).get("max") || 1;
   const bounds = [
     { x: 0, y_pos: 2.0, y_neg: -2.0 },
     { x: 1, y_pos: 2.0, y_neg: -2.0 },
@@ -672,21 +673,21 @@ palette = ["#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#0072B2", "#D55E00", "#F
 
 ::: {.panel-tabset}
 
-###### Model vs Observed Volumes (000s)
+###### Model vs Target Volumes (000s)
 
 ```{ojs}
 // 7. VISUALIZATION
-// md`#### 1. Model vs Observed Volumes (000s)`
+// md`#### 1. Model vs Target Volumes (000s)`
 
-max_obs_k = dash_data.scatter.rollup({ max: op.max("Obs_K") }).get("max") || 1
+max_tgt_k = dash_data.scatter.rollup({ max: op.max("Tgt_K") }).get("max") || 1
 max_mod_k = dash_data.scatter.rollup({ max: op.max("Mod_K") }).get("max") || 1
-max_vol_k = Math.max(max_obs_k, max_mod_k)
+max_vol_k = Math.max(max_tgt_k, max_mod_k)
 
 Plot.plot({
   height: 400,
   aspectRatio: 1,
   grid: true,
-  x: { label: "Observed Volume (000s)", domain: [0, max_vol_k * 1.05] },
+  x: { label: "Target Volume (000s)", domain: [0, max_vol_k * 1.05] },
   y: { label: "Modeled Volume (000s)", domain: [0, max_vol_k * 1.05]  },
   style: { backgroundColor: 'transparent' },
   color: { legend: true, label: dashboard_ctrls.group_by, range: palette },
@@ -703,27 +704,27 @@ Plot.plot({
       x: "x", y: "y", stroke: "currentColor", strokeOpacity: 0.5, strokeWidth: 1.5
     }),
     Plot.linearRegressionY(dash_data.scatter, {
-      x: "Obs_K", y: "Mod_K", stroke: themeModel,
+      x: "Tgt_K", y: "Mod_K", stroke: themeModel,
       strokeDasharray: "4 4", strokeWidth: 2
     }),
     Plot.dot(dash_data.scatter, {
-      x: "Obs_K", y: "Mod_K", fill: "Label",
+      x: "Tgt_K", y: "Mod_K", fill: "Label",
       stroke: "white", strokeOpacity: 0.5, r: 4,
-      title: d => `Station: ${d.Stations}\nGroup: ${d.Label}\nObs: ${d.Obs_Total.toLocaleString()}\nMod: ${d.Mod_Total.toLocaleString()}\nError: ${(d.Pct_Error*100).toFixed(1)}%`
+      title: d => `Station: ${d.Stations}\nGroup: ${d.Label}\nTgt: ${d.Tgt_Total.toLocaleString()}\nMod: ${d.Mod_Total.toLocaleString()}\nError: ${(d.Pct_Error*100).toFixed(1)}%`
     })
   ]
 })
 ```
 
-###### Model vs Observed Percent Error
+###### Model vs Target Percent Error
 
 ```{ojs}
-// md`#### 2. Model vs Observed Percent Error`
+// md`#### 2. Model vs Target Percent Error`
 
 Plot.plot({
   height: 400,
   grid: true,
-  x: { label: "Observed Volume (000s)", domain: [0, max_obs_k * 1.05] },
+  x: { label: "Target Volume (000s)", domain: [0, max_tgt_k * 1.05] },
   y: { label: "Percent Error", tickFormat: "+%", domain: [-2, 2] },
   style: { backgroundColor: 'transparent' },
   color: { legend: true, label: dashboard_ctrls.group_by, range: palette },
@@ -732,9 +733,9 @@ Plot.plot({
     Plot.line(error_bounds, { x: "x", y: "y_pos", stroke: "gray", strokeWidth: 2, strokeOpacity: 0.4 }),
     Plot.line(error_bounds, { x: "x", y: "y_neg", stroke: "gray", strokeWidth: 2, strokeOpacity: 0.4 }),
     Plot.dot(dash_data.scatter, {
-      x: "Obs_K", y: "Pct_Error", fill: "Label",
+      x: "Tgt_K", y: "Pct_Error", fill: "Label",
       stroke: "white", strokeOpacity: 0.5, r: 4,
-      title: d => `Station: ${d.Stations}\nObs: ${d.Obs_Total.toLocaleString()}\nError: ${(d.Pct_Error*100).toFixed(1)}%`
+      title: d => `Station: ${d.Stations}\nTgt: ${d.Tgt_Total.toLocaleString()}\nError: ${(d.Pct_Error*100).toFixed(1)}%`
     })
   ]
 })
@@ -745,13 +746,13 @@ Plot.plot({
 ```{ojs}
 // md`#### 3. Aggregate Comparison & Statistics`
 
-bar_data = dash_data.summary.fold(["Obs_Total", "Mod_Total"], { as: ["Metric", "Volume"] })
-    .derive({ Metric_Label: d => d.Metric === "Obs_Total" ? "Observed" : "Modeled" })
+bar_data = dash_data.summary.fold(["Tgt_Total", "Mod_Total"], { as: ["Metric", "Volume"] })
+    .derive({ Metric_Label: d => d.Metric === "Tgt_Total" ? "Target" : "Modeled" })
 
 Plot.plot({
   marginLeft: 80,
   height: Math.max(400, dash_data.summary.numRows() * 40),
-  color: { domain: ["Observed", "Modeled"], range: [themeObserved, themeModel], legend: true, label: "Data Source" },
+  color: { domain: ["Target", "Modeled"], range: [themeTarget, themeModel], legend: true, label: "Data Source" },
   style: { backgroundColor: 'transparent', fontFamily: "Inter, system-ui, sans-serif" },
   x: { label: "Total Volume", grid: true, tickFormat: "s" },
   y: { axis: null },
@@ -904,7 +905,7 @@ map_display = {
       const segid = String(feature.properties.MATCHED_SEGID).trim();
       const stats = data_map.get(segid);
 
-      let finalColor = themeObserved;
+      let finalColor = themeTarget;
       if (enable_color && stats) finalColor = color_map.get(stats.Label) || finalColor;
 
       return L.circleMarker(latlng, { radius: 4, fillColor: finalColor, color: "#1e1e1e", weight: 1, opacity: 0.9, fillOpacity: 0.9 });
@@ -924,11 +925,11 @@ map_display = {
       layer.on('mouseout', () => resetAll());
 
       if (stats) {
-        const diffColor = stats.Pct_Error > 0 ? themeDanger : themeObserved;
+        const diffColor = stats.Pct_Error > 0 ? themeDanger : themeTarget;
         layer.bindPopup(`<div style="font-family: sans-serif; min-width: 160px;">
          <strong>Station(s): ${stats.Stations}</strong><hr style="margin:4px 0; border:0; border-top:1px solid #eee;">
          Group: <b>${stats.Label}</b><br/>
-         Observed: <b>${Math.round(stats.Obs_Total).toLocaleString()}</b><br/>
+         Target: <b>${Math.round(stats.Tgt_Total).toLocaleString()}</b><br/>
          Modeled: ${Math.round(stats.Mod_Total).toLocaleString()}<br/>
          Diff: <span style="color:${diffColor}; font-weight:bold;">${(stats.Pct_Error * 100).toFixed(1)}%</span><br/>
          <span style="color:#999; font-size:11px;">Seg: ${segid}</span>
@@ -1024,7 +1025,7 @@ map_display = {
   const table_data = dash_data.summary.objects();
 
   return Inputs.table(table_data, {
-    columns: ["Label", "Stations", "Obs_Total", "Mod_Total", "Difference", "Percent_Difference", "RMSE", "Percent_RMSE"],
+    columns: ["Label", "Stations", "Tgt_Total", "Mod_Total", "Difference", "Percent_Difference", "RMSE", "Percent_RMSE"],
     header: {
       Label: (() => {
         const gb = dashboard_ctrls.group_by;
@@ -1036,7 +1037,7 @@ map_display = {
         return gb;
       })(),
       Stations: "Stations",
-      Obs_Total: "Observed",
+      Tgt_Total: "Target",
       Mod_Total: "Modeled",
       Difference: "Diff",
       Percent_Difference: "Pct Diff",
@@ -1049,7 +1050,7 @@ map_display = {
         const formatted = d.toLocaleString();
         return table_data[i].Label === "TOTAL" ? html`<strong>${formatted}</strong>` : formatted;
       },
-      Obs_Total: (d, i) => {
+      Tgt_Total: (d, i) => {
         const formatted = Math.round(d).toLocaleString();
         return table_data[i].Label === "TOTAL" ? html`<strong>${formatted}</strong>` : formatted;
       },
@@ -1186,7 +1187,7 @@ filteredStations = daily_data
   // ─── Configuration ───────────────────────────────────────────────────────────
   const palette = {
     ccs:   themeNeutral, // Slate
-    hpms:  themeObserved, // Amber
+    hpms:  themeTarget, // Amber
     model: themeModel, // Indigo
     cal:   themeAccent  // Violet
   };
@@ -1276,7 +1277,7 @@ filteredStations = daily_data
 
 ## Vehicle-Miles Traveled (VMT) Validation
 
-The validation results for the Highway Assignment portion of the model are shown in this section. The observed data for 2023 volumes is taken from the Utah Department of Transportation (UDOT) [Average Annual Daily Traffic (AADT) History](https://drive.google.com/file/d/1rDXm0ObugGR1zXgWUuVbzWHNt-Xs1xru/view) and associated with their respective model segments. The traffic model data is taken from segment summary report for the 2023 base year model: `Summary_SEGID.csv`. The results are divided into three sections:
+The validation results for the Highway Assignment portion of the model are shown in this section. The target data for 2023 volumes is taken from the Utah Department of Transportation (UDOT) [Average Annual Daily Traffic (AADT) History](https://drive.google.com/file/d/1rDXm0ObugGR1zXgWUuVbzWHNt-Xs1xru/view) and associated with their respective model segments. The traffic model data is taken from segment summary report for the 2023 base year model: `Summary_SEGID.csv`. The results are divided into three sections:
 
 - Summary Comparison
 - Detailed Comparison
@@ -1308,7 +1309,7 @@ mod_df_wide = vs.load_per_run(repo_root, _load_vmt_segid)
 # ---------------------------------------------------------
 # 1. PREP FTCLASS & RATIOS FIRST
 # ---------------------------------------------------------
-# Pull FTCLASS early so we can use it to map the ratios to the observed data
+# Pull FTCLASS early so we can use it to map the ratios to the target data
 # (a static network attribute -- not expected to vary by run, so this stays
 # a plain SEGID/FTCLASS lookup rather than per-run)
 ft_df = mod_df_wide[["SEGID", "FTCLASS"]].drop_duplicates()
@@ -1319,47 +1320,47 @@ ratio_df = pd.read_csv(config_paths['path_in_ccs_reclass_ratio'])
 
 ```{python}
 # ---------------------------------------------------------
-# 2. GET & ADJUST OBSERVED DATA
+# 2. GET & ADJUST TARGET DATA
 # ---------------------------------------------------------
-obs_df = segShp[['SEGID','DISTANCE','AADT2023','FAC_WDAVG','SUTRUCKS','CUTRUCKS','CO_FIPS']].copy()
-obs_df = obs_df[obs_df['AADT2023'] > 0] # remove segments with no observed volume
+tgt_df = segShp[['SEGID','DISTANCE','AADT2023','FAC_WDAVG','SUTRUCKS','CUTRUCKS','CO_FIPS']].copy()
+tgt_df = tgt_df[tgt_df['AADT2023'] > 0] # remove segments with no target volume
 
-# Merge FTCLASS onto obs_df so we know which ratio to apply
-obs_df = obs_df.merge(ft_df, on='SEGID', how='left')
+# Merge FTCLASS onto tgt_df so we know which ratio to apply
+tgt_df = tgt_df.merge(ft_df, on='SEGID', how='left')
 
-# Merge the ratio data onto obs_df based on functional class
+# Merge the ratio data onto tgt_df based on functional class
 # NOTE: Ensure the strings in 'FTCLASS' perfectly match the 'Functional Class' column (e.g., 'Freeway', 'Expressway')
-obs_df = obs_df.merge(ratio_df, left_on='FTCLASS', right_on='Functional Class', how='left')
+tgt_df = tgt_df.merge(ratio_df, left_on='FTCLASS', right_on='Functional Class', how='left')
 
 # Handle missing ratios (like 'Local' which is blank in image_46fa9a.png, or unmapped segments)
 # We fill NaNs with the "All Stations" fallback ratios provided in your table
-obs_df['MD Ratio (2025/2003)'] = obs_df['MD Ratio (2025/2003)'].fillna(0.639715)
-obs_df['HV Ratio (2025/2003)'] = obs_df['HV Ratio (2025/2003)'].fillna(0.819032)
+tgt_df['MD Ratio (2025/2003)'] = tgt_df['MD Ratio (2025/2003)'].fillna(0.639715)
+tgt_df['HV Ratio (2025/2003)'] = tgt_df['HV Ratio (2025/2003)'].fillna(0.819032)
 
 # Calculate Base Total (All)
-obs_df['All'] = round(obs_df['AADT2023'] * obs_df['FAC_WDAVG'], 0)
+tgt_df['All'] = round(tgt_df['AADT2023'] * tgt_df['FAC_WDAVG'], 0)
 
 # Calculate MD and HV by applying the ratios directly to the SUTRUCKS/CUTRUCKS percentages
-obs_df['MD'] = round(obs_df['All'] * (obs_df['SUTRUCKS'] * obs_df['MD Ratio (2025/2003)']), 0)
-obs_df['HV'] = round(obs_df['All'] * (obs_df['CUTRUCKS'] * obs_df['HV Ratio (2025/2003)']), 0)
+tgt_df['MD'] = round(tgt_df['All'] * (tgt_df['SUTRUCKS'] * tgt_df['MD Ratio (2025/2003)']), 0)
+tgt_df['HV'] = round(tgt_df['All'] * (tgt_df['CUTRUCKS'] * tgt_df['HV Ratio (2025/2003)']), 0)
 
 # Passenger car / light duty (PCLT) takes the remainder. 
 # Because PCLT is calculated as Total minus MD and HV, it perfectly accounts for 
 # the trucks that were adjusted out, keeping your 'All' category mathematically sound.
-obs_df['PCLT'] = obs_df['All'] - obs_df['MD'] - obs_df['HV']
+tgt_df['PCLT'] = tgt_df['All'] - tgt_df['MD'] - tgt_df['HV']
 
 # Clean up temporary columns before melting
-obs_df.drop(columns=list(ratio_df.columns) + ['FTCLASS'], inplace=True, errors='ignore')
+tgt_df.drop(columns=list(ratio_df.columns) + ['FTCLASS'], inplace=True, errors='ignore')
 
 # Melt the dataframe
-obs_df = obs_df.melt(
+tgt_df = tgt_df.melt(
     id_vars=['SEGID','CO_FIPS','DISTANCE'], 
     value_vars=['All','PCLT','MD','HV'], 
     var_name='vehType', 
     value_name='AWDT'
 )
 
-#obs_df
+#tgt_df
 ```
 
 ```{python}
@@ -1372,7 +1373,7 @@ mod_df["MD"] = mod_df["DY_Vol_MD"]
 mod_df["HV"] = mod_df["DY_Vol_HV"]
 mod_df["All"] = mod_df["DY_Vol"]
 
-# Melt the model dataframe to match the format of obs_df
+# Melt the model dataframe to match the format of tgt_df
 mod_df = mod_df.melt(
     id_vars=["SEGID", "calib_run"],
     value_vars=["All", "PCLT", "MD", "HV"],
@@ -1384,24 +1385,24 @@ mod_df = mod_df.melt(
 ```
 
 ```{python}
-# join model and observed data and join functional class for segment-level comparison and summary comparisons
-# inner join to make sure we are only comparing segments where we have both model and observed data for segment-level comparison. This is important to make sure we are comparing the same set of segments when calculating summary comparison statistics. The summary comparison statistics will be calculated based on the segments that have both model and observed data.
+# join model and target data and join functional class for segment-level comparison and summary comparisons
+# inner join to make sure we are only comparing segments where we have both model and target data for segment-level comparison. This is important to make sure we are comparing the same set of segments when calculating summary comparison statistics. The summary comparison statistics will be calculated based on the segments that have both model and target data.
 
-mod_obs_df = pd.merge(mod_df, obs_df, on=['SEGID', 'vehType'], how='inner', suffixes=('_Mod', '_Obs'))
-mod_obs_df = pd.merge(mod_obs_df, ft_df, on='SEGID', how='left')
-mod_obs_df['FTGROUP'] = np.where(mod_obs_df['FTCLASS'] == 'Freeway', 'Freeway', 'NonFreeway')
+mod_tgt_df = pd.merge(mod_df, tgt_df, on=['SEGID', 'vehType'], how='inner', suffixes=('_Mod', '_Tgt'))
+mod_tgt_df = pd.merge(mod_tgt_df, ft_df, on='SEGID', how='left')
+mod_tgt_df['FTGROUP'] = np.where(mod_tgt_df['FTCLASS'] == 'Freeway', 'Freeway', 'NonFreeway')
 
-#mod_obs_df
+#mod_tgt_df
 ```
 
 ```{python}
 veh_types = ['All', 'PCLT', 'MD', 'HV']
 
-base_df = mod_obs_df[['SEGID','FTCLASS','vehType','AWDT_Mod','AWDT_Obs']]
+base_df = mod_tgt_df[['SEGID','FTCLASS','vehType','AWDT_Mod','AWDT_Tgt']]
 
 for vt in veh_types:
     df = base_df[base_df['vehType'] == vt]
-    df = df[['SEGID','FTCLASS','AWDT_Mod','AWDT_Obs']]
+    df = df[['SEGID','FTCLASS','AWDT_Mod','AWDT_Tgt']]
 
     if not df.empty:
         vs.plot_volume_diff(df, vt, segShp)
@@ -1412,10 +1413,10 @@ for vt in veh_types:
 # PREPARE DATA FOR OJS INTERACTIVE MAP
 # ==============================================================================
 
-# 1. Pivot the Long Data (mod_obs_df) back to Wide Format
-#    We use mod_obs_df because it already contains the merged Model and Observed data
-df_wide = mod_obs_df.pivot(
-    index=["SEGID", "calib_run"], columns="vehType", values=["AWDT_Mod", "AWDT_Obs"]
+# 1. Pivot the Long Data (mod_tgt_df) back to Wide Format
+#    We use mod_tgt_df because it already contains the merged Model and Target data
+df_wide = mod_tgt_df.pivot(
+    index=["SEGID", "calib_run"], columns="vehType", values=["AWDT_Mod", "AWDT_Tgt"]
 )
 
 # Flatten the hierarchical columns created by pivot (e.g., ('AWDT_Mod', 'All') -> 'AWDT_Mod_All')
@@ -1435,20 +1436,20 @@ def calc_pct(diff, obs):
 #    Note: 'All' in vehType corresponds to 'Total' in the map logic
 
 # Absolute
-df_wide["Diff_Total"] = df_wide["AWDT_Mod_All"] - df_wide["AWDT_Obs_All"]
-df_wide["Diff_PCLT"] = df_wide["AWDT_Mod_PCLT"] - df_wide["AWDT_Obs_PCLT"]
-df_wide["Diff_MD"] = df_wide["AWDT_Mod_MD"] - df_wide["AWDT_Obs_MD"]
-df_wide["Diff_HV"] = df_wide["AWDT_Mod_HV"] - df_wide["AWDT_Obs_HV"]
+df_wide["Diff_Total"] = df_wide["AWDT_Mod_All"] - df_wide["AWDT_Tgt_All"]
+df_wide["Diff_PCLT"] = df_wide["AWDT_Mod_PCLT"] - df_wide["AWDT_Tgt_PCLT"]
+df_wide["Diff_MD"] = df_wide["AWDT_Mod_MD"] - df_wide["AWDT_Tgt_MD"]
+df_wide["Diff_HV"] = df_wide["AWDT_Mod_HV"] - df_wide["AWDT_Tgt_HV"]
 
 # Percent
-df_wide["PctDiff_Total"] = calc_pct(df_wide["Diff_Total"], df_wide["AWDT_Obs_All"])
-df_wide["PctDiff_PCLT"] = calc_pct(df_wide["Diff_PCLT"], df_wide["AWDT_Obs_PCLT"])
-df_wide["PctDiff_MD"] = calc_pct(df_wide["Diff_MD"], df_wide["AWDT_Obs_MD"])
-df_wide["PctDiff_HV"] = calc_pct(df_wide["Diff_HV"], df_wide["AWDT_Obs_HV"])
+df_wide["PctDiff_Total"] = calc_pct(df_wide["Diff_Total"], df_wide["AWDT_Tgt_All"])
+df_wide["PctDiff_PCLT"] = calc_pct(df_wide["Diff_PCLT"], df_wide["AWDT_Tgt_PCLT"])
+df_wide["PctDiff_MD"] = calc_pct(df_wide["Diff_MD"], df_wide["AWDT_Tgt_MD"])
+df_wide["PctDiff_HV"] = calc_pct(df_wide["Diff_HV"], df_wide["AWDT_Tgt_HV"])
 
 # 3. Add FTCLASS back
-#    We can get unique FTCLASS for each SEGID from the existing mod_obs_df
-ft_lookup = mod_obs_df[["SEGID", "FTCLASS"]].drop_duplicates()
+#    We can get unique FTCLASS for each SEGID from the existing mod_tgt_df
+ft_lookup = mod_tgt_df[["SEGID", "FTCLASS"]].drop_duplicates()
 df_wide = pd.merge(df_wide, ft_lookup, on="SEGID", how="left")
 
 # 4. Merge with Geometry (segShp)
@@ -1486,183 +1487,124 @@ ojs_define(vol_diff_geojson=gdf_vol_diff.__geo_interface__)
 ```
 
 ```{python}
+# ---------------------------------------------------------
+# VMT vs TARGET aggregation. Unlike the interactive map above (which
+# matches individual segments to CCS-derived target counts), this
+# compares ALL segments in the model's own segment summary -- summed
+# by County x Facility Type -- against calibration VMT targets from
+# report/data/4-assignhwy/VMT_Targets_by_SuperDistrict_FacilityType.csv.
+# That file's "Super District" values are county names (matching
+# CO_FIPS via fips_map) and "Facility Type" matches FTCLASS, so no
+# spatial join is needed -- it's a groupby + merge.
+# ---------------------------------------------------------
 
-# create a copy for 'All Roadways' category
-_df = mod_obs_df.copy()
-_df['FTCLASS'] = 'All Roadways'
-_df['FTGROUP'] = 'All Roadways'
+fips_map = {3: 'Box Elder', 11: 'Davis', 35: 'Salt Lake', 49: 'Utah', 57: 'Weber'}
 
-all_df = pd.concat([mod_obs_df,_df])
+# 1. Modeled VMT per segment (using the segment summary's own DY_VMT_*
+#    columns directly, rather than approximating VMT as volume x distance)
+mod_vmt_df = mod_df_wide.copy()
+mod_vmt_df['PCLT'] = mod_vmt_df['DY_VMT_PC'] + mod_vmt_df['DY_VMT_LT']
+mod_vmt_df['MD'] = mod_vmt_df['DY_VMT_MD']
+mod_vmt_df['HV'] = mod_vmt_df['DY_VMT_HV']
+mod_vmt_df['All'] = mod_vmt_df['DY_VMT']
+mod_vmt_df['FTGROUP'] = np.where(mod_vmt_df['FTCLASS'] == 'Freeway', 'Freeway', 'NonFreeway')
+mod_vmt_df['County'] = mod_vmt_df['CO_FIPS'].map(fips_map)
 
-# calc diffSquare
-all_df['volDiffSq'  ] = (all_df['AWDT_Mod'] - all_df['AWDT_Obs']) ** 2 #squared
-all_df['volErrorPct'] = (all_df['AWDT_Mod'] - all_df['AWDT_Obs']) / all_df['AWDT_Obs']
+mod_vmt_long = mod_vmt_df.melt(
+    id_vars=['SEGID', 'CO_FIPS', 'County', 'FTCLASS', 'FTGROUP', 'calib_run'],
+    value_vars=['All', 'PCLT', 'MD', 'HV'],
+    var_name='vehType',
+    value_name='VMT_Mod',
+)
 
-# recalc VMT
-all_df['VMT_Mod'] = all_df['AWDT_Mod'] * all_df['DISTANCE']
-all_df['VMT_Obs'] = all_df['AWDT_Obs'] * all_df['DISTANCE']
 
-# remove nulls
-all_df.dropna(inplace=True)
-#all_dffc
+def _rollup(df, class_col, group_cols, value_col):
+    out = df.groupby(group_cols + [class_col, 'vehType'], as_index=False)[value_col].sum()
+    return out.rename(columns={class_col: 'FTCLASS'})
 
-all_df2 = all_df.copy()
-all_df2['CO_FIPS'] = 99 # 99:Region
-all_df = pd.concat([all_df, all_df2])
 
-#all_df
-```
-
-```{python}
-# define aggregation functions for summary comparison by CO_FIPS, FTCLASS/FTGROUP, vehType
-agg_functions_all = {'SEGID'     : 'count',
-                     'AWDT_Mod'  : 'mean',
-                     'AWDT_Obs'  : 'mean',
-                     'volDiffSq' : lambda s: (
-                         np.sqrt(s.sum() / (s.count() - 1)) if s.count() > 1 else np.nan
-                     ),
-                     'VMT_Mod'   : 'sum',
-                     'VMT_Obs'   : 'sum'}
-
-# 1. Summarize by FTCLASS
-sum_class = all_df.groupby(['CO_FIPS','FTCLASS','vehType','calib_run'], as_index=False).agg(agg_functions_all)
+# 2. Roll modeled VMT up to (County, FTCLASS/FTGROUP) x vehType, then add an
+#    "All Roadways" total (sum across facility types) and a Region total
+#    (sum across counties) -- mirroring the CO_FIPS=99 / FTCLASS='All
+#    Roadways' rollups the table/chart below expect.
+sum_class = _rollup(mod_vmt_long, 'FTCLASS', ['CO_FIPS', 'County', 'calib_run'], 'VMT_Mod')
 sum_class['ClassLevel'] = 'FTCLASS'
-
-# 2. Summarize by FTGROUP
-sum_group = all_df.groupby(['CO_FIPS','FTGROUP','vehType','calib_run'], as_index=False).agg(agg_functions_all)
-# Rename FTGROUP to FTCLASS so they stack neatly in the same column for OJS
-sum_group.rename(columns={'FTGROUP': 'FTCLASS'}, inplace=True)
+sum_group = _rollup(mod_vmt_long, 'FTGROUP', ['CO_FIPS', 'County', 'calib_run'], 'VMT_Mod')
 sum_group['ClassLevel'] = 'FTGROUP'
+sum_vmt_df = pd.concat([sum_class, sum_group], ignore_index=True)
 
-# 3. Combine them
-sum_all_df = pd.concat([sum_class, sum_group], ignore_index=True)
-sum_all_df = sum_all_df.drop_duplicates(subset=['CO_FIPS', 'FTCLASS', 'vehType', 'ClassLevel', 'calib_run'])
+sum_allroads = sum_vmt_df[sum_vmt_df['ClassLevel'] == 'FTCLASS'].groupby(
+    ['CO_FIPS', 'County', 'vehType', 'calib_run'], as_index=False
+)['VMT_Mod'].sum()
+sum_allroads['FTCLASS'] = 'All Roadways'
+sum_allroads['ClassLevel'] = 'FTCLASS'
+sum_vmt_df = pd.concat([sum_vmt_df, sum_allroads], ignore_index=True)
 
-sum_all_df = sum_all_df.rename(columns={'SEGID':'numSegs','volDiffSq':'volRmse'})
+sum_region = sum_vmt_df.groupby(['FTCLASS', 'vehType', 'ClassLevel', 'calib_run'], as_index=False)['VMT_Mod'].sum()
+sum_region['CO_FIPS'] = 99
+sum_region['County'] = 'Region'
+sum_vmt_df = pd.concat([sum_vmt_df, sum_region], ignore_index=True)
 
-sum_all_df['volDiff'   ] = sum_all_df['AWDT_Mod'] - sum_all_df['AWDT_Obs']
-sum_all_df['vmtDiff'   ] = sum_all_df['VMT_Mod'] - sum_all_df['VMT_Obs']
+# 3. Same rollup shape for the targets (which have no calib_run axis --
+#    every run is compared against the same fixed targets)
+vmt_targets_df = pd.read_csv(config_paths['path_in_vmt_targets']).rename(
+    columns={'Super District': 'County', 'Facility Type': 'FTCLASS'}
+)
+vmt_targets_df['All'] = vmt_targets_df['PC/LT VMT'] + vmt_targets_df['MD VMT'] + vmt_targets_df['HV VMT']
+vmt_targets_df = vmt_targets_df.rename(columns={'PC/LT VMT': 'PCLT', 'MD VMT': 'MD', 'HV VMT': 'HV'})
+vmt_targets_df['FTGROUP'] = np.where(vmt_targets_df['FTCLASS'] == 'Freeway', 'Freeway', 'NonFreeway')
 
-sum_all_df['volDiffPct'] = sum_all_df['volDiff'] / sum_all_df['AWDT_Obs']
-sum_all_df['vmtDiffPct'] = sum_all_df['vmtDiff'] / sum_all_df['VMT_Obs']
-
-sum_all_df['volRmsePct'   ] = (sum_all_df['volRmse'] / sum_all_df['AWDT_Obs'])
-
-sum_all_df_copy = sum_all_df.copy()
-
-```
-
-```{python}
-# create summary comparison tables for ojs
-
-allveh_vol = sum_all_df[['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run','numSegs','AWDT_Mod','AWDT_Obs','volDiff','volDiffPct','volRmse','volRmsePct']]
-allveh_vmt = sum_all_df[['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run','numSegs','VMT_Mod','VMT_Obs','vmtDiff','vmtDiffPct']]
-```
-
-```{python}
-# create summary comparison tables for ojs - percent difference table
-
-allveh_pct = sum_all_df[['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run','volDiffPct','vmtDiffPct']]
-
-allveh_pct = allveh_pct.melt(
-    id_vars=['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run'],
-    value_vars=['volDiffPct','vmtDiffPct'],
-    var_name='Variable',
-    value_name='Value'
+targets_long = vmt_targets_df.melt(
+    id_vars=['County', 'FTCLASS', 'FTGROUP'],
+    value_vars=['All', 'PCLT', 'MD', 'HV'],
+    var_name='vehType',
+    value_name='VMT_Target',
 )
 
-allveh_pct = allveh_pct.pivot(
-    index=['FTCLASS','vehType','ClassLevel','calib_run','Variable'],
-    columns='CO_FIPS',
-    values='Value'
-).reset_index()
+t_class = _rollup(targets_long, 'FTCLASS', ['County'], 'VMT_Target')
+t_class['ClassLevel'] = 'FTCLASS'
+t_group = _rollup(targets_long, 'FTGROUP', ['County'], 'VMT_Target')
+t_group['ClassLevel'] = 'FTGROUP'
+targets_rollup = pd.concat([t_class, t_group], ignore_index=True)
 
-allveh_pct = allveh_pct[['Variable', 'FTCLASS', 'vehType', 'ClassLevel', 'calib_run', 3, 57, 11, 35, 49, 99]] #99:Region
-#allveh_pct
+t_allroads = targets_rollup[targets_rollup['ClassLevel'] == 'FTCLASS'].groupby(
+    ['County', 'vehType'], as_index=False
+)['VMT_Target'].sum()
+t_allroads['FTCLASS'] = 'All Roadways'
+t_allroads['ClassLevel'] = 'FTCLASS'
+targets_rollup = pd.concat([targets_rollup, t_allroads], ignore_index=True)
+
+t_region = targets_rollup.groupby(['FTCLASS', 'vehType', 'ClassLevel'], as_index=False)['VMT_Target'].sum()
+t_region['County'] = 'Region'
+targets_rollup = pd.concat([targets_rollup, t_region], ignore_index=True)
+
+# 4. Join modeled to targets and compute differences
+sum_all_df = sum_vmt_df.merge(targets_rollup, on=['County', 'FTCLASS', 'vehType', 'ClassLevel'], how='left')
+sum_all_df['vmtDiff'] = sum_all_df['VMT_Mod'] - sum_all_df['VMT_Target']
+sum_all_df['vmtDiffPct'] = sum_all_df['vmtDiff'] / sum_all_df['VMT_Target']
 ```
 
 ```{python}
-# create summary comparison tables for ojs - percent difference table - exact version for summary comparison charts. The above table is reformatted to be more human readable for the tables in the report. The below table is formatted to be more machine readable for the charts in the report.
-
-allveh_pct_exact = sum_all_df_copy[
-    ["CO_FIPS", "FTCLASS", "vehType", "ClassLevel", "calib_run", "volDiffPct", "vmtDiffPct"]
-]
-
-allveh_pct_exact = allveh_pct_exact.melt(
-    id_vars=["CO_FIPS", "FTCLASS", "vehType", "ClassLevel", "calib_run"],
-    value_vars=["volDiffPct", "vmtDiffPct"],
-    var_name="Variable",
-    value_name="Value",
-)
-
-allveh_pct_exact = allveh_pct_exact.pivot(
-    index=["FTCLASS", "vehType", "ClassLevel", "calib_run", "Variable"],
-    columns="CO_FIPS",
-    values="Value"
-).reset_index()
-
-allveh_pct_exact = allveh_pct_exact[
-    ["Variable", "FTCLASS", "vehType", "ClassLevel", "calib_run", 3, 57, 11, 35, 49, 99]
-]
-
-allveh_pct_exact = allveh_pct_exact.melt(
-    id_vars=["FTCLASS", "vehType", "ClassLevel", "calib_run", "Variable"],
-    value_vars=[3, 57, 11, 35, 49, 99],
-    value_name="Value",
-    var_name="Geography",
-)
-# allveh_pct_exact
+# create summary comparison table for ojs (Detailed Comparison, chart 2b)
+allveh_vmt = sum_all_df[['CO_FIPS', 'FTCLASS', 'vehType', 'ClassLevel', 'calib_run', 'VMT_Mod', 'VMT_Target', 'vmtDiff', 'vmtDiffPct']]
 ```
 
 ```{python}
-# create summary comparison tables for ojs - absolute difference table - exact version for summary comparison charts. The above table is reformatted to be more human readable for the tables in the report. The below table is formatted to be more machine readable for the charts in the report.
-
-allveh_abs_exact = sum_all_df_copy[['CO_FIPS', 'FTCLASS', 'ClassLevel', 'calib_run', 'AWDT_Mod', 'AWDT_Obs', 'VMT_Mod', 'VMT_Obs']]
-
-allveh_abs_exact = allveh_abs_exact.melt(
-    id_vars = ['CO_FIPS','FTCLASS','ClassLevel','calib_run'],
-    value_vars = ['AWDT_Mod', 'AWDT_Obs', 'VMT_Mod', 'VMT_Obs'],
-    var_name = 'DataSource',
-    value_name = 'Value'
-)
-
-allveh_abs_exact["Variable"] = allveh_abs_exact["DataSource"].apply(lambda x: "Volume" if "AWDT" in x else "VMT")
-allveh_abs_exact["DataSource"] = allveh_abs_exact["DataSource"].apply(lambda x: "Model" if "_Mod" in x else "Observed")
-allveh_abs_region = allveh_abs_exact[allveh_abs_exact['CO_FIPS'] == 99]
-```
-
-```{python}
-# create summary comparison tables for ojs - long format for model vs observed comparison charts
-
-# create summary comparison tables for ojs - long format for model vs observed comparison charts
-allveh_vol_long = allveh_vol.rename(columns={'AWDT_Mod':'Model','AWDT_Obs':'Observed'})
-allveh_vol_long = pd.melt(allveh_vol_long,
-                          id_vars =['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run'],
-                          value_vars = ['Model', 'Observed'],
-                          var_name = 'DataSource',
-                          value_name = 'ViewValue')
-allveh_vol_long['ViewValue'] = allveh_vol_long['ViewValue'] / 1000
-
-allveh_vmt_long = allveh_vmt.rename(columns={'VMT_Mod':'Model','VMT_Obs':'Observed'})
+# create long format for the Model vs Target bar chart (chart 2b)
+allveh_vmt_long = allveh_vmt.rename(columns={'VMT_Mod': 'Model', 'VMT_Target': 'Target'})
 allveh_vmt_long = pd.melt(allveh_vmt_long,
-                          id_vars =['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run'],
-                          value_vars = ['Model', 'Observed'],
-                          var_name = 'DataSource',
-                          value_name = 'ViewValue')
+                          id_vars=['CO_FIPS', 'FTCLASS', 'vehType', 'ClassLevel', 'calib_run'],
+                          value_vars=['Model', 'Target'],
+                          var_name='DataSource',
+                          value_name='ViewValue')
 allveh_vmt_long['ViewValue'] = allveh_vmt_long['ViewValue'] / 1000000
 
-# summary chart
-allveh_vol_diff_long = pd.melt(allveh_vol,
-                               id_vars =['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run'],
-                               value_vars = ['volDiff', 'volDiffPct'],
-                               var_name = 'View',
-                               value_name = 'ViewValue')
-
+# long format for the Summary Comparison diverging bar chart (region/county)
 allveh_vmt_diff_long = pd.melt(allveh_vmt,
-                               id_vars =['CO_FIPS','FTCLASS','vehType','ClassLevel','calib_run'],
-                               value_vars = ['vmtDiff', 'vmtDiffPct'],
-                               var_name = 'View',
-                               value_name = 'ViewValue')
+                               id_vars=['CO_FIPS', 'FTCLASS', 'vehType', 'ClassLevel', 'calib_run'],
+                               value_vars=['vmtDiff', 'vmtDiffPct'],
+                               var_name='View',
+                               value_name='ViewValue')
 
 # Create a mapping dictionary for the CO_FIPS values
 fips_mapping = {
@@ -1673,8 +1615,6 @@ fips_mapping = {
     57: 'Weber County - WFRC',
     99: 'Region'
 }
-# Use the `replace` method on the 'CO_FIPS' column
-allveh_vol_diff_long['CO_FIPS'] = allveh_vol_diff_long['CO_FIPS'].replace(fips_mapping)
 allveh_vmt_diff_long['CO_FIPS'] = allveh_vmt_diff_long['CO_FIPS'].replace(fips_mapping)
 
 def round_up_to_next_significant(value):
@@ -1683,58 +1623,27 @@ def round_up_to_next_significant(value):
     magnitude = 10 ** math.floor(math.log10(value))
     return math.ceil(value / magnitude) * magnitude
 
-max_abs_value_volDiff    = round_up_to_next_significant(allveh_vol_diff_long.query("View == 'volDiff'"   )['ViewValue'].abs().max())
 max_abs_value_vmtDiff    = round_up_to_next_significant(allveh_vmt_diff_long.query("View == 'vmtDiff'"   )['ViewValue'].abs().max())
-max_abs_value_volDiffPct = round_up_to_next_significant(allveh_vol_diff_long.query("View == 'volDiffPct'")['ViewValue'].abs().max())
 max_abs_value_vmtDiffPct = round_up_to_next_significant(allveh_vmt_diff_long.query("View == 'vmtDiffPct'")['ViewValue'].abs().max())
-
-# scatter plot dataframe
-allvehplot = all_df[['SEGID','CO_FIPS','FTCLASS','vehType','calib_run','AWDT_Mod','AWDT_Obs','volErrorPct']].copy()
-allvehplot['AWDT_Mod'] = allvehplot['AWDT_Mod'] / 1000 # reduce so axis labels are shorter
-allvehplot['AWDT_Obs'] = allvehplot['AWDT_Obs'] / 1000 # reduce so axis labels are shorter
-
-#allvehplot
-```
-
-```{python}
-#display(allveh_vol)
-#filtered_df = allveh_vol[(allveh_vol['FTCLASS'] == 'Freeway') & (allveh_vol['vehType'] == 'Passenger Cars') & (allveh_vol['CO_FIPS'] == 'Region')]
-#AWDT_Mod_sum = filtered_df['AWDT_Mod'].sum()
-
-#display(AWDT_Mod_sum)
 ```
 
 ```{python}
 # save as ojs objects
 
 # for summary comparison
-ojs_define(volDiffLong = allveh_vol_diff_long)
 ojs_define(vmtDiffLong = allveh_vmt_diff_long)
 
 # for detailed comparison
-ojs_define(vol = allveh_vol)
 ojs_define(vmt = allveh_vmt)
-ojs_define(volLong = allveh_vol_long)
 ojs_define(vmtLong = allveh_vmt_long)
-ojs_define(allvehplot = allvehplot) # for scatter plot
 
-# use?
-ojs_define(vvpct = allveh_pct)
-ojs_define(vvpctLong = allveh_pct_exact)
-ojs_define(vvabsLong = allveh_abs_exact)
-ojs_define(vvabsLongR = allveh_abs_region)
-
-ojs_define(max_abs_value_volDiff    = max_abs_value_volDiff   )
 ojs_define(max_abs_value_vmtDiff    = max_abs_value_vmtDiff   )
-ojs_define(max_abs_value_volDiffPct = max_abs_value_volDiffPct)
 ojs_define(max_abs_value_vmtDiffPct = max_abs_value_vmtDiffPct)
-
-
 ```
 
 ### Summary Comparison
 
-The summary comparison shows region and county-wide differences between model and observed for *Average Daily Volume* and *Vehicle-Miles Traveled (VMT)* by vehicle type. The values for Box Elder and Weber counties are only the portions within the MPO planning area. Validation was checked comparing the average daily volume at the region and county levels. @fig-assign-summary, below, contains an interactive view of model vs observed differences by roadway class and vehicle type.
+The summary comparison shows region and county-wide differences between modeled and target *Vehicle-Miles Traveled (VMT)* by vehicle type. The values for Box Elder and Weber counties are only the portions within the MPO planning area. @fig-assign-summary, below, contains an interactive view of model vs target differences by roadway class and vehicle type.
 
 ```{ojs}
 html`<br/>`
@@ -1745,16 +1654,8 @@ viewof bSummaryDiffType = Inputs.select(new Map([['Percent Difference','DiffPct'
 
 ```{ojs}
 
-volDiffLongT = transpose(volDiffLong)
 vmtDiffLongT = transpose(vmtDiffLong)
 
-volDiffLongT_filtered = volDiffLongT.filter(function(dataL) {
-    return bSummaryFTCLASS == dataL.FTCLASS &&
-           bSummaryVehType == dataL.vehType &&
-           (('vol' + bSummaryDiffType) == dataL.View) &&
-           dataL.ClassLevel == 'FTCLASS' &&
-           dataL.calib_run == globalCalibRun;
-})
 vmtDiffLongT_filtered = vmtDiffLongT.filter(function(dataL) {
     return bSummaryFTCLASS == dataL.FTCLASS &&
            bSummaryVehType == dataL.vehType &&
@@ -1762,51 +1663,12 @@ vmtDiffLongT_filtered = vmtDiffLongT.filter(function(dataL) {
            dataL.ClassLevel == 'FTCLASS' &&
            dataL.calib_run == globalCalibRun;
 })
-
-vvp = transpose(vvpct)
-vvpL = transpose(vvpctLong)
-vvaL = transpose(vvabsLong)
-vvaLR = transpose(vvabsLongR)
 ```
-
 
 ```{ojs}
 //https://observablehq.com/@d3/diverging-bar-chart
 import {DivergingBarChart} from "@d3/diverging-bar-chart"
-
-function getXDomainVol(bSummaryDiffType) {
-    if (bSummaryDiffType === "Diff") {
-        return [max_abs_value_volDiff * -1, max_abs_value_volDiff];
-    } else {
-        //return [max_abs_value_volDiffPct * -1, max_abs_value_volDiff]; // -100% to 100%
-        return [-100, 100]
-    }
-}
-
-function getXDomainVmt(bSummaryDiffType) {
-    if (bSummaryDiffType === "Diff") {
-        return [max_abs_value_vmtDiff * -1, max_abs_value_vmtDiff];
-    } else {
-        //return [max_abs_value_vmtDiffPct * -1, max_abs_value_vmtDiff]; // -100% to 100%
-        return [-1,1]
-    }
-}
 ```
-
-<!--
-```{ojs}
-html`<br/><h4>Average Daily Volume</h4>`
-chartVolDiff = DivergingBarChart(volDiffLongT_filtered, {
-    x: d => d.ViewValue,
-    y: d => d.CO_FIPS,
-    xFormat: bSummaryDiffType === "Diff" ? "+,d" : "+.1%",
-    xLabel: "Model vs Observed Differences",
-    xDomain: bSummaryDiffType === "Diff" ? [max_abs_value_volDiff * -1, max_abs_value_volDiff] : [-1, 1], //[max_abs_value_volDiffPct * -1, max_abs_value_volDiffPct],
-    yDomain:  ['Region','Box Elder County - WFRC','Weber County - WFRC','Davis County','Salt Lake County','Utah County'],
-    colors: d3.schemeRdBu[3]
-})
-```
--->
 
 ```{ojs}
 html`<br/><h4>Vehicle-Miles Traveled</h4>`
@@ -1814,7 +1676,7 @@ chartVmtDiff = DivergingBarChart(vmtDiffLongT_filtered, {
     x: d => d.ViewValue,
     y: d => d.CO_FIPS,
     xFormat: bSummaryDiffType === "Diff" ? "+,d" : "+.1%",
-    xLabel: "Model vs Observed Differences",
+    xLabel: "Model vs Target Differences",
     xDomain: bSummaryDiffType === "Diff" ? [max_abs_value_vmtDiff * -1, max_abs_value_vmtDiff] : [-1, 1], //[max_abs_value_vmtDiffPct * -1, max_abs_value_vmtDiffPct],
     yDomain:  ['Region','Box Elder County - WFRC','Weber County - WFRC','Davis County','Salt Lake County','Utah County'],
     colors: d3.schemeRdBu[3]
@@ -1829,21 +1691,14 @@ tbEmptyCell1 = 1
 ```
 
 
-At the region level model volume is 1.7% higher than observed volume. The four more urban counties (Weber, Davis, Salt Lake, and Utah) were all within approximately 5% of observed volumes with Salt Lake County being the closest. Weber and Davis were slightly lower and Utah County was slightly higher. Box Elder County is more rural than the other counties. Box Elder model volumes are about 10% lower than observed. Time did not allow for further calibration of the volumes in Box Elder area to account for the larger differences.
-
-One important observation at the *Collector* and *All Vehicles* level is that Utah County shows a much higher difference than the other counties. Upon further investigation of observed *Collector* volumes in Utah County, many roadway segments had very low volumes compared to what was expected. Utah County is one of the highest growth areas in the region. For this reason, we expect that the observed count data may be underrepresenting actual volumes. We also anticipate observed volumes in Utah County to improve in the near-term. Within the last several years, a large investment in continuous count station in Utah County has been made. The new counters will add additional information to generate observed volumes for all roadway segments.
-
-The largest differences in model vs observed volumes occur in the Medium CV and Heavy CV vehicle types. A good amount of time was spent attempting to bring model commercial vehicle volumes closer to observed. However, due to the limited data sources for commercial vehicle information, further need to investigate observed commercial vehicle volumes, and a desire to not over-calibrate the model, further calibration was stopped. CV modeling remains a future priority for model improvement.
+*(Note: the paragraphs below described the previous model-vs-observed-volume comparison, which has been replaced by the model-vs-target VMT comparison above. Replace this placeholder with fresh observations once the report has been re-rendered against the new chart.)*
 
 
 ### Detailed Comparison
 
-The model vs observed details in this section are presented by volume and Vehicle-Miles Traveled (VMT) through the comparison of model and observed data facility type by region and also by county. @fig-assign-validation allows for the interactive visual comparison of model and observed values for the region and each county for all vehicles, cars, Medium CV, and Heavy CV. The comparisons are shown in four different types of charts and tables:
+The model vs target details in this section are presented as Vehicle-Miles Traveled (VMT) through the comparison of modeled VMT (summed across all segments in the model's segment summary) and calibration VMT targets, by facility type, for the region and each county. @fig-assign-validation allows for the interactive visual comparison of model and target values for the region and each county for all vehicles, cars, Medium CV, and Heavy CV.
 
-- *Average Daily Volume by Roadway Class (2a)*: The daily volume is averaged across all segments within their respective geography and vehicle type.
-- *Total VMT by Roadway Class (2b)*: For each segment*, the daily volume is multiplied by segment distance and then summed across all segments within their respective geography and vehicle type.
-- *Model vs Count Segment Volume (2c)*: This is a scatter plot of segment daily volume with the x-axis as the observed volume and the y-axis as the model volume. The red line shows the location of where model and observed volumes are equal. The dashed blue line shows a least-squares linear regression. The further the blue line moved away from the red line, the further the model is from observed.
-- *Segment Percent Error (2d)*: This is a scatter plot showing the amount of error (percent difference) between the observed volume and the model volume. The observed volume is the x-axis and the percent error is the y-axis. The red lines are a bounding box that shows the control target. As volume increases, it is expected that the percent error should decrease.
+- *Total VMT by Roadway Class*: For each county (or the region) and roadway class, all segments' modeled daily VMT is summed and compared against the calibration VMT target for that county/facility-type combination.
 
 ```{ojs}
 html`<br/>`
@@ -1868,16 +1723,7 @@ viewof bVehType = Inputs.select(new Map([['All Vehicles', 'All'], ['Cars + Light
 // Added 'NonFreeway' to the sorting order
 sortOrder = ['Freeway', 'NonFreeway', 'Principal Arterial', 'Minor Arterial', 'Collector', 'All Roadways'];
 
-volT = transpose(vol)
 vmtT = transpose(vmt)
-
-// Added bClassLevel filter to all 4 tables
-filtered_volData = volT.filter(function(dataL) {
-    return bCountySelect == dataL.CO_FIPS &&
-           bVehType == dataL.vehType &&
-           bClassLevel == dataL.ClassLevel &&
-           dataL.calib_run == globalCalibRun;
-}).sort((a, b) => sortOrder.indexOf(a.FTCLASS) - sortOrder.indexOf(b.FTCLASS));
 
 filtered_vmtData = vmtT.filter(function(dataL){
     return bCountySelect == dataL.CO_FIPS &&
@@ -1886,15 +1732,7 @@ filtered_vmtData = vmtT.filter(function(dataL){
            dataL.calib_run == globalCalibRun;
 }).sort((a, b) => sortOrder.indexOf(a.FTCLASS) - sortOrder.indexOf(b.FTCLASS));
 
-volTL = transpose(volLong)
 vmtTL = transpose(vmtLong)
-
-filtered_volDataL = volTL.filter(function(dataL) {
-    return bCountySelect == dataL.CO_FIPS &&
-           bVehType == dataL.vehType &&
-           bClassLevel == dataL.ClassLevel &&
-           dataL.calib_run == globalCalibRun;
-}).sort((a, b) => sortOrder.indexOf(a.FTCLASS) - sortOrder.indexOf(b.FTCLASS));
 
 filtered_vmtDataL = vmtTL.filter(function(dataL){
     return bCountySelect == dataL.CO_FIPS &&
@@ -1902,14 +1740,6 @@ filtered_vmtDataL = vmtTL.filter(function(dataL){
            bClassLevel == dataL.ClassLevel &&
            dataL.calib_run == globalCalibRun;
 }).sort((a, b) => sortOrder.indexOf(a.FTCLASS) - sortOrder.indexOf(b.FTCLASS));
-
-
-allvehplotT = transpose(allvehplot)
-filtered_allvehplotData = allvehplotT.filter(function(dataL) {
-    return bCountySelect == dataL.CO_FIPS &&
-           bVehType == dataL.vehType &&
-           dataL.calib_run == globalCalibRun;
-});
 ```
 
 
@@ -1919,7 +1749,7 @@ filtered_allvehplotData = allvehplotT.filter(function(dataL) {
 ```{ojs}
 //| echo: false
 //| label: fig-assign-validation
-//| fig-cap: Model vs Observed Volume and VMT Comparison
+//| fig-cap: Model vs Target VMT Comparison
 function formatNumber(value, isPercentage=false) {
     if (typeof value === 'undefined') {
         return '';  // or return a default value or message
@@ -1931,77 +1761,16 @@ function formatNumber(value, isPercentage=false) {
     return Number(value.toFixed(0)).toLocaleString();
 }
 
-widthsVol = ['100px', '52px', '70px', '70px', '73px', '73px', '63px', '63px']; // Define the widths
 widthsVmt = ['100px', '88px', '88px', '88px', '88px']; // Define the widths
 ```
 
 ```{ojs}
-//| echo: false
 html`
-<h4>2a. Average Daily Volume by Roadway Class</h4>
+<h4>Total Daily VMT by Roadway Class</h4>
 <table>
     <thead>
     <tr>
-        ${["Roadway Class", "# Segs", "Volume", "Observed", "Difference", "Percent Difference", "RMSE", "Percent RMSE"].map((d, i) => {
-            return html`<th style='text-align: ${i === 0 ? "left" : "right"}; padding: 5px; width: ${widthsVol[i]};'>${d}</th>`;
-        })}
-    </tr>
-    </thead>
-    <tbody>
-        ${filtered_volData.map(row => {
-            const isBold = row['FTCLASS'] === 'All Roadways';
-            return html`<tr style='border-bottom: 1px solid lightgrey;'>
-                ${["FTCLASS", "numSegs", "AWDT_Mod", "AWDT_Obs", "volDiff", "volDiffPct", "volRmse", "volRmsePct"].map((d, i) => {
-                    // Check if the current cell is one of the numeric columns that need formatting
-                    let formattedValue;
-                    if (i === 5 || i === 7) {
-                        formattedValue = formatNumber(row[d], true);  // True for percentage formatting
-                    } else if ((i >= 1 && i <= 4) || i==6) {
-                        formattedValue = formatNumber(row[d]);
-                    } else {
-                        formattedValue = row[d];
-                    }
-                    return html`<td style='text-align: ${i === 0 ? "left" : "right"}; padding: 5px; font-weight: ${isBold ? 'bold' : 'normal'};'>${formattedValue}</td>`;
-                })}
-            </tr>`;
-        })}
-    </tbody>
-</table>`
-```
-
-:::
-::: {.column width="35%"}
-
-```{ojs}
-html`<h4>&nbsp;</h4>`
-keyVol = Legend(bChartVol.scales.color, {title: "Data Source"})
-
-bChartVol = GroupedBarChart(filtered_volDataL, {
-    x: d => d.FTCLASS,
-    y: d => d.ViewValue,
-    z: d => d.DataSource,
-    xDomain: bClassLevel === 'FTGROUP' ? ['Freeway', 'NonFreeway', 'All Roadways'] : ['Freeway','Principal Arterial','Minor Arterial','Collector','All Roadways'],
-    yLabel: "Average Volume (thousands)",
-    zDomain: ['Model','Observed'],
-    width: 320,
-    height: 175,
-    colors: [themeModel, themeObserved]
-})
-```
-
-:::
-::::
-
-:::: {.columns}
-::: {.column width="65%"}
-
-```{ojs}
-html`
-<h4>2b. Total Daily VMT by Roadway Class</h4>
-<table>
-    <thead>
-    <tr>
-        ${["Roadway Class", "Model", "Observed", "Difference", "Percent Difference"].map((d, i) => {
+        ${["Roadway Class", "Model", "Target", "Difference", "Percent Difference"].map((d, i) => {
             return html`<th style='text-align: ${i === 0 ? "left" : "right"}; padding: 5px; width: ${widthsVmt[i]};'>${d}</th>`;
         })}
     </tr>
@@ -2010,7 +1779,7 @@ html`
         ${filtered_vmtData.map(row => {
             const isBold = row['FTCLASS'] === 'All Roadways';
             return html`<tr style='border-bottom: 1px solid lightgrey;'>
-                ${["FTCLASS", "VMT_Mod", "VMT_Obs", "vmtDiff", "vmtDiffPct"].map((d, i) => {
+                ${["FTCLASS", "VMT_Mod", "VMT_Target", "vmtDiff", "vmtDiffPct"].map((d, i) => {
                     // Check if the current cell is one of the numeric columns that need formatting
                     let formattedValue;
                     if (i === 4 || i === 6) {
@@ -2041,298 +1810,22 @@ bChartVmt = GroupedBarChart(filtered_vmtDataL, {
     z: d => d.DataSource,
     xDomain: bClassLevel === 'FTGROUP' ? ['Freeway', 'NonFreeway', 'All Roadways'] : ['Freeway','Principal Arterial','Minor Arterial','Collector','All Roadways'],
     yLabel: "Total VMT (millions)",
-    zDomain: ['Model','Observed'],
+    zDomain: ['Model','Target'],
     width: 320,
     height: 175,
-    colors: [themeModel, themeObserved]
+    colors: [themeModel, themeTarget]
 })
 ```
 
 :::
 ::::
-
-:::: {.columns}
-::: {.column width="50%"}
-
-```{ojs}
-import {max} from 'd3-array';
-```
-
-```{ojs}
-
-maxVal = {
-  return Math.max(
-    d3.max(filtered_allvehplotData, d => d.AWDT_Obs),
-    d3.max(filtered_allvehplotData, d => d.AWDT_Mod)
-  );
-}
-
-```
-
-```{ojs}
-html`<h4>2c. Model vs Observed Volumes</h4>`
-Plot.plot({
-  grid: true,
-  width: 460,
-  height: 300,
-  marginRight: 40,
-  x: {
-    label: "Observed Volume (thousands)",
-    domain: [0, maxVal]
-  },
-  y: {
-    label: "Model Volume (thousands)",
-    domain: [0, maxVal]
-  },
-  marks: [
-    Plot.dot(filtered_allvehplotData, {
-      x: "AWDT_Obs",
-      y: "AWDT_Mod",
-      r: 1,
-      fill: themeModel,
-      fillOpacity: 0.5,
-      stroke: "none"
-    }),
-    Plot.link([0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4], {
-      x1: 0,
-      y1: 0,
-      x2: maxVal,
-      y2: (k) => maxVal * k,
-      strokeOpacity: (k) => k === 1 ? 1 : 0.2,
-      stroke: "gray",
-      strokeWidth: (k) => k === 1 ? 2 : 1.5
-    }),
-    Plot.text([0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4], {
-      x: maxVal,
-      y: (k) => maxVal * k,
-      text: ((f) => (k) => k === 1 ? "Equal" : f(k - 1))(d3.format("+.0%")),
-      textAnchor: "start",
-      dx: 6
-    }),
-    // New top-aligned labels
-    Plot.text([1.4, 1.3, 1.2, 1.1, 1, 0.1, 0.2, 0.3, 0.4], {
-      x: (k2) => maxVal * 0.8 * (1-k2),
-      y: maxVal,
-      text: ((f) => (k2) => k2 === 1 ? "" : f(1-k2))(d3.format("+.0%")), //(k2) => d3.format("+.0%")(1-k2),
-      textAnchor: "middle",
-      dy: -10, // Adjusts position slightly above the top of the plot
-      dx: 392
-    }),
-    Plot.linearRegressionY(filtered_allvehplotData, {
-        x: "AWDT_Obs",
-        y: "AWDT_Mod",
-        stroke: themeModel,
-        strokeDasharray: "4 4",  // This creates a dashed line pattern,
-        strokeWidth: 2
-    })
-  ]
-})
-```
-:::
-
-::: {.column width="50%"}
-
-```{ojs}
-html`<h4>2d. Model vs Observed Percent Error</h4>`
-// volErrorPct
-Plot.plot({
-  grid: true,
-  width: 460,
-  height: 300,
-  marginRight: 40,
-  x: {
-    label: "Observed Volume (thousands)",
-    domain: [0, maxVal]
-  },
-  y: {
-    label: "Percent Error",
-    domain: [-2, 2],
-    tickFormat: d3.format(".0%")
-  },
-  marks: [
-    Plot.dot(filtered_allvehplotData, {
-      x: "AWDT_Obs",
-      y: "volErrorPct",
-      r: 1,
-      fill: themeModel,
-      fillOpacity: 0.5,
-      stroke: "none"
-    }),
-    Plot.ruleY([2], {
-      x1: 0,
-      x2: 1,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleX([1], {
-      y1: 1,
-      y2: 2,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleY([1], {
-      x1: 1,
-      x2: 2.5,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleX([2.5], {
-      y1: 0.5,
-      y2: 1.0,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleY([0.5], {
-      x1: 2.5,
-      x2: 5,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleX([5], {
-      y1: 0.25,
-      y2: 0.50,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleY([0.25], {
-      x1: 5,
-      x2: 10,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleX([10], {
-      y1: 0.20,
-      y2: 0.25,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleY([0.20], {
-      x1: 10,
-      x2: 25,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleX([25], {
-      y1: 0.15,
-      y2: 0.20,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleY([0.15], {
-      x1: 25,
-      x2: 50,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleX([50], {
-      y1: 0.10,
-      y2: 0.15,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleY([0.10], {
-      x1: 50,
-      x2: 300,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleY([-2], {
-      x1: 0,
-      x2: 1,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleX([1], {
-      y1: -1,
-      y2: -2,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleY([-1], {
-      x1: 1,
-      x2: 2.5,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleX([2.5], {
-      y1: -0.5,
-      y2: -1.0,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleY([-0.5], {
-      x1: 2.5,
-      x2: 5,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleX([5], {
-      y1: -0.25,
-      y2: -0.50,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleY([-0.25], {
-      x1: 5,
-      x2: 10,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleX([10], {
-      y1: -0.20,
-      y2: -0.25,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleY([-0.20], {
-      x1: 10,
-      x2: 25,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleX([25], {
-      y1: -0.15,
-      y2: -0.20,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleY([-0.15], {
-      x1: 25,
-      x2: 50,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleX([50], {
-      y1: -0.10,
-      y2: -0.15,
-      stroke: "gray",
-      strokeWidth: 2
-    }),
-    Plot.ruleY([-0.10], {
-      x1: 50,
-      x2: 300,
-      stroke: "gray",
-      strokeWidth: 2
-    })
-  ]
-})
-```
-
-:::
-::::
-
-As shown in @fig-assign-validation (Region, All Vehicles), the volume and VMT of all vehicles at the region-wide level closely matches the validation targets. Volume for all roadways is only 1.7% higher than observed and VMT for all roadways is only 1.5% higher than observed.
-
-As shown in @fig-assign-validation (Region, Medium CV) and @fig-assign-validation (Region, Heavy CV), the model currently overpredicts Medium and Heavy CV. A good amount of effort was spent attempting to bring model commercial vehicle volumes closer to observed. However, due to commercial vehicle data limitations and other model resource considerations, further calibration was stopped. CV modeling remains a future priority for model improvement.
-
-In addition to the charts, the interactive map in @fig-assign-compare-interactive allows for exploring segment-level model vs observed volume differences by vehicle type. Blue represents model volume lower than observed, and red represents model volume higher than observed.
 
 <!-- ::: {layout-ncol=3}
-![Segment-Level Model vs Observed Volume Comparison -- All Vehicles](_pictures/vol-diff-Total.png){#fig-assign-compare-all}
+![Segment-Level Model vs Target Volume Comparison -- All Vehicles](_pictures/vol-diff-Total.png){#fig-assign-compare-all}
 
-![Segment-Level Model vs Observed Volume Comparison -- Medium CV](_pictures/vol-diff-MD.png){#fig-assign-compare-md}
+![Segment-Level Model vs Target Volume Comparison -- Medium CV](_pictures/vol-diff-MD.png){#fig-assign-compare-md}
 
-![Segment-Level Model vs Observed Volume Comparison -- Heavy CV](_pictures/vol-diff-HV.png){#fig-assign-compare-hv}
+![Segment-Level Model vs Target Volume Comparison -- Heavy CV](_pictures/vol-diff-HV.png){#fig-assign-compare-hv}
 ::: -->
 
 ```{ojs}
@@ -2357,7 +1850,7 @@ viewof mapType = Inputs.radio(
 
 ```{ojs}
 //| label: fig-assign-compare-interactive
-//| fig-cap: Segment-Level Model vs Observed Volume Comparison
+//| fig-cap: Segment-Level Model vs Target Volume Comparison
 
 // 1. IMPORT LEAFLET & CSS
 LM = require("leaflet@1.9.4")
@@ -2465,7 +1958,7 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
     div.style.borderRadius = "4px";
     div.style.textAlign = "left";
 
-    let labels = [`<strong>${mapType === "Percent" ? "% Diff" : "Diff"} (Mod - Obs)</strong><br>`];
+    let labels = [`<strong>${mapType === "Percent" ? "% Diff" : "Diff"} (Mod - Tgt)</strong><br>`];
 
     // Helper to format legend labels
     const fmt = (n) => mapType === "Percent" ? (n * 100) + "%" : n;
@@ -2491,10 +1984,6 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
   return container;
 }
 ```
-
-Looking at the *All Vehicles* map, the model volumes are lower than observed for by more than 7,500 vehicles per day for the east side of I-215 and by more than 15,000 vehicles per day for I-15 through northern Utah County. Model volumes are higher than observed volumes by more than 15,000 vehicles for I-15 in southern Salt Lake County and for I-15 in Utah County between Springville and Spanish Fork. When looking at these areas by vehicle type, volumes for both *Medium CV* and *Heavy CV* are slightly greater than observed. Overall, the volume differences between model and observed are relatively minor.
-
-The lower arterial model vs observed volumes of *Heavy CV* on 9000 South in Salt Lake County was further investigated. The *Heavy CV* observed volume for this roadway seemed much higher than expected for this roadway. The lower volumes are likely due to the observed data and not anything in the model.
 
 
 ## HOT Lane Validation
@@ -2576,31 +2065,31 @@ ccs_final = ccs_final.melt(
     id_vars=["STATION", "SEGID", "COUNTY_NAME", "DIRECTION"],
     value_vars=vol_cols,
     var_name="Period",
-    value_name="Obs_Vol"
+    value_name="Tgt_Vol"
 )
 ccs_final["Period"] = ccs_final["Period"].str.replace("_Vol", "")
 
 # create "both" direciton
-ccs_final['OBS_ID'] = ccs_final.groupby(['STATION', 'SEGID', 'COUNTY_NAME', 'DIRECTION', 'Period']).cumcount()
+ccs_final['TGT_ID'] = ccs_final.groupby(['STATION', 'SEGID', 'COUNTY_NAME', 'DIRECTION', 'Period']).cumcount()
 
 # Group by everything except DIRECTION, and sum the volume
-group_cols = ['STATION', 'SEGID', 'COUNTY_NAME', 'Period', 'OBS_ID']
-ccs_both = ccs_final.groupby(group_cols)['Obs_Vol'].sum().reset_index()
+group_cols = ['STATION', 'SEGID', 'COUNTY_NAME', 'Period', 'TGT_ID']
+ccs_both = ccs_final.groupby(group_cols)['Tgt_Vol'].sum().reset_index()
 ccs_both['DIRECTION'] = 'Both'
 
 # Combine the 'Both' data back into the main dataframe
 ccs_final = pd.concat([ccs_final, ccs_both], ignore_index=True)
-ccs_final = ccs_final.drop(columns=['OBS_ID']) # Clean up
+ccs_final = ccs_final.drop(columns=['TGT_ID']) # Clean up
 
 #-------------------------------------------#
 # Calculate Flow Rate
 #-------------------------------------------#
-# Compute Obs_Vph
+# Compute Tgt_Vph
 # Make sure to add "DY" with 24 hours to your dictionary!
 period_hours = {"AM": 3, "MD": 6, "PM": 3, "EV": 12, "DY": 24}
 
-ccs_final["Obs_Vph"] = ccs_final.apply(
-    lambda row: row["Obs_Vol"] / period_hours[row["Period"]],
+ccs_final["Tgt_Vph"] = ccs_final.apply(
+    lambda row: row["Tgt_Vol"] / period_hours[row["Period"]],
     axis=1
 )
 ```
@@ -2616,7 +2105,7 @@ seg_detail = vs.load_cached_per_run(repo_root, "seg_detail")
 # calib_run isn't a merge key -- rides along on seg_detail's side, repeating
 # ccs_final (not run-specific) across each run, same pattern as elsewhere
 hot_compare = ccs_final.merge(seg_detail, how = 'left', on=['SEGID','DIRECTION','Period'])
-hot_compare = hot_compare[['SEGID','DIRECTION_NAME','DIRECTION','Period','Obs_Vol','Mod_Vol','Obs_Vph','Mod_Vph','STATION','COUNTY_NAME','calib_run']]
+hot_compare = hot_compare[['SEGID','DIRECTION_NAME','DIRECTION','Period','Tgt_Vol','Mod_Vol','Tgt_Vph','Mod_Vph','STATION','COUNTY_NAME','calib_run']]
 hot_compare = hot_compare[~(hot_compare['Mod_Vol'].isna())]
 
 # Extract the number after '_' in SEGID
@@ -2648,7 +2137,7 @@ df['COUNTY_ORDER_IDX'] = df['COUNTY_CLEAN'].map(county_map).fillna(99)
 # C. Keep only the columns we need to keep the web browser fast
 cols_to_keep = [
     'SEGID','STATION', 'CO_SEG', 'DIRECTION', 'Period',
-    'Obs_Vol', 'Mod_Vol', 'Obs_Vph', 'Mod_Vph',
+    'Tgt_Vol', 'Mod_Vol', 'Tgt_Vph', 'Mod_Vph',
     'SEG_NUM_SORT', 'COUNTY_ORDER_IDX', 'calib_run'
 ]
 
@@ -2722,7 +2211,7 @@ viewof plot_type = Inputs.radio(
 
 ::: {.panel-tabset}
 
-## Model vs Observed
+## Model vs Target
 ```{ojs}
 //| label: plot-rendering
 
@@ -2745,13 +2234,13 @@ plot_data = {
   filtered.forEach(d => {
      if (!groups[d.CO_SEG]) {
          groups[d.CO_SEG] = {
-            obs_values: [],
+            tgt_values: [],
             mod_val: d[`Mod_${selected_var}`],
             county_idx: d.COUNTY_ORDER_IDX,
             seg_num: d.SEG_NUM_SORT
          };
      }
-     groups[d.CO_SEG].obs_values.push(d[`Obs_${selected_var}`]);
+     groups[d.CO_SEG].tgt_values.push(d[`Tgt_${selected_var}`]);
   });
 
   // 3. Flatten the grouped data back out and calculate Differences
@@ -2760,15 +2249,15 @@ plot_data = {
      const g = groups[seg];
 
      // Calculate the observed mean for this segment
-     const sum = g.obs_values.reduce((a, b) => a + b, 0);
-     const mean = sum / g.obs_values.length;
+     const sum = g.tgt_values.reduce((a, b) => a + b, 0);
+     const mean = sum / g.tgt_values.length;
 
      // Build a row for every single observation point
-     g.obs_values.forEach(obs => {
+     g.tgt_values.forEach(obs => {
         result.push({
            CO_SEG: seg,
-           obs_val: obs,
-           mean_obs: mean,
+           tgt_val: obs,
+           mean_tgt: mean,
            mod_val: g.mod_val,
            diff_from_mean: obs - mean,
            model_diff: g.mod_val - mean,
@@ -2803,8 +2292,8 @@ Plot.plot({
 
   color: {
     legend: true,
-    domain: ["Modeled", "Observed Mean", "Observed Distribution"],
-    range: [themeModel,  themeObserved, themeObservedLight]
+    domain: ["Modeled", "Target Mean", "Target Distribution"],
+    range: [themeModel,  themeTarget, themeTargetLight]
   },
 
   fx: {
@@ -2814,7 +2303,7 @@ Plot.plot({
   },x: { axis: null },
 
   y: {
-    label: plot_type === "Absolute" ? selected_var : `Modeled - Observed Mean (${selected_var})`,
+    label: plot_type === "Absolute" ? selected_var : `Modeled - Target Mean (${selected_var})`,
     nice: true
   },
 
@@ -2823,14 +2312,14 @@ Plot.plot({
     plot_type === "Absolute" ? [
        // The Violin Plot
        Plot.areaX(plot_data, Plot.binY({ x1: bin => -bin.length, x2: "count" }, {
-           y: "obs_val", fx: "CO_SEG", fill: themeObservedLight, fillOpacity: 0.7, curve: "basis", thresholds: 15
+           y: "tgt_val", fx: "CO_SEG", fill: themeTargetLight, fillOpacity: 0.7, curve: "basis", thresholds: 15
        })),
 
-       // Observed Mean Dot
+       // Target Mean Dot
        Plot.dot(plot_data, {
-           y: "mean_obs", fx: "CO_SEG", x: 0, fill: themeObserved, r: 4.5, symbol: "circle",
+           y: "mean_tgt", fx: "CO_SEG", x: 0, fill: themeTarget, r: 4.5, symbol: "circle",
            // UNIFIED TOOLTIP (Shows all info)
-           title: d => `Segment: ${d.CO_SEG}\nObserved Mean: ${Math.round(d.mean_obs)}\nModeled Value: ${Math.round(d.mod_val)}\nDifference: ${Math.round(d.mod_val - d.mean_obs)}`,
+           title: d => `Segment: ${d.CO_SEG}\nTarget Mean: ${Math.round(d.mean_tgt)}\nModeled Value: ${Math.round(d.mod_val)}\nDifference: ${Math.round(d.mod_val - d.mean_tgt)}`,
            tip: true
        }),
 
@@ -2838,7 +2327,7 @@ Plot.plot({
        Plot.dot(plot_data, {
            y: "mod_val", fx: "CO_SEG", x: 0, fill: themeModel, r: 5, stroke: "white",
            // UNIFIED TOOLTIP (Exact same as above, so it doesn't matter which dot you hit!)
-           title: d => `Segment: ${d.CO_SEG}\nObserved Mean: ${Math.round(d.mean_obs)}\nModeled Value: ${Math.round(d.mod_val)}\nDifference: ${Math.round(d.mod_val - d.mean_obs)}`,
+           title: d => `Segment: ${d.CO_SEG}\nTarget Mean: ${Math.round(d.mean_tgt)}\nModeled Value: ${Math.round(d.mod_val)}\nDifference: ${Math.round(d.mod_val - d.mean_tgt)}`,
            tip: true
        })
     ] :
@@ -2855,14 +2344,14 @@ Plot.plot({
 
        // The Relative Violin Plot
        Plot.areaX(plot_data, Plot.binY({ x1: bin => -bin.length, x2: "count" }, {
-           y: "diff_from_mean", fx: "CO_SEG", fill: themeObservedLight, fillOpacity: 0.7, curve: "basis", thresholds: 15
+           y: "diff_from_mean", fx: "CO_SEG", fill: themeTargetLight, fillOpacity: 0.7, curve: "basis", thresholds: 15
        })),
 
-       // Observed Mean Anchor Dot
+       // Target Mean Anchor Dot
        Plot.dot(plot_data, {
-           y: 0, fx: "CO_SEG", x: 0, fill: themeObserved, r: 4.5, symbol: "circle",
+           y: 0, fx: "CO_SEG", x: 0, fill: themeTarget, r: 4.5, symbol: "circle",
            // UNIFIED TOOLTIP
-           title: d => `Segment: ${d.CO_SEG}\nObserved Mean: ${Math.round(d.mean_obs)}\nModeled Value: ${Math.round(d.mod_val)}\nDifference: ${Math.round(d.model_diff)}`,
+           title: d => `Segment: ${d.CO_SEG}\nTarget Mean: ${Math.round(d.mean_tgt)}\nModeled Value: ${Math.round(d.mod_val)}\nDifference: ${Math.round(d.model_diff)}`,
            tip: true
        }),
 
@@ -2870,7 +2359,7 @@ Plot.plot({
        Plot.dot(plot_data, {
            y: "model_diff", fx: "CO_SEG", x: 0, fill: themeModel, r: 5, stroke: "white",
            // UNIFIED TOOLTIP
-           title: d => `Segment: ${d.CO_SEG}\nObserved Mean: ${Math.round(d.mean_obs)}\nModeled Value: ${Math.round(d.mod_val)}\nDifference: ${Math.round(d.model_diff)}`,
+           title: d => `Segment: ${d.CO_SEG}\nTarget Mean: ${Math.round(d.mean_tgt)}\nModeled Value: ${Math.round(d.mod_val)}\nDifference: ${Math.round(d.model_diff)}`,
            tip: true
        })
     ]
@@ -2890,16 +2379,16 @@ map_display2 = {
   const map_stats = new Map();
   filtered.forEach(d => {
       if (!map_stats.has(d.SEGID)) {
-          map_stats.set(d.SEGID, { obs_values: [], mod_val: d[`Mod_${selected_var}`] });
+          map_stats.set(d.SEGID, { tgt_values: [], mod_val: d[`Mod_${selected_var}`] });
       }
-      map_stats.get(d.SEGID).obs_values.push(d[`Obs_${selected_var}`]);
+      map_stats.get(d.SEGID).tgt_values.push(d[`Tgt_${selected_var}`]);
   });
 
   for (let [segid, stats] of map_stats.entries()) {
-      const sum = stats.obs_values.reduce((a, b) => a + b, 0);
-      stats.mean_obs = sum / stats.obs_values.length;
-      stats.diff = stats.mod_val - stats.mean_obs;
-      stats.pct_err = stats.mean_obs === 0 ? 0 : (stats.diff / stats.mean_obs) * 100;
+      const sum = stats.tgt_values.reduce((a, b) => a + b, 0);
+      stats.mean_tgt = sum / stats.tgt_values.length;
+      stats.diff = stats.mod_val - stats.mean_tgt;
+      stats.pct_err = stats.mean_tgt === 0 ? 0 : (stats.diff / stats.mean_tgt) * 100;
   }
 
   // 2. SETUP MAP CONTAINER
@@ -2936,7 +2425,7 @@ map_display2 = {
       if (stats) {
           if (stats.pct_err > 15) finalColor = themeDanger;
           else if (stats.pct_err < -15) finalColor = themeModel;
-          else finalColor = themeObserved;
+          else finalColor = themeTarget;
       }
       return { color: finalColor, weight: 6, opacity: 0.9 };
     },
@@ -2948,7 +2437,7 @@ map_display2 = {
           const diffColor = stats.diff > 0 ? themeDanger : themeModel;
           layer.bindPopup(`<div style="font-family: sans-serif; min-width: 180px;">
              <strong>Segment: ${segid}</strong><hr style="margin:4px 0; border:0; border-top:1px solid #eee;">
-             Observed Mean: <b>${Math.round(stats.mean_obs).toLocaleString()}</b><br/>
+             Target Mean: <b>${Math.round(stats.mean_tgt).toLocaleString()}</b><br/>
              Modeled Value: <b>${Math.round(stats.mod_val).toLocaleString()}</b><br/>
              Diff: <span style="color:${diffColor}; font-weight:bold;">${Math.round(stats.diff).toLocaleString()}
              (${stats.pct_err > 0 ? '+' : ''}${stats.pct_err.toFixed(1)}%)</span>
@@ -2983,7 +2472,7 @@ map_display2 = {
       if (stats) {
           if (stats.pct_err > 15) finalColor = themeDanger; // over threshold
           else if (stats.pct_err < -15) finalColor = themeModel; // under threshold
-          else finalColor = themeObserved; // within tolerance
+          else finalColor = themeTarget; // within tolerance
       }
 
       // Draw a nice crisp circle
@@ -3007,7 +2496,7 @@ map_display2 = {
              <strong>Station: ${station}</strong><br>
              <span style="color:#666; font-size:11px;">Segment: ${segid}</span>
              <hr style="margin:4px 0; border:0; border-top:1px solid #eee;">
-             Observed Mean: <b>${Math.round(stats.mean_obs).toLocaleString()}</b><br/>
+             Target Mean: <b>${Math.round(stats.mean_tgt).toLocaleString()}</b><br/>
              Modeled Value: <b>${Math.round(stats.mod_val).toLocaleString()}</b><br/>
              Diff: <span style="color:${diffColor}; font-weight:bold;">${Math.round(stats.diff).toLocaleString()}
              (${stats.pct_err > 0 ? '+' : ''}${stats.pct_err.toFixed(1)}%)</span>
@@ -3053,10 +2542,6 @@ map_display2 = {
 
 
 ## Average Travel Time
-
-The model's average travel time was compared to observed data between (how many) various origin and destination locations throughout the model space. Observed travel times came from the Google API for various times throughout 2023. All observed data was collected on Tuesday through Thursday. Due to a data collection issue, observed average travel times were only available for the WFRC area. Model data came from the final network skims that report travel times between every TAZ by period.
-
-The validation results for average travel time are shown in the following figures. Looking at the EV period and knowing that evening speeds are similar to freeflow, we can deduce that in general the model’s freeflow speeds are about 10% faster than observed. In addition, a pattern exists in the AM, MD, and PM periods where shorter trips (under 20 minutes) have shorter travel times than observed and longer trips (30-60 minutes) have longer travel times than observed. This suggests that the volume-delay function (VDF) curves are slightly too aggressive on higher end facility types (freeways and arterials). Overall, while these charts show an acceptable range of error, improvements to freeflow speeds and to the VDF curves are adjustments we will consider making in future models.
 
 ```{python}
 # https://drive.google.com/drive/folders/1ejD4-sqgZB7FXVsHbQxRZXjP7lACaUpn

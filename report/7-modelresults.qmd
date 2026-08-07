@@ -130,7 +130,7 @@ ojs_define(
 # | echo: false
 
 # ==============================================================================
-# DEBUG: VALIDATE CRT ACCESS COUNTS (OBSERVED VS MODELED)
+# DEBUG: VALIDATE CRT ACCESS COUNTS (TARGET VS MODELED)
 # ==============================================================================
 print("--- STARTING CRT ACCESS VALIDATION ---\n")
 
@@ -155,9 +155,9 @@ station_map = {
 }
 
 # ------------------------------------------------------------------------------
-# A. ANALYZE OBSERVED DATA
+# A. ANALYZE TARGET DATA
 # ------------------------------------------------------------------------------
-print(f"Loading Observed Data from: {config_paths['in_obs_processed']}")
+print(f"Loading Target Data from: {config_paths['in_obs_processed']}")
 df_obs_debug = pd.read_csv(config_paths["in_obs_processed"], low_memory=False)
 
 # Filter: First Mode is CRT (Access trips only, no transfers)
@@ -174,10 +174,10 @@ obs_crt_debug["Station"] = obs_crt_debug["STOP_ADDR"].str.extract(
 )
 
 # Group by Mode and Station
-print("\n>>> OBSERVED: Total Boardings by Access Mode")
+print("\n>>> TARGET: Total Boardings by Access Mode")
 print(obs_crt_debug.groupby("Ac_Mode2_Model")["boarding_weight"].sum().round(1))
 
-print("\n>>> OBSERVED: Boardings by Station & Mode")
+print("\n>>> TARGET: Boardings by Station & Mode")
 obs_station_stats = (
     obs_crt_debug.groupby(["Station", "Ac_Mode2_Model"])["boarding_weight"]
     .sum()
@@ -233,7 +233,7 @@ print("\n--- VALIDATION COMPLETE ---")
 // 2. Define Inputs with Custom Layout
 viewof modeInput = Inputs.select(["Drive", "Walk"], {label: "Access Mode", value: "Drive"});
 viewof metricInput = Inputs.select(["Access Distance (mi)", "Access Time (min)"], {label: "Metric", value: "Access Distance (mi)"});
-viewof layersInput = Inputs.checkbox(["Observed", "Modeled"], {label: "Show Data:", value: ["Observed", "Modeled"]});
+viewof layersInput = Inputs.checkbox(["Target", "Modeled"], {label: "Show Data:", value: ["Target", "Modeled"]});
 ```
 
 ```{ojs}
@@ -288,8 +288,8 @@ Plot.plot({
   },
 
   color: {
-    domain: ["Observed", "Modeled"],
-    range: [themeObserved, themeModel],
+    domain: ["Target", "Modeled"],
+    range: [themeTarget, themeModel],
     legend: true
   },
 
@@ -322,8 +322,8 @@ Plot.plot({
       }
     )) : null,
 
-    // --- OBSERVED LAYER (Amber) ---
-    layersInput.includes("Observed") ? Plot.areaY(filteredObs, Plot.binX(
+    // --- TARGET LAYER (Amber) ---
+    layersInput.includes("Target") ? Plot.areaY(filteredObs, Plot.binX(
       { y: "sum" },
       {
         x: metricInfo.col,
@@ -331,13 +331,13 @@ Plot.plot({
         weight: "boarding_weight",
         thresholds: 50,
         curve: "basis",
-        fill: themeObserved,
+        fill: themeTarget,
         fillOpacity: 0.5,
         sort: { fy: null }
       }
     )) : null,
 
-    layersInput.includes("Observed") ? Plot.lineY(filteredObs, Plot.binX(
+    layersInput.includes("Target") ? Plot.lineY(filteredObs, Plot.binX(
       { y: "sum" },
       {
         x: metricInfo.col,
@@ -345,7 +345,7 @@ Plot.plot({
         weight: "boarding_weight",
         thresholds: 50,
         curve: "basis",
-        stroke: themeObserved,
+        stroke: themeTarget,
         strokeWidth: 1.5
       }
     )) : null,
@@ -376,13 +376,13 @@ Plot.plot({
       }
     )) : null,
 
-    layersInput.includes("Observed") ? Plot.ruleX(filteredObs, Plot.groupZ(
+    layersInput.includes("Target") ? Plot.ruleX(filteredObs, Plot.groupZ(
       { x: "median" },
       {
         x: metricInfo.col,
         fy: "Stop_Name",
         weight: "boarding_weight",
-        stroke: themeObserved,
+        stroke: themeTarget,
         strokeWidth: 2,
         strokeDasharray: "4,2",
         tip: {

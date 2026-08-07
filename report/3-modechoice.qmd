@@ -420,11 +420,11 @@ df_final = df_long.copy()
 df_final.rename(
     columns={
         config_output["share_model"]: "Model",
-        config_output["share_obs"]: "Observed",
+        config_output["share_obs"]: "Target",
     },
     inplace=True,
 )
-df_final["Difference"] = df_final["Model"] - df_final["Observed"]
+df_final["Difference"] = df_final["Model"] - df_final["Target"]
 
 # Melt for OJS
 df_final_melt = pd.melt(
@@ -436,7 +436,7 @@ df_final_melt = pd.melt(
         "Mode",
         "calib_run",
     ],
-    value_vars=["Model", "Observed"],
+    value_vars=["Model", "Target"],
     var_name="DataSource",
     value_name="Percent",
 )
@@ -460,7 +460,7 @@ df_boardings_long = vs.load_cached_per_run(repo_root, "boardings")
 df_step1 = pd.melt(
     df_boardings_long,
     id_vars=["Mode", "Title", "Difference", "% Difference", "calib_run"],
-    value_vars=["Model", "Observed"],
+    value_vars=["Model", "Target"],
     var_name="DataSource",
     value_name="Value",
 )
@@ -576,7 +576,7 @@ for _calib_run in calib_runs:
         "stage": "modechoice",
         "metrics": {
             "transit_mode_share_model": float(_transit_row["Model"].iloc[0]) if len(_transit_row) else None,
-            "transit_mode_share_observed": float(_transit_row["Observed"].iloc[0]) if len(_transit_row) else None,
+            "transit_mode_share_target": float(_transit_row["Target"].iloc[0]) if len(_transit_row) else None,
             "transit_trips_pct_diff": float(_system_row["% Difference"].iloc[0]) if len(_system_row) else None,
         },
     }
@@ -586,7 +586,7 @@ for _calib_run in calib_runs:
 
 ## Mode Share
 
-The mode choice model was calibrated to observed mode shares from the 2023 Utah Household Travel Survey and the 2024 Transit On-Board Survey. The results of this calibration effort are shown in @fig-mode-share. All mode shares were calibrated to within 5% of observed data.
+The mode choice model was calibrated to target mode shares from the 2023 Utah Household Travel Survey and the 2024 Transit On-Board Survey. The results of this calibration effort are shown in @fig-mode-share. All mode shares were calibrated to within 5% of target data.
 
 ```{ojs}
 html`<br/>`
@@ -649,7 +649,7 @@ import {howto, altplot} from "@d3/example-components"
 formatPercent = d3.format(".1%")
 
 xDomain = {
-  const sources = ["Model", "Observed"]
+  const sources = ["Model", "Target"]
   switch(plotSelect) {
     case "Motorized / Non-Motorized":
       return ['Motorized', 'Non-Motorized'].flatMap(m => sources.map(s => `${m}||${s}`))
@@ -679,7 +679,7 @@ xDomain = {
 
 {
   const legend = Legend(
-    d3.scaleOrdinal(["Model", "Observed"], [themeModel, themeObserved]),
+    d3.scaleOrdinal(["Model", "Target"], [themeModel, themeTarget]),
     {title: "Data Source"}
   )
 
@@ -715,8 +715,8 @@ xDomain = {
     },
 
     color: {
-      domain: ["Model", "Observed"],
-      range:  [themeModel, themeObserved],
+      domain: ["Model", "Target"],
+      range:  [themeModel, themeTarget],
     },
 
     marks: [
@@ -772,14 +772,14 @@ html`
 <table>
     <thead>
     <tr>
-        ${["Mode", "Purpose", "Model", "Observed", "Difference"].map((d, i) =>
+        ${["Mode", "Purpose", "Model", "Target", "Difference"].map((d, i) =>
         html`<th style='text-align: ${i <= 1 ? "left" : "right"}; padding: 5px; ${i <= 1 ? "width: 140px;" : ""}'>${d}</th>`)}
     </tr>
     </thead>
     <tbody>
     ${table_filtered_data.map(row => html`
         <tr style='border-bottom: 1px solid lightgrey;'>
-        ${["Mode", "TripPurpose", "Model", "Observed", "Difference"].map((d, i) => {
+        ${["Mode", "TripPurpose", "Model", "Target", "Difference"].map((d, i) => {
             const val = (i <= 1) ? row[d] : formatPercent(row[d]);
             return html`<td style='text-align: ${i <= 1 ? "left" : "right"}; padding: 5px; ${i <= 1 ? "width: 140px;" : ""}'>${val}</td>`
         })}
@@ -795,17 +795,6 @@ html`<br/><br/>`
 ```
 
 ## Transit Trips and Boardings
-
-Transit trips were validated to the 2024 Transit On-Board Survey and 2023 observed boarding data. To facilitate model calibration, transit trips, boardings, and transfers were validated by the model’s hierarchical mode. Boardings were also validated based on the mode where the boarding was actually observed. Transit validation results are shown in @fig-mc-boardings.
-
-Total transit trips and boardings were calibrated to within 5% of observed data (trips `{python} txt['trips_tot']`, boardings `{python} txt['board_tot']`). Overall transfers were all within an acceptable range.
-
-Transit trips and boardings by mode were calibrated to acceptable ranges for modes with significant ridership. Modes with low ridership were allowed to have a higher difference when compared to observed data if calibrating to increase base year accuracy resulted in too large alternative specific constants (i.e. over calibrating these modes). However, the following suggestions may help guide when using the model and interpreting model results:
-
- - BRT validation results were low (between `{python} txt['brt_trips']` and `{python} txt['brt_board']`). However, only one BRT route (UVX) was available in 2019 to calibrate this mode. Partly due to this, additional rounds of calibration to improve BRT resulted in large constants. This in turn would have the effect of making the base year validation better but overpredicting BRT in future forecasts, particularly as there is significantly more BRT in future plan phases. The decision was made to allow BRT to show lower than expected ridership in the earlier years of the model in favor of more reasonable BRT future-year forecasts.
- - Core Route validation statistics are not applicable because the only Core Route operational in the base year (3500 S) was reclassified as a Local Bus. This adjustment removed all observed ridership from this category, resulting in undefined validation metrics. Consequently, the model is predicting trips for a mode structure preserved for future phases, while the observed dataset for this specific category is empty.
- - Express Bus trip and boarding validation results are higher than desired (`{python} txt['exp_trips']` and `{python} txt['exp_board']`, respectively). However, Express Bus ridership in 2019 is not significant and Express Bus service is expected to decrease in future plan phases. Note that the model underpredicts overall boardings (`{python} txt['exp_surv']`) largely due to the observed data showing trips in the downtown area are transferring from other modes (e.g. CRT) to use Express Bus more as a local downtown circulator. The model does not capture this behavior.
-
 
 ```{ojs}
 html`<br/>`
@@ -852,7 +841,7 @@ html`
 <table>
     <thead>
     <tr>
-        ${["Mode", "Model", "Observed", "Difference", "% Difference"].map((d, i) => {
+        ${["Mode", "Model", "Target", "Difference", "% Difference"].map((d, i) => {
             const widths = ['90px', '60px', '70px', '75px', '90px'];
             return html`<th style='text-align: ${i === 0 ? "left" : "right"}; padding: 5px; width: ${widths[i]};'>${d}</th>`;
         })}
@@ -862,7 +851,7 @@ html`
         ${filtered_bDataT.map(row => {
             const isBold = row['Mode'] === 'All';
             return html`<tr style='border-bottom: 1px solid lightgrey;'>
-                ${["Mode", "Model", "Observed", "Difference", "% Difference"].map((d, i) => {
+                ${["Mode", "Model", "Target", "Difference", "% Difference"].map((d, i) => {
                     const widths = ['90px', '60px', '70px', '75px', '90px'];
                     // Apply conditional formatting
                     const val = getFormat(d, row[d], bPlotSelect);
@@ -889,10 +878,10 @@ bChart = GroupedBarChart(filtered_bDataC, {
     yLabel: "Value",
     // Conditionally format Y axis based on selection
     yFormat: (bPlotSelect === "Transfer Ratio") ? ".2f" : "s",
-    zDomain: ['Model','Observed'],
+    zDomain: ['Model','Target'],
     width: 500,
     height: 225,
-    colors: [themeModel, themeObserved]
+    colors: [themeModel, themeTarget]
 })
 
 filtered_bData2 = dataBLC.filter(function(dataBLC) {
@@ -917,7 +906,7 @@ chart3 = {
     y: d => d.Mode,
     xDomain: [-domainMax, domainMax],
     xFormat: metric === "Difference" ? "+,d" : "+.1%",
-    xLabel: "Model vs Observed Differences",
+    xLabel: "Model vs Target Differences",
     height: 200,
     colors: d3.schemeRdBu[3]
   });
@@ -929,7 +918,7 @@ chart3 = {
 
 ```{ojs}
 //|label: fig-mc-boardings
-//|fig-cap: Trips and Boardings by Mode Surveyed - Model vs. Observed Comparison
+//|fig-cap: Trips and Boardings by Mode Surveyed - Model vs. Target Comparison
 tbEmptyCell = 1
 ```
 
@@ -939,9 +928,6 @@ html`<br/>`
 
 
 #### Commuter Rail Station Boardings
-The comparison of base year (2019) station-level boardings for commuter-rail transit (CRT) is found in @fig-fr-brd. CRT boardings were found to be higher than observed for Davis County and lower than observed for Utah County. An adjustment of 5 additional minutes to in-vehicle-time for trips to/from Davis County and 5 fewer minute to in-vehicle-time for Utah County was made to attempt to bring the model more in-line with observations.
-
-Additional investigation was conducted into why Provo and Lehi were particularly low in the model. The findings did not turn up any obvious errors in the transit or model network. So, the conclusion is that further adjustments to CRT will be possible in the Mode Choice Update project that is currently being undertaken for the next release of the model.
 
 ```{python}
 # | label: stop-sequence
@@ -1209,7 +1195,7 @@ filtered_data_boarding = data.filter(d => {
 
 ```{ojs}
 //| label: fig-fr-brd
-//| fig-cap: "2023 Average Daily CRT Boardings by Station - Model vs Observed"
+//| fig-cap: "2023 Average Daily CRT Boardings by Station - Model vs Target"
 
 // 4. Render Plot
 Plot.plot({
@@ -1249,7 +1235,7 @@ Plot.plot({
   color: {
     legend: true,
     domain: ["On-Board Survey", "Passenger Counts", "Modeled"],
-    range: [themeObserved, themeObservedAlt, themeModel]
+    range: [themeTarget, themeTargetAlt, themeModel]
   },
   marks: [
     Plot.barY(filtered_data_boarding,
@@ -1406,7 +1392,7 @@ crtBinned = {
   const thresholds = d3.range(0, maxDist + crtBinSize, crtBinSize);
 
   const rows = [];
-  for (const source of ["Observed", "Modeled"]) {
+  for (const source of ["Target", "Modeled"]) {
     const src = crtFiltered.filter(d => d.Source === source);
     const totalTrips = d3.sum(src, d => d.Trips);
 
@@ -1433,7 +1419,7 @@ crtBinned = {
 
 ```{ojs}
 //| label: fig-crt-dist-freq
-//| fig-cap: "CRT Trip Distance Frequency — Model vs Observed"
+//| fig-cap: "CRT Trip Distance Frequency — Model vs Target"
 
 // ── 3. Render chart ───────────────────────────────────────────────────────────
 Plot.plot({
@@ -1469,12 +1455,12 @@ Plot.plot({
 
   color: {
     legend : true,
-    domain : ["Observed", "Modeled"],
-    range  : [themeObserved, themeModel],
+    domain : ["Target", "Modeled"],
+    range  : [themeTarget, themeModel],
   },
 
   marks: [
-    // Modeled (blue) — drawn first so Observed sits on top where they overlap
+    // Modeled (blue) — drawn first so Target sits on top where they overlap
     Plot.areaY(crtBinned.filter(d => d.Source === "Modeled"), {
       x          : "BinLo",
       y          : crtViewSel === "Trip Count" ? "Trips" : "Share",
@@ -1485,12 +1471,12 @@ Plot.plot({
       curve      : "step-after",
     }),
 
-    // Observed (green)
-    Plot.areaY(crtBinned.filter(d => d.Source === "Observed"), {
+    // Target (green)
+    Plot.areaY(crtBinned.filter(d => d.Source === "Target"), {
       x          : "BinLo",
       y          : crtViewSel === "Trip Count" ? "Trips" : "Share",
-      fill       : themeObserved,
-      stroke     : themeObserved,
+      fill       : themeTarget,
+      stroke     : themeTarget,
       fillOpacity: 0.35,
       strokeWidth: 1.5,
       curve      : "step-after",

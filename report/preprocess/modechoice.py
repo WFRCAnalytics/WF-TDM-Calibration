@@ -256,11 +256,11 @@ def load_boardings(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.Dat
             {
                 "Mode": mode_label,
                 "Trips_Mod": trips_mod,
-                "Trips_Obs": trips_obs,
+                "Trips_Tgt": trips_obs,
                 "Board_Mod": brd_mod_hier,
-                "Board_Obs": brd_obs_hier,
+                "Board_Tgt": brd_obs_hier,
                 "Board_Surv_Mod": brd_mod_surv,
-                "Board_Surv_Obs": brd_obs_surv,
+                "Board_Surv_Tgt": brd_obs_surv,
             }
         )
 
@@ -272,32 +272,32 @@ def load_boardings(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.Dat
     total_row = {
         "Mode": "All",
         "Trips_Mod": df_val["Trips_Mod"].sum(),
-        "Trips_Obs": system_trips_obs,
+        "Trips_Tgt": system_trips_obs,
         "Board_Mod": system_board_mod,
-        "Board_Obs": system_board_obs,
+        "Board_Tgt": system_board_obs,
         "Board_Surv_Mod": system_board_mod,
-        "Board_Surv_Obs": system_board_obs,
+        "Board_Surv_Tgt": system_board_obs,
     }
     df_val = pd.concat([df_val, pd.DataFrame([total_row])], ignore_index=True)
 
-    def make_view_df(title, col_mod, col_obs):
-        df = df_val[["Mode", col_mod, col_obs]].copy()
-        df.columns = ["Mode", "Model", "Observed"]
+    def make_view_df(title, col_mod, col_tgt):
+        df = df_val[["Mode", col_mod, col_tgt]].copy()
+        df.columns = ["Mode", "Model", "Target"]
         df["Title"] = title
-        df["Difference"] = df["Model"] - df["Observed"]
-        df["% Difference"] = (df["Difference"] / df["Observed"]).fillna(0)
+        df["Difference"] = df["Model"] - df["Target"]
+        df["% Difference"] = (df["Difference"] / df["Target"]).fillna(0)
         return df
 
-    df_v1 = make_view_df("Trips by Hierarchical Mode", "Trips_Mod", "Trips_Obs")
-    df_v2 = make_view_df("Boardings by Hierarchical Mode", "Board_Mod", "Board_Obs")
-    df_v3 = make_view_df("Boardings by Mode Surveyed", "Board_Surv_Mod", "Board_Surv_Obs")
+    df_v1 = make_view_df("Trips by Hierarchical Mode", "Trips_Mod", "Trips_Tgt")
+    df_v2 = make_view_df("Boardings by Hierarchical Mode", "Board_Mod", "Board_Tgt")
+    df_v3 = make_view_df("Boardings by Mode Surveyed", "Board_Surv_Mod", "Board_Surv_Tgt")
 
     df_v4 = df_val[["Mode"]].copy()
     df_v4["Model"] = df_val["Board_Mod"] / df_val["Trips_Mod"].replace(0, np.nan)
-    df_v4["Observed"] = df_val["Board_Obs"] / df_val["Trips_Obs"].replace(0, np.nan)
+    df_v4["Target"] = df_val["Board_Tgt"] / df_val["Trips_Tgt"].replace(0, np.nan)
     df_v4["Title"] = "Transfer Ratio"
-    df_v4["Difference"] = df_v4["Model"] - df_v4["Observed"]
-    df_v4["% Difference"] = (df_v4["Difference"] / df_v4["Observed"]).fillna(0)
+    df_v4["Difference"] = df_v4["Model"] - df_v4["Target"]
+    df_v4["% Difference"] = (df_v4["Difference"] / df_v4["Target"]).fillna(0)
 
     return pd.concat([df_v1, df_v2, df_v3, df_v4], ignore_index=True)
 
@@ -395,7 +395,7 @@ def load_crt_dist(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.Data
                     "Trips": grp["weight"].values[valid],
                     "Period": period,
                     "AccessMode": access,
-                    "Source": "Observed",
+                    "Source": "Target",
                 }
             )
         )

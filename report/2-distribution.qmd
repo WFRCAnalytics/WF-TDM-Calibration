@@ -49,9 +49,9 @@ tazv10_wf = tazv10[['TAZID', 'DISTLRG']]
 
 ## Trip Distribution
 
-The model used the 2012 Household Travel Survey to calibrate trip lengths for internal and external person trips. Trips were calibrated based on generalized cost trip length frequencies and validated to time and distance trip length frequencies and average trip lengths. The validation results are shown in @fig-ave-trip-length and @fig-trip-length-freq. Trip lengths by time and distance met the validation targets and aligned closely with observed data.
+The model used the 2012 Household Travel Survey to calibrate trip lengths for internal and external person trips. Trips were calibrated based on generalized cost trip length frequencies and validated to time and distance trip length frequencies and average trip lengths. The validation results are shown in @fig-ave-trip-length and @fig-trip-length-freq. Trip lengths by time and distance met the validation targets and aligned closely with target data.
 
-No observed data was available for internal and external commercial vehicle calibration. CV trips were calibrated based on previous model estimation and validated relative to person work and other trip lengths.
+No target data was available for internal and external commercial vehicle calibration. CV trips were calibrated based on previous model estimation and validated relative to person work and other trip lengths.
 
 ```{python}
 # See report/preprocess/distribution.py.
@@ -60,12 +60,12 @@ df_flat = vs.load_cached_per_run(repo_root, "mod_trips_dist_gc")
 
 ```{python}
 # 1. CALCULATE EXACT AVERAGES (grouped by calib_run too -- df_flat holds
-#    every calibration run's modeled data; Observed is recomputed per run's
-#    subset, which is redundant but not wrong, since Trips_Obs is identical
+#    every calibration run's modeled data; Target is recomputed per run's
+#    subset, which is redundant but not wrong, since Trips_Tgt is identical
 #    across runs)
 avg_records = []
 for var_col, var_name in [('Dist', 'Dist'), ('GC', 'GC')]:
-    for source_col, source_name in [('Trips_Mod', 'Model'), ('Trips_Obs', 'Observed')]:
+    for source_col, source_name in [('Trips_Mod', 'Model'), ('Trips_Tgt', 'Target')]:
 
         # Calculate weighted average: sum(Trips * Value) / sum(Trips)
         grouped = df_flat.groupby(['Purpose', 'calib_run']).apply(
@@ -84,7 +84,7 @@ df_flat['GC_BIN'] = np.floor(df_flat['GC']).astype(int)
 
 tlf_records = []
 for var_col, var_name in [('Dist_BIN', 'Dist'), ('GC_BIN', 'GC')]:
-    for source_col, source_name in [('Trips_Mod', 'freqMod'), ('Trips_Obs', 'freqObs')]:
+    for source_col, source_name in [('Trips_Mod', 'freqMod'), ('Trips_Tgt', 'freqTgt')]:
 
         # Group by purpose, run, and bin, sum the trips
         binned = df_flat.groupby(['Purpose', 'calib_run', var_col])[source_col].sum().reset_index()
@@ -191,8 +191,8 @@ Plot.plot({
   y: {axis: null},
   x: {tickFormat: "s", grid: true},
   color: {
-    domain: ["Model", "Observed"],
-    range: [themeModel, themeObserved],
+    domain: ["Model", "Target"],
+    range: [themeModel, themeTarget],
     legend: true
   },
   facet: {
@@ -386,11 +386,11 @@ viewof binSize = Inputs.range([1, 5], {value: 2, step: 1, label: "Bin Size:"})
 freqT = transpose(freq)
 
 // reuses globalCalibRun (the shared sidebar-bar selector, _calib_run_selector.qmd)
-freqT_filtered_Obs = freqT.filter(function(freqData) {
+freqT_filtered_Tgt = freqT.filter(function(freqData) {
     return vTripPurp == freqData.TRIPPURP &&
     vTlfType == freqData.TLFTYPE &&
     freqData.calib_run === globalCalibRun &&
-    'freqObs' == freqData.freqSource;
+    'freqTgt' == freqData.freqSource;
 })
 
 freqT_filtered_Mod = freqT.filter(function(freqData) {
@@ -424,8 +424,8 @@ minXValue = filtered_x.length > 0 ? Math.max(...filtered_x.map(function(dx){
 // near the purpose/type selectors, so it's not easy to lose track of while
 // reading the chart below.
 colorScale = d3.scaleOrdinal()
-  .domain(["Model", "Observed"])
-  .range([themeModel, themeObserved]);
+  .domain(["Model", "Target"])
+  .range([themeModel, themeTarget]);
 key2 = Legend(colorScale, {title: "Data Source"})
 ```
 
@@ -458,10 +458,10 @@ Plot.plot({
       stroke: themeModel,
       strokeWidth: 3
     })),
-    Plot.line(freqT_filtered_Obs, Plot.groupX({y: "sum"}, {
+    Plot.line(freqT_filtered_Tgt, Plot.groupX({y: "sum"}, {
       x: d => Math.floor(d.BIN / binSize) * binSize,
       y: 'freq',
-      stroke: themeObserved,
+      stroke: themeTarget,
       strokeWidth: 3
     })),
     Plot.frame({ strokeOpacity: 0.2 })
@@ -531,7 +531,7 @@ mod_intra = vs.load_cached_per_run(repo_root, "mod_intra")
 obs_intra_per_run = pd.concat(
     [obs_intra.assign(calib_run=cr) for cr in calib_runs], ignore_index=True
 )
-obs_intra_per_run['DataSource'] = 'Observed'
+obs_intra_per_run['DataSource'] = 'Target'
 mod_intra['DataSource'] = 'Model'
 
 # Combine observed and modeled data
@@ -583,14 +583,14 @@ dataIntraT = transpose(dataIntra).filter(d => d.calib_run === globalCalibRun)
 #### Plot
 ```{ojs}
 //|label: fig-intrazonal
-//|fig-cap: Intrazonal trip percentage between model and observed.
+//|fig-cap: Intrazonal trip percentage between model and target.
 //|echo: False
 Plot.plot({
   y: {axis: null},
   x: {tickFormat: "s", grid: true},
   color: {
-    domain: ["Model", "Observed"],
-    range: [themeModel, themeObserved],
+    domain: ["Model", "Target"],
+    range: [themeModel, themeTarget],
     legend: true
   },
   facet: {
@@ -722,7 +722,7 @@ Plot.plot({
   height: 380,
   marginRight: 50,
   caption: html`<h4>4a. ${vPurp_final} Trips (${vGeo_final} Level)</h4>`,
-  x: { label: "Observed Trips", domain: [0, chartMax_final] },
+  x: { label: "Target Trips", domain: [0, chartMax_final] },
   y: { label: "Modeled Trips", domain: [0, chartMax_final] },
   marks: [
     Plot.link([0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4], {
@@ -746,7 +746,7 @@ Plot.plot({
       tip: true,
       title: (d) =>
         `${d.Geo}: ${d.p_Loc} to ${d.a_Loc}\n` +
-        `Observed: ${d3.format(",.0f")(d.tmeObs)}\n` +
+        `Target: ${d3.format(",.0f")(d.tmeObs)}\n` +
         `Modeled: ${d3.format(",.0f")(d.tmeMod)}`
     }),
     Plot.linearRegressionY(dc_filtered_final, {
@@ -768,7 +768,7 @@ Plot.plot({
   width: 460,
   height: 380,
   caption: html`<h4>4b. ${vPurp_final} Percent Error</h4>`,
-  x: { label: "Observed Trips", domain: [0, chartMax_final] },
+  x: { label: "Target Trips", domain: [0, chartMax_final] },
   y: { label: "Percent Error", domain: [-2, 2], tickFormat: d3.format(".0%") },
   marks: [
     Plot.ruleY([0], { stroke: "#000", strokeWidth: 1.5 }),
@@ -778,7 +778,7 @@ Plot.plot({
       tip: true,
       title: (d) =>
         `${d.Geo}: ${d.p_Loc} to ${d.a_Loc}\n` +
-        `Observed: ${d3.format(",.0f")(d.tmeObs)}\n` +
+        `Target: ${d3.format(",.0f")(d.tmeObs)}\n` +
         `Error: ${d3.format("+.1%")(d.tmeErrorPct)}`
     }),
     // The Validation "Staircase"
@@ -1020,8 +1020,8 @@ Plot.plot({
   width: 460,
   height: 380,
   marginRight: 50,
-  caption: html`<h4>1a. Model vs Observed Trips</h4>`,
-  x: { label: "Observed Trips", domain: [0, chartMax] },
+  caption: html`<h4>1a. Model vs Target Trips</h4>`,
+  x: { label: "Target Trips", domain: [0, chartMax] },
   y: { label: "Modeled Trips", domain: [0, chartMax] },
   marks: [
     // Fan Reference Lines (+/- 10% increments)
@@ -1051,7 +1051,7 @@ Plot.plot({
       tip: true,
       title: (d) =>
         `District: ${d.p_DistLrg} to ${d.a_DistLrg}\n` +
-        `Observed: ${d3.format(",.0f")(d.tmeObs)}\n` +
+        `Target: ${d3.format(",.0f")(d.tmeObs)}\n` +
         `Modeled: ${d3.format(",.0f")(d.tmeMod)}`
     }),
     // Regression Line
@@ -1072,8 +1072,8 @@ Plot.plot({
   grid: true,
   width: 460,
   height: 380,
-  caption: html`<h4>1b. Model vs Observed Percent Error</h4>`,
-  x: { label: "Observed Trips", domain: [0, chartMax] },
+  caption: html`<h4>1b. Model vs Target Percent Error</h4>`,
+  x: { label: "Target Trips", domain: [0, chartMax] },
   y: { label: "Percent Error", domain: [-2, 2], tickFormat: d3.format(".0%") },
   marks: [
     Plot.ruleY([0], { stroke: "#000", strokeWidth: 1.5 }),
@@ -1087,7 +1087,7 @@ Plot.plot({
       tip: true,
       title: (d) =>
         `District: ${d.p_DistLrg} to ${d.a_DistLrg}\n` +
-        `Observed: ${d3.format(",.0f")(d.tmeObs)}\n` +
+        `Target: ${d3.format(",.0f")(d.tmeObs)}\n` +
         `Error: ${d3.format("+.1%")(d.tmeErrorPct)}`
     }),
     // The Validation "Staircase" (Targets)
@@ -1225,7 +1225,7 @@ segment_chart = (summary) => {
       height: 315,
       marginLeft: 50,
       marginBottom: 42,
-      x: { label: "Obs Trips", domain: [0, axisMax] },
+      x: { label: "Target Trips", domain: [0, axisMax] },
       y: { label: "Mod Trips", domain: [0, axisMax] },
       marks: [
         Plot.link(fanRatios, {
@@ -1247,7 +1247,7 @@ segment_chart = (summary) => {
           tip: true,
           title: (d) =>
             `District: ${d.p_DistLrg} to ${d.a_DistLrg}\n` +
-            `Observed: ${d3.format(",.0f")(d.tmeObs)}\n` +
+            `Target: ${d3.format(",.0f")(d.tmeObs)}\n` +
             `Modeled: ${d3.format(",.0f")(d.tmeMod)}`
         }),
         Plot.line(
@@ -1292,7 +1292,7 @@ html`<div>
     }
   </style>
   <div class="hbw-segment-summary">
-    Run: ${vSource_2} | Obs: ${obs_label_2} | Global WMAPE: ${d3.format(".1%")(global_wmape_2)} | Avg Slope: ${d3.format(".2f")(avg_slope_2)}
+    Run: ${vSource_2} | Target: ${obs_label_2} | Global WMAPE: ${d3.format(".1%")(global_wmape_2)} | Avg Slope: ${d3.format(".2f")(avg_slope_2)}
   </div>
   <div class="hbw-segment-grid">
     ${segment_summaries.map(segment_chart)}
