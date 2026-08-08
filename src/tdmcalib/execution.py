@@ -30,6 +30,7 @@ from tdmcalib import model_log as mlog
 from tdmcalib import outputs as out
 from tdmcalib import postprocess as pp
 from tdmcalib import prep
+from tdmcalib import prn_log
 from tdmcalib import run_seed as seed
 from tdmcalib import submodule as sub
 from tdmcalib.exceptions import ExecutionError
@@ -110,6 +111,20 @@ def invoke(command: list, cwd: Path, log_path: Path, timeout_seconds: int, env: 
         except subprocess.TimeoutExpired:
             log.write(f"\n\nTIMED OUT after {timeout_seconds}s\n")
             return -1
+
+
+def _append_prn_errors(error: str, scenario_folder: Path) -> str:
+    """Folds Voyager's own F(NNN): fatal-error lines from the most recent
+    *.PRN file into a failed run's error message, alongside decide_status's
+    step-level summary -- see prn_log.py for why that PRN is the right one
+    and how a real Voyager error line is told apart from an F(x) function
+    reference inside PILOT script code. No-ops (returns error unchanged) if
+    there's no PRN file or none of its lines match, e.g. a hang/timeout that
+    never got as far as Voyager reporting anything."""
+    prn_path, fatal_lines = prn_log.latest_fatal_errors(scenario_folder)
+    if not fatal_lines:
+        return error
+    return f"{error}\n\nVoyager errors ({prn_path.name}):\n" + "\n".join(fatal_lines)
 
 
 def decide_status(
@@ -257,6 +272,8 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
     status, error, status_source, model_log_result = decide_status(
         exit_code, model_log_result, log_path, folder
     )
+    if status == "failed":
+        error = _append_prn_errors(error, folder)
 
     # --- inventory always (for run_metadata's inventory_count/bytes), but
     # only curate/extract outputs once decide_status's model-log check above

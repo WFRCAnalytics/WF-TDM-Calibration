@@ -16,7 +16,7 @@ author: ""
 description: >
   Calibration iteration C50, base year 2023.
 
-tdm_ref: "calib/C50-start"
+tdm_ref: "calib/C50"
 baseline_control_center: "_ControlCenter - BY_2023.block"
 
 driver_script: "__HailMary_resumable.s"
