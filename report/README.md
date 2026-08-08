@@ -109,9 +109,10 @@ loader that needs it recomputing it independently rather than restructuring
 2. Nothing under `report/` needs to change — every `.qmd` discovers `C5N` on its own
    via `_validation_scripts.list_available_runs()`.
 3. If rendering locally instead of relying on the automatic post-run render: `quarto
-   render` from the repo root, then commit `docs/` — CI does **not** render (it can't
-   reach `tdm/`/Cube Voyager); it only publishes the already-rendered `docs/` to
-   GitHub Pages on push to `main` (`.github/workflows/publish-pages.yml`).
+   render` from the repo root, then commit `docs/` — nothing renders in CI (it can't
+   reach `tdm/`/Cube Voyager). GitHub Pages is configured to deploy directly from the
+   `main` branch's `/docs` folder, so pushing the committed `docs/` is what publishes
+   it — no workflow involved.
 
 ## Post-run rendering
 

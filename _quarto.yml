@@ -133,4 +133,12 @@ format:
 # specify kernel to use to render jupyter notebooks (must match the local env name)
 jupyter: wftdm-docs
 
-freeze: auto
+# false, not auto: every report page must recompute from whatever calib runs
+# are currently under runs/ (see report/README.md). freeze: auto only
+# invalidates its cache when a .qmd's own source text changes -- it has no
+# way to know a new calibration run's data landed under runs/, so it was
+# silently serving stale pre-run results after `tdmcalib run` even though
+# postprocess reported a successful render. report/preprocess/'s parquet
+# cache already covers the expensive per-run data loading, so this doesn't
+# reintroduce the cost freeze was meant to avoid.
+freeze: false
