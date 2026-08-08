@@ -109,10 +109,14 @@ loader that needs it recomputing it independently rather than restructuring
 2. Nothing under `report/` needs to change — every `.qmd` discovers `C5N` on its own
    via `_validation_scripts.list_available_runs()`.
 3. If rendering locally instead of relying on the automatic post-run render: `quarto
-   render` from the repo root, then commit `docs/` — nothing renders in CI (it can't
-   reach `tdm/`/Cube Voyager). GitHub Pages is configured to deploy directly from the
-   `main` branch's `/docs` folder, so pushing the committed `docs/` is what publishes
-   it — no workflow involved.
+   render` from the repo root, then commit `docs/` — CI does **not** render (it can't
+   reach `tdm/`/Cube Voyager); it only publishes the already-rendered `docs/` to
+   GitHub Pages on push to `main` (`.github/workflows/publish-pages.yml`). This can't
+   be a plain "deploy from branch" Pages source instead — GitHub's own built-in
+   branch-deploy build recursively checks out submodules, and fails on the pinned
+   `tdm/` submodule (a private repo the build's default token can't reach) even though
+   Pages only ever needed `docs/`. `actions/checkout@v4` in this workflow doesn't fetch
+   submodules unless told to, which is what makes the Actions path work.
 
 ## Post-run rendering
 
