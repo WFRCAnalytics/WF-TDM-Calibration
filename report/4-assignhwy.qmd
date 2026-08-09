@@ -1277,17 +1277,10 @@ filteredStations = daily_data
 
 ## Vehicle-Miles Traveled (VMT) Validation
 
-The validation results for the Highway Assignment portion of the model are shown in this section. The target data for 2023 volumes is taken from the Utah Department of Transportation (UDOT) [Average Annual Daily Traffic (AADT) History](https://drive.google.com/file/d/1rDXm0ObugGR1zXgWUuVbzWHNt-Xs1xru/view) and associated with their respective model segments. The traffic model data is taken from segment summary report for the 2023 base year model: `Summary_SEGID.csv`. The results are divided into three sections:
-
-- Summary Comparison
-- Detailed Comparison
-- Map Comparison
-
+The validation results for the Highway Assignment portion of the model are shown in this section. The target data for 2023 volumes is taken from the Utah Department of Transportation (UDOT) [Average Annual Daily Traffic (AADT) History](https://drive.google.com/file/d/1rDXm0ObugGR1zXgWUuVbzWHNt-Xs1xru/view) and associated with their respective model segments. The traffic model data is taken from segment summary report for the 2023 base year model: `Summary_SEGID.csv`. Model-vs-target daily Vehicle-Miles Traveled (VMT) is compared two ways below, sharing one set of controls: an aggregate chart by geography and roadway class, and a segment-level map.
 
 ```{ojs}
-import {GroupedBarChart} from "@d3/grouped-bar-chart"
 import {Legend, Swatches} from "@d3/color-legend"
-import {howto, altplot} from "@d3/example-components"
 ```
 
 ```{python}
@@ -1457,7 +1450,7 @@ df_wide = pd.merge(df_wide, ft_lookup, on="SEGID", how="left")
 segShp["SEGID"] = segShp["SEGID"].astype(str)
 df_wide["SEGID"] = df_wide["SEGID"].astype(str)
 
-gdf_vol_diff = segShp[["SEGID", "geometry"]].merge(
+gdf_vol_diff = segShp[["SEGID", "CO_FIPS", "geometry"]].merge(
     df_wide[
         [
             "SEGID",
@@ -1590,124 +1583,20 @@ allveh_vmt = sum_all_df[['CO_FIPS', 'FTCLASS', 'vehType', 'ClassLevel', 'calib_r
 ```
 
 ```{python}
-# create long format for the Model vs Target bar chart (chart 2b)
-allveh_vmt_long = allveh_vmt.rename(columns={'VMT_Mod': 'Model', 'VMT_Target': 'Target'})
-allveh_vmt_long = pd.melt(allveh_vmt_long,
-                          id_vars=['CO_FIPS', 'FTCLASS', 'vehType', 'ClassLevel', 'calib_run'],
-                          value_vars=['Model', 'Target'],
-                          var_name='DataSource',
-                          value_name='ViewValue')
-allveh_vmt_long['ViewValue'] = allveh_vmt_long['ViewValue'] / 1000000
-
-# long format for the Summary Comparison diverging bar chart (region/county)
-allveh_vmt_diff_long = pd.melt(allveh_vmt,
-                               id_vars=['CO_FIPS', 'FTCLASS', 'vehType', 'ClassLevel', 'calib_run'],
-                               value_vars=['vmtDiff', 'vmtDiffPct'],
-                               var_name='View',
-                               value_name='ViewValue')
-
-# Create a mapping dictionary for the CO_FIPS values
-fips_mapping = {
-    3: 'Box Elder County - WFRC',
-    11: 'Davis County',
-    35: 'Salt Lake County',
-    49: 'Utah County',
-    57: 'Weber County - WFRC',
-    99: 'Region'
-}
-allveh_vmt_diff_long['CO_FIPS'] = allveh_vmt_diff_long['CO_FIPS'].replace(fips_mapping)
-
-def round_up_to_next_significant(value):
-    if value == 0 or np.isinf(value) or np.isnan(value):
-        return 0
-    magnitude = 10 ** math.floor(math.log10(value))
-    return math.ceil(value / magnitude) * magnitude
-
-max_abs_value_vmtDiff    = round_up_to_next_significant(allveh_vmt_diff_long.query("View == 'vmtDiff'"   )['ViewValue'].abs().max())
-max_abs_value_vmtDiffPct = round_up_to_next_significant(allveh_vmt_diff_long.query("View == 'vmtDiffPct'")['ViewValue'].abs().max())
-```
-
-```{python}
-# save as ojs objects
-
-# for summary comparison
-ojs_define(vmtDiffLong = allveh_vmt_diff_long)
-
-# for detailed comparison
+# save as ojs object -- backs both the dumbbell chart and (via CO_FIPS/FTCLASS
+# on the segment-level geojson) the linked map
 ojs_define(vmt = allveh_vmt)
-ojs_define(vmtLong = allveh_vmt_long)
-
-ojs_define(max_abs_value_vmtDiff    = max_abs_value_vmtDiff   )
-ojs_define(max_abs_value_vmtDiffPct = max_abs_value_vmtDiffPct)
 ```
 
-### Summary Comparison
+### Model vs Target VMT
 
-The summary comparison shows region and county-wide differences between modeled and target *Vehicle-Miles Traveled (VMT)* by vehicle type. The values for Box Elder and Weber counties are only the portions within the MPO planning area. @fig-assign-summary, below, contains an interactive view of model vs target differences by roadway class and vehicle type.
+@fig-assign-vmt-dumbbell compares modeled and target daily VMT for Freeway and Non-Freeway roads across the region and each county; @fig-assign-compare-interactive shows the same model-vs-target differences at the individual segment level. Both share the Vehicle Type and Display controls below; Focus Geography and Focus Roadway Class narrow the map to a single county and/or roadway class. The values for Box Elder and Weber counties are only the portions within the MPO planning area.
 
 ```{ojs}
 html`<br/>`
-viewof bSummaryFTCLASS = Inputs.select(new Map([['All Roadways','All Roadways'], ['Freeway','Freeway'], ['Principal Arterial','Principal Arterial'], ['Minor Arterial', 'Minor Arterial'], ['Collector', 'Collector']]), {value: 'All Roadways', label: "Roadway Class:"})
-viewof bSummaryVehType = Inputs.select(new Map([['All Vehicles','All'], ['Cars + Light CV','PCLT'], ['Medium CV','MD'], ['Heavy CV','HV']]), {value: 'All', label: "Vehicle Type:"})
-viewof bSummaryDiffType = Inputs.select(new Map([['Percent Difference','DiffPct'], ['Difference','Diff']]), {value: 'DiffPct', label: "Display:"})
-```
-
-```{ojs}
-
-vmtDiffLongT = transpose(vmtDiffLong)
-
-vmtDiffLongT_filtered = vmtDiffLongT.filter(function(dataL) {
-    return bSummaryFTCLASS == dataL.FTCLASS &&
-           bSummaryVehType == dataL.vehType &&
-           (('vmt' + bSummaryDiffType) == dataL.View) &&
-           dataL.ClassLevel == 'FTCLASS' &&
-           dataL.calib_run == globalCalibRun;
-})
-```
-
-```{ojs}
-//https://observablehq.com/@d3/diverging-bar-chart
-import {DivergingBarChart} from "@d3/diverging-bar-chart"
-```
-
-```{ojs}
-html`<br/><h4>Vehicle-Miles Traveled</h4>`
-chartVmtDiff = DivergingBarChart(vmtDiffLongT_filtered, {
-    x: d => d.ViewValue,
-    y: d => d.CO_FIPS,
-    xFormat: bSummaryDiffType === "Diff" ? "+,d" : "+.1%",
-    xLabel: "Model vs Target Differences",
-    xDomain: bSummaryDiffType === "Diff" ? [max_abs_value_vmtDiff * -1, max_abs_value_vmtDiff] : [-1, 1], //[max_abs_value_vmtDiffPct * -1, max_abs_value_vmtDiffPct],
-    yDomain:  ['Region','Box Elder County - WFRC','Weber County - WFRC','Davis County','Salt Lake County','Utah County'],
-    colors: d3.schemeRdBu[3]
-})
-```
-
-
-```{ojs}
-//|label: fig-assign-summary
-//|fig-cap: Highway Assignment Summary Comparison
-tbEmptyCell1 = 1
-```
-
-
-*(Note: the paragraphs below described the previous model-vs-observed-volume comparison, which has been replaced by the model-vs-target VMT comparison above. Replace this placeholder with fresh observations once the report has been re-rendered against the new chart.)*
-
-
-### Detailed Comparison
-
-The model vs target details in this section are presented as Vehicle-Miles Traveled (VMT) through the comparison of modeled VMT (summed across all segments in the model's segment summary) and calibration VMT targets, by facility type, for the region and each county. @fig-assign-validation allows for the interactive visual comparison of model and target values for the region and each county for all vehicles, cars, Medium CV, and Heavy CV.
-
-- *Total VMT by Roadway Class*: For each county (or the region) and roadway class, all segments' modeled daily VMT is summed and compared against the calibration VMT target for that county/facility-type combination.
-
-```{ojs}
-html`<br/>`
-viewof bClassLevel = Inputs.radio(
-  new Map([["Functional Group (Freeway vs Non-Freeway)", "FTGROUP"], ["Functional Class", "FTCLASS"]]),
-  {value: "FTGROUP", label: "Roadway Grouping:"}
-)
-
-viewof bCountySelect = Inputs.select(
+viewof bVehType = Inputs.select(new Map([['All Vehicles', 'All'], ['Cars + Light CV', 'PCLT'], ['Medium CV', 'MD'], ['Heavy CV', 'HV']]), {value: 'All', label: "Vehicle Type:"})
+viewof bDiffType = Inputs.radio(new Map([['Percent Difference', 'Pct'], ['Difference (Model − Target)', 'Abs']]), {value: 'Pct', label: "Display:"})
+viewof bFocusCounty = Inputs.select(
   new Map([
     ["Region", 99],
     ["Box Elder County - WFRC", 3],
@@ -1716,163 +1605,77 @@ viewof bCountySelect = Inputs.select(
     ["Salt Lake County", 35],
     ["Utah County", 49]
   ]),
-  {value: 99, label: "Geography:"}
+  {value: 99, label: "Focus Geography:"}
 )
-viewof bVehType = Inputs.select(new Map([['All Vehicles', 'All'], ['Cars + Light CV', 'PCLT'], ['Medium CV', 'MD'], ['Heavy CV','HV']]), {value: 'All', label: "Vehicle Type:"})
+viewof bFocusClass = Inputs.radio(
+  new Map([["All", "All"], ["Freeway", "Freeway"], ["Non-Freeway", "NonFreeway"]]),
+  {value: "All", label: "Focus Roadway Class:"}
+)
+```
 
-// Added 'NonFreeway' to the sorting order
-sortOrder = ['Freeway', 'NonFreeway', 'Principal Arterial', 'Minor Arterial', 'Collector', 'All Roadways'];
+```{ojs}
+countyOrder = ['Region', 'Box Elder County - WFRC', 'Weber County - WFRC', 'Davis County', 'Salt Lake County', 'Utah County']
+countyNames = new Map([[99, 'Region'], [3, 'Box Elder County - WFRC'], [57, 'Weber County - WFRC'], [11, 'Davis County'], [35, 'Salt Lake County'], [49, 'Utah County']])
+classLabels = new Map([['Freeway', 'Freeway'], ['NonFreeway', 'Non-Freeway']])
 
 vmtT = transpose(vmt)
 
-filtered_vmtData = vmtT.filter(function(dataL){
-    return bCountySelect == dataL.CO_FIPS &&
-           bVehType == dataL.vehType &&
-           bClassLevel == dataL.ClassLevel &&
-           dataL.calib_run == globalCalibRun;
-}).sort((a, b) => sortOrder.indexOf(a.FTCLASS) - sortOrder.indexOf(b.FTCLASS));
-
-vmtTL = transpose(vmtLong)
-
-filtered_vmtDataL = vmtTL.filter(function(dataL){
-    return bCountySelect == dataL.CO_FIPS &&
-           bVehType == dataL.vehType &&
-           bClassLevel == dataL.ClassLevel &&
-           dataL.calib_run == globalCalibRun;
-}).sort((a, b) => sortOrder.indexOf(a.FTCLASS) - sortOrder.indexOf(b.FTCLASS));
+dumbbellData = vmtT
+  .filter(d => d.ClassLevel === 'FTGROUP' && d.vehType === bVehType && d.calib_run === globalCalibRun)
+  .map(d => ({
+    ...d,
+    County: countyNames.get(d.CO_FIPS),
+    ClassLabel: classLabels.get(d.FTCLASS) ?? d.FTCLASS,
+    ModelM: d.VMT_Mod / 1e6,
+    TargetM: d.VMT_Target / 1e6
+  }))
 ```
 
+```{ojs}
+vmtColorScale = d3.scaleOrdinal(["Model", "Target"], [themeModel, themeTarget])
+keyVmtDumbbell = Legend(vmtColorScale, {title: "Data Source"})
+```
 
 :::: {.columns}
-::: {.column width="65%"}
+::: {.column width="42%"}
 
 ```{ojs}
-//| echo: false
-//| label: fig-assign-validation
-//| fig-cap: Model vs Target VMT Comparison
-function formatNumber(value, isPercentage=false) {
-    if (typeof value === 'undefined') {
-        return '';  // or return a default value or message
-    }
-
-    if (isPercentage) {
-        return (Number(value) * 100).toFixed(1) + '%';
-    }
-    return Number(value.toFixed(0)).toLocaleString();
-}
-
-widthsVmt = ['100px', '88px', '88px', '88px', '88px']; // Define the widths
-
-function renderVmtRow(row, isTotal=false) {
-    const rowStyle = isTotal
-        ? 'background-color: #e0e0e0; border-top: 2px solid #999;'
-        : 'border-bottom: 1px solid lightgrey;';
-    return html`<tr style='${rowStyle}'>
-        ${["FTCLASS", "VMT_Mod", "VMT_Target", "vmtDiff", "vmtDiffPct"].map((d, i) => {
-            // Check if the current cell is one of the numeric columns that need formatting
-            let formattedValue;
-            if (i === 4) {
-                formattedValue = formatNumber(row[d], true);  // True for percentage formatting
-            } else if (i >= 1 && i <= 3) {
-                formattedValue = formatNumber(row[d]);
-            } else {
-                formattedValue = row[d];
-            }
-            return html`<td style='text-align: ${i === 0 ? "left" : "right"}; padding: 5px; font-weight: ${isTotal ? 'bold' : 'normal'};'>${formattedValue}</td>`;
-        })}
-    </tr>`;
-}
-```
-
-```{ojs}
-// Body rows exclude any precomputed "All Roadways" row (only present for the
-// FTCLASS grouping) -- the totals row below is derived instead, so it also
-// shows up (correctly summed) for the FTGROUP grouping, which has no such row.
-bodyRows = filtered_vmtData.filter(d => d.FTCLASS !== 'All Roadways')
-
-totalRow = filtered_vmtData.find(d => d.FTCLASS === 'All Roadways') ?? (() => {
-    const modSum = d3.sum(bodyRows, d => d.VMT_Mod);
-    const targetSum = d3.sum(bodyRows, d => d.VMT_Target);
-    return {
-        FTCLASS: 'All Roadways',
-        VMT_Mod: modSum,
-        VMT_Target: targetSum,
-        vmtDiff: modSum - targetSum,
-        vmtDiffPct: targetSum ? (modSum - targetSum) / targetSum : undefined
-    };
-})()
-```
-
-```{ojs}
-html`
-<h4>Total Daily VMT by Roadway Class</h4>
-<table>
-    <thead>
-    <tr>
-        ${["Roadway Class", "Model", "Target", "Difference", "Percent Difference"].map((d, i) => {
-            return html`<th style='text-align: ${i === 0 ? "left" : "right"}; padding: 5px; width: ${widthsVmt[i]};'>${d}</th>`;
-        })}
-    </tr>
-    </thead>
-    <tbody>
-        ${bodyRows.map(row => renderVmtRow(row))}
-    </tbody>
-    <tfoot>
-        ${renderVmtRow(totalRow, true)}
-    </tfoot>
-</table>`
-```
-
-:::
-::: {.column width="35%"}
-
-```{ojs}
-html`<h4>&nbsp;</h4>`
-keyVmt = Legend(bChartVmt.scales.color, {title: "Data Source"})
-
-bChartVmt = GroupedBarChart(filtered_vmtDataL, {
-    x: d => d.FTCLASS,
-    y: d => d.ViewValue,
-    z: d => d.DataSource,
-    xDomain: bClassLevel === 'FTGROUP' ? ['Freeway', 'NonFreeway', 'All Roadways'] : ['Freeway','Principal Arterial','Minor Arterial','Collector','All Roadways'],
-    yLabel: "Total VMT (millions)",
-    zDomain: ['Model','Target'],
-    width: 320,
-    height: 175,
-    colors: [themeModel, themeTarget]
+//| label: fig-assign-vmt-dumbbell
+//| fig-cap: Model vs Target VMT by Roadway Class and Geography
+Plot.plot({
+  width: 380,
+  height: 600,
+  marginLeft: 130,
+  facet: {data: dumbbellData, y: "ClassLabel"},
+  fy: {domain: ["Freeway", "Non-Freeway"]},
+  y: {domain: countyOrder, label: null},
+  x: {label: "Total Daily VMT (millions)", grid: true, nice: true},
+  marks: [
+    Plot.link(dumbbellData, {
+      x1: "ModelM", x2: "TargetM", y: "County",
+      stroke: d => Math.abs(d.vmtDiffPct) > 0.1 ? themeDanger : themeNeutral,
+      strokeWidth: 2, strokeOpacity: 0.6
+    }),
+    Plot.dot(dumbbellData, {
+      x: "ModelM", y: "County", fill: themeModel, r: 6,
+      title: d => `${d.County} — ${d.ClassLabel}\nModel: ${d3.format(",.2f")(d.ModelM)}M VMT`
+    }),
+    Plot.dot(dumbbellData, {
+      x: "TargetM", y: "County", fill: themeTarget, r: 6,
+      title: d => `${d.County} — ${d.ClassLabel}\nTarget: ${d3.format(",.2f")(d.TargetM)}M VMT`
+    }),
+    Plot.text(dumbbellData, {
+      x: d => Math.max(d.ModelM, d.TargetM), y: "County",
+      text: d => bDiffType === 'Pct' ? d3.format("+.1%")(d.vmtDiffPct) : d3.format("+,.2f")(d.vmtDiff / 1e6) + "M",
+      dx: 8, textAnchor: "start", fontSize: 11,
+      fill: d => Math.abs(d.vmtDiffPct) > 0.1 ? themeDanger : themeNeutral
+    })
+  ]
 })
 ```
 
 :::
-::::
-
-<!-- ::: {layout-ncol=3}
-![Segment-Level Model vs Target Volume Comparison -- All Vehicles](_pictures/vol-diff-Total.png){#fig-assign-compare-all}
-
-![Segment-Level Model vs Target Volume Comparison -- Medium CV](_pictures/vol-diff-MD.png){#fig-assign-compare-md}
-
-![Segment-Level Model vs Target Volume Comparison -- Heavy CV](_pictures/vol-diff-HV.png){#fig-assign-compare-hv}
-::: -->
-
-```{ojs}
-//| panel: input
-
-// 2. CONTROLS
-viewof mapMetric = Inputs.select(
-  new Map([
-    ["All Vehicles", "Total"],
-    ["Cars + Light CV", "PCLT"],
-    ["Medium CV", "MD"],
-    ["Heavy CV", "HV"]
-  ]),
-  { value: "Total", label: "Select Vehicle Class:" }
-)
-
-viewof mapType = Inputs.radio(
-  [ "Absolute", "Percent" ],
-  { value: "Absolute", label: "Difference Type:" }
-)
-```
+::: {.column width="58%"}
 
 ```{ojs}
 //| label: fig-assign-compare-interactive
@@ -1882,27 +1685,26 @@ viewof mapType = Inputs.radio(
 LM = require("leaflet@1.9.4")
 html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">`
 
-// 3. MAP RENDERING
+// 2. MAP RENDERING (shares bVehType / bDiffType with the chart at left;
+// bFocusCounty / bFocusClass additionally pan and dim this map only)
 {
-  // 1. Determine Column Name based on selection
-  // e.g., "Diff_Total" (Absolute) or "PctDiff_Total" (Percent)
-  const prefix = mapType === "Percent" ? "PctDiff_" : "Diff_";
-  const activeCol = prefix + mapMetric;
+  const vehSuffix = new Map([["All", "Total"], ["PCLT", "PCLT"], ["MD", "MD"], ["HV", "HV"]]).get(bVehType);
+  const prefix = bDiffType === "Pct" ? "PctDiff_" : "Diff_";
+  const activeCol = prefix + vehSuffix;
+  const isPct = bDiffType === "Pct";
 
-  // 2. Define Bins based on Type
   let bins;
-  if (mapType === "Percent") {
+  if (isPct) {
       // Bins for Percentages (-50%, -25%, -10%, +10%, +25%, +50%)
       bins = [-0.5, -0.25, -0.1, 0.1, 0.25, 0.5];
   } else {
       // Bins for Absolute Volumes
-      const useLargeBins = ["Total", "PCLT"].includes(mapMetric);
+      const useLargeBins = ["All", "PCLT"].includes(bVehType);
       bins = useLargeBins
         ? [-15000, -7500, -2500, 2500, 7500, 15000]
         : [-5000, -1500, -500, 500, 1500, 5000];
   }
 
-  // Colors
   const colors = [
     "#2166ac", "#4393c3", "#92c5de", // Blues
     "#f7f7f7",                       // Neutral
@@ -1919,7 +1721,6 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
     return colors[6];
   };
 
-  // Setup Container
   const container = document.createElement("div");
   container.style.height = "600px";
   container.style.width = "100%";
@@ -1936,11 +1737,18 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
   const runFeatures = (typeof vol_diff_geojson !== "undefined" && vol_diff_geojson && vol_diff_geojson.features)
     ? vol_diff_geojson.features.filter(f => f.properties.calib_run === globalCalibRun)
     : [];
+
   if (runFeatures.length) {
     LM.geoJSON({type: "FeatureCollection", features: runFeatures}, {
       style: (feature) => {
-        const val = feature.properties[activeCol]; // Use dynamic column
-        const ft = feature.properties.FTCLASS;
+        const p = feature.properties;
+        const val = p[activeCol];
+        const ft = p.FTCLASS;
+        const ftgroup = (ft === 'Freeway') ? 'Freeway' : 'NonFreeway';
+
+        const classMatch = bFocusClass === 'All' || bFocusClass === ftgroup;
+        const countyMatch = bFocusCounty === 99 || Number(p.CO_FIPS) === bFocusCounty;
+        const focused = classMatch && countyMatch;
 
         let weight = 1;
         if (ft === 'Freeway' || ft === 'Expressway') { weight = 4; }
@@ -1950,7 +1758,7 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
         return {
           color: getColor(val),
           weight: weight,
-          opacity: 0.8
+          opacity: focused ? 0.85 : 0.12
         };
       },
       onEachFeature: (feature, layer) => {
@@ -1960,7 +1768,7 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
 
         // Format display string
         let valStr;
-        if (mapType === "Percent") {
+        if (isPct) {
             valStr = (val * 100).toFixed(1) + "%";
         } else {
             valStr = Math.round(val).toLocaleString();
@@ -1968,11 +1776,20 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
 
         layer.bindPopup(
           `<strong>Segment: ${p.SEGID}</strong><br/>` +
+          `County: ${countyNames.get(Number(p.CO_FIPS)) ?? 'Unknown'}<br/>` +
           `Class: ${p.FTCLASS}<br/>` +
           `Diff: ${sign}${valStr}`
         );
       }
     }).addTo(map);
+
+    // Focus Geography pans/zooms to that county's segments; "Region" keeps the default full-region view.
+    if (bFocusCounty !== 99) {
+      const focusFeatures = runFeatures.filter(f => Number(f.properties.CO_FIPS) === bFocusCounty);
+      if (focusFeatures.length) {
+        map.fitBounds(LM.geoJSON({type: "FeatureCollection", features: focusFeatures}).getBounds(), {padding: [30, 30]});
+      }
+    }
   }
 
   // Legend
@@ -1984,10 +1801,10 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
     div.style.borderRadius = "4px";
     div.style.textAlign = "left";
 
-    let labels = [`<strong>${mapType === "Percent" ? "% Diff" : "Diff"} (Mod - Tgt)</strong><br>`];
+    let labels = [`<strong>${isPct ? "% Diff" : "Diff"} (Mod - Tgt)</strong><br>`];
 
     // Helper to format legend labels
-    const fmt = (n) => mapType === "Percent" ? (n * 100) + "%" : n;
+    const fmt = (n) => isPct ? (n * 100) + "%" : n;
 
     labels.push(`<i style="background:${colors[0]}; width:12px; height:12px; display:inline-block;"></i> < ${fmt(bins[0])}`);
     for (let i = 0; i < bins.length - 1; i++) {
@@ -2010,6 +1827,9 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
   return container;
 }
 ```
+
+:::
+::::
 
 
 ## HOT Lane Validation
