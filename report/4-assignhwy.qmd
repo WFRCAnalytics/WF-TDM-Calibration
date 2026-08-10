@@ -1671,19 +1671,20 @@ keyVmtDumbbell = Legend(vmtColorScale, {title: "Data Source"})
 //| label: fig-assign-vmt-dumbbell
 //| fig-cap: Model vs Target VMT by Vehicle Type and Roadway Class
 
-// One chart per Vehicle Type, each auto-scaled to its own data's range --
-// Total, Medium CV, and Heavy CV differ by roughly an order of magnitude,
-// so sharing one x-axis (as a single faceted grid) squished the two CV
-// columns down near zero. Roadway Class stays faceted as rows within each.
-function vmtDumbbellChart(vehLabel, data) {
+// One mini chart per Vehicle Type x Roadway Class, each auto-scaled to its
+// own data's range -- Total, Medium CV, and Heavy CV differ by roughly an
+// order of magnitude, so sharing one x-axis squished the two CV columns
+// down near zero. Roadway Class is no longer a Plot facet (whose row label
+// sits off to the right by default) -- each class gets its own chart with
+// the class name as a `title`, which Plot renders directly above that
+// chart, i.e. between rows, with the gap below controlling row spacing.
+function vmtDumbbellChart(classLabel, data) {
   return Plot.plot({
     width: width,
-    height: 260,
+    height: 130,
     marginLeft: 140,
     marginRight: 60,
-    title: vehLabel,
-    facet: {data, y: "ClassLabel"},
-    fy: {domain: ["All Roadways", "Freeway", "Non-Freeway"]},
+    title: classLabel,
     y: {domain: chartCountyOrder, label: null},
     x: {label: "Total Daily VMT (millions)", grid: true, nice: true},
     marks: [
@@ -1711,7 +1712,12 @@ function vmtDumbbellChart(vehLabel, data) {
 }
 
 html`<div>
-  ${["Total", "Medium CV", "Heavy CV"].map(veh => vmtDumbbellChart(veh, dumbbellData.filter(d => d.VehLabel === veh)))}
+  ${["Total", "Medium CV", "Heavy CV"].map(veh => html`<div style="margin-bottom: 40px;">
+    <h4 style="margin-bottom: 4px;">${veh}</h4>
+    <div style="display:flex; flex-direction:column; row-gap: 28px;">
+      ${["All Roadways", "Freeway", "Non-Freeway"].map(cls => vmtDumbbellChart(cls, dumbbellData.filter(d => d.VehLabel === veh && d.ClassLabel === cls)))}
+    </div>
+  </div>`)}
 </div>`
 ```
 
