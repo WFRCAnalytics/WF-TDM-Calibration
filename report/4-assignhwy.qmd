@@ -1607,6 +1607,7 @@ countyOrder = ['Region', 'Box Elder County - WFRC', 'Weber County - WFRC', 'Davi
 chartCountyOrder = countyOrder.filter(c => c !== 'Region')
 countyNames = new Map([[99, 'Region'], [3, 'Box Elder County - WFRC'], [57, 'Weber County - WFRC'], [11, 'Davis County'], [35, 'Salt Lake County'], [49, 'Utah County']])
 classLabels = new Map([['Freeway', 'Freeway'], ['NonFreeway', 'Non-Freeway']])
+vehTypeLabels = new Map([['All', 'All Vehicles'], ['PCLT', 'Cars + Light CV'], ['MD', 'Medium CV'], ['HV', 'Heavy CV']])
 
 vmtT = transpose(vmt)
 
@@ -1904,7 +1905,7 @@ function renderCountyTable(g) {
 }
 
 html`
-<h4>Total Daily VMT by County and Roadway Class</h4>
+<h4>Total Daily VMT by County and Roadway Class — ${vehTypeLabels.get(bVehType) ?? bVehType}</h4>
 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:0 24px;">
   ${tableGroups.map(renderCountyTable)}
 </div>`
