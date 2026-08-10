@@ -7,9 +7,13 @@ include order relative to _calib_run_selector.qmd doesn't matter.
 
 Replaces the old, inconsistent per-page defaults (navy/olive #376092 /
 #77933c on most pages, "steelblue"/"forestgreen"/"orange" on others) with
-one palette used everywhere -- muted/earthy tones (denim, red rock,
-sagebrush, aspen) rather than saturated web-safe colors. Meaning stays
-consistent site-wide:
+one palette used everywhere -- drawn from the WFRC brand extension's
+documented swatches (_extensions/WFRCAnalytics/wfrc-brand/assets/theme/
+_wfrc-colors.scss) rather than invented tones, and validated against the
+dataviz skill's categorical checks (Model/Target/TargetAlt/Accent clear
+lightness, chroma, and CVD-separation on the site's light surface #fcfcfb;
+Target's contrast WARN at 2.79:1 needs relief via direct labels/legend,
+not a bare fill). Meaning stays consistent site-wide:
 
   themeModel        Modeled data, always
   themeTarget       Target/comparison-baseline data (primary source, e.g.
@@ -26,11 +30,11 @@ consistent site-wide:
 
 ```{ojs}
 //| echo: false
-themeModel = "#6E8CA0"
-themeTarget = "#C68958"
-themeTargetAlt = "#7C9A78"
-themeTargetLight = "#E6D6B8"
-themeAccent = "#8B7398"
-themeNeutral = "#7D7568"
-themeDanger = "#A8412C"
+themeModel = "#036fa8"       // WFRC core blue
+themeTarget = "#ea7b00"      // WFRC core orange
+themeTargetAlt = "#007426"   // WFRC core green
+themeTargetLight = "#f8b93e" // WFRC yellow -- lighter warm variant of Target
+themeAccent = "#9d4879"      // WFRC RTP fuschia
+themeNeutral = "#7f7a76"     // WFRC brand gray
+themeDanger = "#d32f00"      // WFRC core red -- status color, pair with a label/icon, never color alone
 ```
