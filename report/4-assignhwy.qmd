@@ -1621,7 +1621,7 @@ classLabels = new Map([['Freeway', 'Freeway'], ['NonFreeway', 'Non-Freeway']])
 vmtT = transpose(vmt)
 
 dumbbellData = vmtT
-  .filter(d => d.ClassLevel === 'FTGROUP' && d.vehType === bVehType && d.calib_run === globalCalibRun)
+  .filter(d => d.ClassLevel === 'FTGROUP' && d.vehType === bVehType && d.calib_run === globalCalibRun && (bFocusClass === 'All' || d.FTCLASS === bFocusClass))
   .map(d => ({
     ...d,
     County: countyNames.get(d.CO_FIPS),
@@ -1644,10 +1644,10 @@ keyVmtDumbbell = Legend(vmtColorScale, {title: "Data Source"})
 //| fig-cap: Model vs Target VMT by Roadway Class and Geography
 Plot.plot({
   width: 380,
-  height: 600,
+  height: bFocusClass === 'All' ? 600 : 320,
   marginLeft: 130,
   facet: {data: dumbbellData, y: "ClassLabel"},
-  fy: {domain: ["Freeway", "Non-Freeway"]},
+  fy: {domain: bFocusClass === 'All' ? ["Freeway", "Non-Freeway"] : [classLabels.get(bFocusClass)]},
   y: {domain: countyOrder, label: null},
   x: {label: "Total Daily VMT (millions)", grid: true, nice: true},
   marks: [
@@ -1830,6 +1830,53 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
 
 :::
 ::::
+
+The table below is a full reference view -- it always lists every county and roadway class for the selected Vehicle Type, independent of the Focus controls above.
+
+```{ojs}
+function fmtVmt(value) {
+  if (typeof value === 'undefined' || value === null || Number.isNaN(value)) return '';
+  return Math.round(value).toLocaleString();
+}
+function fmtPct(value) {
+  if (typeof value === 'undefined' || value === null || Number.isNaN(value)) return '';
+  return (value * 100).toFixed(1) + '%';
+}
+
+tableRows = vmtT
+  .filter(d => d.ClassLevel === 'FTGROUP' && d.vehType === bVehType && d.calib_run === globalCalibRun)
+  .map(d => ({
+    County: countyNames.get(d.CO_FIPS),
+    ClassLabel: classLabels.get(d.FTCLASS) ?? d.FTCLASS,
+    VMT_Mod: d.VMT_Mod,
+    VMT_Target: d.VMT_Target,
+    vmtDiff: d.vmtDiff,
+    vmtDiffPct: d.vmtDiffPct
+  }))
+  .sort((a, b) => countyOrder.indexOf(a.County) - countyOrder.indexOf(b.County) || d3.ascending(a.ClassLabel, b.ClassLabel))
+```
+
+```{ojs}
+html`
+<h4>Total Daily VMT by County and Roadway Class</h4>
+<table style="width:100%; border-collapse:collapse;">
+  <thead>
+    <tr>
+      ${["County", "Roadway Class", "Model", "Target", "Difference", "Percent Difference"].map((d, i) => html`<th style='text-align: ${i < 2 ? "left" : "right"}; padding: 6px 10px; border-bottom: 2px solid #999;'>${d}</th>`)}
+    </tr>
+  </thead>
+  <tbody>
+    ${tableRows.map(row => html`<tr style='border-bottom: 1px solid lightgrey;'>
+      <td style='padding: 6px 10px;'>${row.County}</td>
+      <td style='padding: 6px 10px;'>${row.ClassLabel}</td>
+      <td style='padding: 6px 10px; text-align:right;'>${fmtVmt(row.VMT_Mod)}</td>
+      <td style='padding: 6px 10px; text-align:right;'>${fmtVmt(row.VMT_Target)}</td>
+      <td style='padding: 6px 10px; text-align:right; color:${Math.abs(row.vmtDiffPct) > 0.1 ? themeDanger : "inherit"};'>${fmtVmt(row.vmtDiff)}</td>
+      <td style='padding: 6px 10px; text-align:right; color:${Math.abs(row.vmtDiffPct) > 0.1 ? themeDanger : "inherit"};'>${fmtPct(row.vmtDiffPct)}</td>
+    </tr>`)}
+  </tbody>
+</table>`
+```
 
 
 ## HOT Lane Validation
