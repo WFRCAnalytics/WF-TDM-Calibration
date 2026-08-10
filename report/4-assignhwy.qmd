@@ -1590,7 +1590,7 @@ ojs_define(vmt = allveh_vmt)
 
 ### Model vs Target VMT
 
-@fig-assign-vmt-dumbbell compares modeled and target daily VMT for Freeway and Non-Freeway roads across each county; @fig-assign-compare-interactive shows the same model-vs-target differences at the individual segment level. Both share the Vehicle Type and Display controls below; Focus Roadway Class additionally narrows the chart and dims non-matching segments on the map. The values for Box Elder and Weber counties are only the portions within the MPO planning area.
+@fig-assign-vmt-dumbbell always shows every county, faceted by Vehicle Type (Total, Medium CV, Heavy CV) across the columns and Roadway Class (All Roadways, Freeway, Non-Freeway) down the rows -- only its diff labels follow the Display control below. @fig-assign-compare-interactive, below the chart, shows the same model-vs-target differences at the individual segment level and responds to all three controls: Vehicle Type, Display, and Focus Roadway Class. The values for Box Elder and Weber counties are only the portions within the MPO planning area.
 
 ```{ojs}
 html`<br/>`
@@ -1608,6 +1608,9 @@ chartCountyOrder = countyOrder.filter(c => c !== 'Region')
 countyNames = new Map([[99, 'Region'], [3, 'Box Elder County - WFRC'], [57, 'Weber County - WFRC'], [11, 'Davis County'], [35, 'Salt Lake County'], [49, 'Utah County']])
 classLabels = new Map([['Freeway', 'Freeway'], ['NonFreeway', 'Non-Freeway']])
 vehTypeLabels = new Map([['All', 'All Vehicles'], ['PCLT', 'Cars + Light CV'], ['MD', 'Medium CV'], ['HV', 'Heavy CV']])
+// The chart facets on just these 3 vehicle types (Cars + Light CV omitted --
+// still selectable via Vehicle Type above for the map/table).
+chartVehLabels = new Map([['All', 'Total'], ['MD', 'Medium CV'], ['HV', 'Heavy CV']])
 
 vmtT = transpose(vmt)
 
@@ -1615,43 +1618,48 @@ vmtT = transpose(vmt)
 // out of the chart (where it would dominate the shared x-axis and let
 // offsetting county-level errors cancel out) but still in the reference
 // table below via countyOrder/countyNames.
-vmtGroupRows = vmtT.filter(d => d.ClassLevel === 'FTGROUP' && d.vehType === bVehType && d.calib_run === globalCalibRun && d.CO_FIPS !== 99)
+vmtGroupRows = vmtT.filter(d => d.ClassLevel === 'FTGROUP' && d.calib_run === globalCalibRun && d.CO_FIPS !== 99 && chartVehLabels.has(d.vehType))
 
-// "All" sums Freeway + Non-Freeway into one row per county (not a facet per
-// class) so the chart is a single dumbbell view rather than two panels.
-dumbbellData = bFocusClass === 'All'
-  ? Array.from(
-      d3.rollup(
-        vmtGroupRows,
-        rows => {
-          const modSum = d3.sum(rows, d => d.VMT_Mod);
-          const targetSum = d3.sum(rows, d => d.VMT_Target);
-          return {
-            VMT_Mod: modSum,
-            VMT_Target: targetSum,
-            vmtDiff: modSum - targetSum,
-            vmtDiffPct: targetSum ? (modSum - targetSum) / targetSum : undefined
-          };
-        },
-        d => d.CO_FIPS
-      ),
-      ([CO_FIPS, agg]) => ({
-        ...agg,
-        County: countyNames.get(CO_FIPS),
-        ClassLabel: 'All Roadways',
-        ModelM: agg.VMT_Mod / 1e6,
-        TargetM: agg.VMT_Target / 1e6
-      })
-    )
-  : vmtGroupRows
-      .filter(d => d.FTCLASS === bFocusClass)
-      .map(d => ({
-        ...d,
-        County: countyNames.get(d.CO_FIPS),
-        ClassLabel: classLabels.get(d.FTCLASS) ?? d.FTCLASS,
-        ModelM: d.VMT_Mod / 1e6,
-        TargetM: d.VMT_Target / 1e6
-      }))
+// The chart is a fixed 3x3 facet grid (always every Vehicle Type x Roadway
+// Class combination) rather than reacting to Vehicle Type / Focus Roadway
+// Class -- those two controls now only affect the map and table below.
+// Freeway/Non-Freeway rows come straight from the data; "All Roadways" is
+// computed here by summing the two per County x Vehicle Type.
+dumbbellData = {
+  const rows = vmtGroupRows.map(d => ({
+    County: countyNames.get(d.CO_FIPS),
+    VehLabel: chartVehLabels.get(d.vehType),
+    ClassLabel: classLabels.get(d.FTCLASS) ?? d.FTCLASS,
+    VMT_Mod: d.VMT_Mod,
+    VMT_Target: d.VMT_Target
+  }));
+
+  const totals = new Map(); // `${CO_FIPS}|${vehType}` -> summed VMT_Mod/VMT_Target
+  for (const d of vmtGroupRows) {
+    const key = `${d.CO_FIPS}|${d.vehType}`;
+    const t = totals.get(key) ?? {CO_FIPS: d.CO_FIPS, vehType: d.vehType, VMT_Mod: 0, VMT_Target: 0};
+    t.VMT_Mod += d.VMT_Mod;
+    t.VMT_Target += d.VMT_Target;
+    totals.set(key, t);
+  }
+  for (const t of totals.values()) {
+    rows.push({
+      County: countyNames.get(t.CO_FIPS),
+      VehLabel: chartVehLabels.get(t.vehType),
+      ClassLabel: 'All Roadways',
+      VMT_Mod: t.VMT_Mod,
+      VMT_Target: t.VMT_Target
+    });
+  }
+
+  return rows.map(d => ({
+    ...d,
+    ModelM: d.VMT_Mod / 1e6,
+    TargetM: d.VMT_Target / 1e6,
+    vmtDiff: d.VMT_Mod - d.VMT_Target,
+    vmtDiffPct: d.VMT_Target ? (d.VMT_Mod - d.VMT_Target) / d.VMT_Target : undefined
+  }));
+}
 ```
 
 ```{ojs}
@@ -1659,17 +1667,16 @@ vmtColorScale = d3.scaleOrdinal(["Model", "Target"], [themeModel, themeTarget])
 keyVmtDumbbell = Legend(vmtColorScale, {title: "Data Source"})
 ```
 
-:::: {.columns}
-::: {.column width="42%"}
-
 ```{ojs}
 //| label: fig-assign-vmt-dumbbell
-//| fig-cap: Model vs Target VMT by Roadway Class and Geography
+//| fig-cap: Model vs Target VMT by Vehicle Type and Roadway Class
 Plot.plot({
-  width: 380,
-  height: 280,
-  marginLeft: 130,
-  title: bFocusClass === 'All' ? 'All Roadways' : classLabels.get(bFocusClass),
+  width: width,
+  height: 760,
+  marginLeft: 140,
+  facet: {data: dumbbellData, x: "VehLabel", y: "ClassLabel"},
+  fx: {domain: ["Total", "Medium CV", "Heavy CV"]},
+  fy: {domain: ["All Roadways", "Freeway", "Non-Freeway"]},
   y: {domain: chartCountyOrder, label: null},
   x: {label: "Total Daily VMT (millions)", grid: true, nice: true},
   marks: [
@@ -1679,25 +1686,22 @@ Plot.plot({
       strokeWidth: 2, strokeOpacity: 0.6
     }),
     Plot.dot(dumbbellData, {
-      x: "ModelM", y: "County", fill: themeModel, r: 6,
-      title: d => `${d.County} — ${d.ClassLabel}\nModel: ${d3.format(",.2f")(d.ModelM)}M VMT`
+      x: "ModelM", y: "County", fill: themeModel, r: 5,
+      title: d => `${d.County} — ${d.VehLabel} — ${d.ClassLabel}\nModel: ${d3.format(",.2f")(d.ModelM)}M VMT`
     }),
     Plot.dot(dumbbellData, {
-      x: "TargetM", y: "County", fill: themeTarget, r: 6,
-      title: d => `${d.County} — ${d.ClassLabel}\nTarget: ${d3.format(",.2f")(d.TargetM)}M VMT`
+      x: "TargetM", y: "County", fill: themeTarget, r: 5,
+      title: d => `${d.County} — ${d.VehLabel} — ${d.ClassLabel}\nTarget: ${d3.format(",.2f")(d.TargetM)}M VMT`
     }),
     Plot.text(dumbbellData, {
       x: d => Math.max(d.ModelM, d.TargetM), y: "County",
       text: d => bDiffType === 'Pct' ? d3.format("+.1%")(d.vmtDiffPct) : d3.format("+,.2f")(d.vmtDiff / 1e6) + "M",
-      dx: 8, textAnchor: "start", fontSize: 11,
+      dx: 6, textAnchor: "start", fontSize: 9,
       fill: d => Math.abs(d.vmtDiffPct) > 0.1 ? themeDanger : themeNeutral
     })
   ]
 })
 ```
-
-:::
-::: {.column width="58%"}
 
 ```{ojs}
 //| label: fig-assign-compare-interactive
@@ -1707,8 +1711,8 @@ Plot.plot({
 LM = require("leaflet@1.9.4")
 html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">`
 
-// 2. MAP RENDERING (shares bVehType / bDiffType with the chart at left;
-// bFocusClass additionally dims non-matching segments on this map only)
+// 2. MAP RENDERING (shares bVehType / bDiffType with the chart above, which
+// no longer reacts to either -- bFocusClass dims non-matching segments here)
 {
   const vehSuffix = new Map([["All", "Total"], ["PCLT", "PCLT"], ["MD", "MD"], ["HV", "HV"]]).get(bVehType);
   const prefix = bDiffType === "Pct" ? "PctDiff_" : "Diff_";
@@ -1839,9 +1843,6 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
   return container;
 }
 ```
-
-:::
-::::
 
 The tables below are a full reference view -- one per geography, always listing Freeway, Non-Freeway, and an All Roadways subtotal for the selected Vehicle Type, independent of the Focus Roadway Class control above.
 
