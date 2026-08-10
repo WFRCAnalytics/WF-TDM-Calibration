@@ -1664,19 +1664,23 @@ keyVmtDumbbell = Legend(vmtColorScale, {title: "Data Source"})
 // One mini chart per Roadway Class x Vehicle Type, each auto-scaled to its
 // own data's range -- Total, Medium CV, and Heavy CV differ by roughly an
 // order of magnitude, so sharing one x-axis squished the two CV rows down
-// near zero. Vehicle Type isn't a Plot facet (whose row label sits off to
-// the right by default) -- each vehicle type gets its own chart with its
-// name as a `title`, which Plot renders directly above that chart, acting
-// as a facet-row label, with the gap below controlling row spacing.
+// near zero. Vehicle Type isn't a Plot facet (which would force that
+// shared scale back) -- each vehicle type still gets its own independent
+// chart, just tagged with a small inline label instead of a full Plot
+// `title` heading, and stacked with a tight row-gap so the three sit close
+// together rather than reading as separate sections.
 function vmtDumbbellChart(vehLabel, data) {
-  return Plot.plot({
+  // Explicit [0, max] domain -- Plot's auto domain would otherwise start
+  // near the smallest value, exaggerating Model-vs-Target gaps visually.
+  const xMax = d3.max(data, d => Math.max(d.ModelM, d.TargetM)) || 1;
+  const chart = Plot.plot({
     width: width,
-    height: 130,
+    height: 120,
     marginLeft: 140,
     marginRight: 60,
-    title: vehLabel,
+    marginTop: 12,
     y: {domain: chartCountyOrder, label: null},
-    x: {label: "Total Daily VMT (millions)", grid: true, nice: true},
+    x: {label: "Total Daily VMT (millions)", domain: [0, xMax], grid: true, nice: true},
     marks: [
       Plot.link(data, {
         x1: "ModelM", x2: "TargetM", y: "County",
@@ -1699,12 +1703,16 @@ function vmtDumbbellChart(vehLabel, data) {
       })
     ]
   });
+  return html`<div>
+    <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: ${themeNeutral};">${vehLabel}</div>
+    ${chart}
+  </div>`;
 }
 
 html`<div>
-  ${["All Roadways", "Freeway", "Non-Freeway"].map(cls => html`<div style="margin-bottom: 40px;">
+  ${["All Roadways", "Freeway", "Non-Freeway"].map(cls => html`<div style="margin-bottom: 32px;">
     <h4 style="margin-bottom: 4px;">${cls}</h4>
-    <div style="display:flex; flex-direction:column; row-gap: 28px;">
+    <div style="display:flex; flex-direction:column; row-gap: 2px;">
       ${["Total", "Medium CV", "Heavy CV"].map(veh => vmtDumbbellChart(veh, dumbbellData.filter(d => d.VehLabel === veh && d.ClassLabel === cls)))}
     </div>
   </div>`)}
@@ -2604,13 +2612,17 @@ keyTimeDumbbell = Legend(timeColorScale, {title: "Data Source"})
 ```{ojs}
 //| label: fig-assign-time-summary
 //| fig-cap: Region-Wide Average Travel Time -- Model vs Observed
+// Explicit [0, max] domain -- Plot's auto domain would otherwise start
+// near the smallest value, exaggerating Model-vs-Observed gaps visually.
+timeXMax = d3.max(regionTimeSummary, d => Math.max(d.obsMean, d.modMean)) || 1
+
 Plot.plot({
   width: width,
   height: 220,
   marginLeft: 100,
   marginRight: 60,
   y: {domain: ["AM Peak", "Midday", "PM Peak", "Evening"], label: null},
-  x: {label: "Average Travel Time (minutes)", grid: true, nice: true},
+  x: {label: "Average Travel Time (minutes)", domain: [0, timeXMax], grid: true, nice: true},
   marks: [
     Plot.link(regionTimeSummary, {
       x1: "obsMean", x2: "modMean", y: "Period",
