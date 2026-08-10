@@ -1590,23 +1590,12 @@ ojs_define(vmt = allveh_vmt)
 
 ### Model vs Target VMT
 
-@fig-assign-vmt-dumbbell compares modeled and target daily VMT for Freeway and Non-Freeway roads across the region and each county; @fig-assign-compare-interactive shows the same model-vs-target differences at the individual segment level. Both share the Vehicle Type and Display controls below; Focus Geography and Focus Roadway Class narrow the map to a single county and/or roadway class. The values for Box Elder and Weber counties are only the portions within the MPO planning area.
+@fig-assign-vmt-dumbbell compares modeled and target daily VMT for Freeway and Non-Freeway roads across each county; @fig-assign-compare-interactive shows the same model-vs-target differences at the individual segment level. Both share the Vehicle Type and Display controls below; Focus Roadway Class additionally narrows the chart and dims non-matching segments on the map. The values for Box Elder and Weber counties are only the portions within the MPO planning area.
 
 ```{ojs}
 html`<br/>`
 viewof bVehType = Inputs.select(new Map([['All Vehicles', 'All'], ['Cars + Light CV', 'PCLT'], ['Medium CV', 'MD'], ['Heavy CV', 'HV']]), {value: 'All', label: "Vehicle Type:"})
 viewof bDiffType = Inputs.radio(new Map([['Percent Difference', 'Pct'], ['Difference (Model − Target)', 'Abs']]), {value: 'Pct', label: "Display:"})
-viewof bFocusCounty = Inputs.select(
-  new Map([
-    ["Region", 99],
-    ["Box Elder County - WFRC", 3],
-    ["Weber County - WFRC", 57],
-    ["Davis County", 11],
-    ["Salt Lake County", 35],
-    ["Utah County", 49]
-  ]),
-  {value: 99, label: "Focus Geography:"}
-)
 viewof bFocusClass = Inputs.radio(
   new Map([["All", "All"], ["Freeway", "Freeway"], ["Non-Freeway", "NonFreeway"]]),
   {value: "All", label: "Focus Roadway Class:"}
@@ -1625,15 +1614,43 @@ vmtT = transpose(vmt)
 // out of the chart (where it would dominate the shared x-axis and let
 // offsetting county-level errors cancel out) but still in the reference
 // table below via countyOrder/countyNames.
-dumbbellData = vmtT
-  .filter(d => d.ClassLevel === 'FTGROUP' && d.vehType === bVehType && d.calib_run === globalCalibRun && d.CO_FIPS !== 99 && (bFocusClass === 'All' || d.FTCLASS === bFocusClass))
-  .map(d => ({
-    ...d,
-    County: countyNames.get(d.CO_FIPS),
-    ClassLabel: classLabels.get(d.FTCLASS) ?? d.FTCLASS,
-    ModelM: d.VMT_Mod / 1e6,
-    TargetM: d.VMT_Target / 1e6
-  }))
+vmtGroupRows = vmtT.filter(d => d.ClassLevel === 'FTGROUP' && d.vehType === bVehType && d.calib_run === globalCalibRun && d.CO_FIPS !== 99)
+
+// "All" sums Freeway + Non-Freeway into one row per county (not a facet per
+// class) so the chart is a single dumbbell view rather than two panels.
+dumbbellData = bFocusClass === 'All'
+  ? Array.from(
+      d3.rollup(
+        vmtGroupRows,
+        rows => {
+          const modSum = d3.sum(rows, d => d.VMT_Mod);
+          const targetSum = d3.sum(rows, d => d.VMT_Target);
+          return {
+            VMT_Mod: modSum,
+            VMT_Target: targetSum,
+            vmtDiff: modSum - targetSum,
+            vmtDiffPct: targetSum ? (modSum - targetSum) / targetSum : undefined
+          };
+        },
+        d => d.CO_FIPS
+      ),
+      ([CO_FIPS, agg]) => ({
+        ...agg,
+        County: countyNames.get(CO_FIPS),
+        ClassLabel: 'All Roadways',
+        ModelM: agg.VMT_Mod / 1e6,
+        TargetM: agg.VMT_Target / 1e6
+      })
+    )
+  : vmtGroupRows
+      .filter(d => d.FTCLASS === bFocusClass)
+      .map(d => ({
+        ...d,
+        County: countyNames.get(d.CO_FIPS),
+        ClassLabel: classLabels.get(d.FTCLASS) ?? d.FTCLASS,
+        ModelM: d.VMT_Mod / 1e6,
+        TargetM: d.VMT_Target / 1e6
+      }))
 ```
 
 ```{ojs}
@@ -1649,10 +1666,9 @@ keyVmtDumbbell = Legend(vmtColorScale, {title: "Data Source"})
 //| fig-cap: Model vs Target VMT by Roadway Class and Geography
 Plot.plot({
   width: 380,
-  height: bFocusClass === 'All' ? 520 : 280,
+  height: 280,
   marginLeft: 130,
-  facet: {data: dumbbellData, y: "ClassLabel"},
-  fy: {domain: bFocusClass === 'All' ? ["Freeway", "Non-Freeway"] : [classLabels.get(bFocusClass)]},
+  title: bFocusClass === 'All' ? 'All Roadways' : classLabels.get(bFocusClass),
   y: {domain: chartCountyOrder, label: null},
   x: {label: "Total Daily VMT (millions)", grid: true, nice: true},
   marks: [
@@ -1691,7 +1707,7 @@ LM = require("leaflet@1.9.4")
 html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">`
 
 // 2. MAP RENDERING (shares bVehType / bDiffType with the chart at left;
-// bFocusCounty / bFocusClass additionally pan and dim this map only)
+// bFocusClass additionally dims non-matching segments on this map only)
 {
   const vehSuffix = new Map([["All", "Total"], ["PCLT", "PCLT"], ["MD", "MD"], ["HV", "HV"]]).get(bVehType);
   const prefix = bDiffType === "Pct" ? "PctDiff_" : "Diff_";
@@ -1751,9 +1767,7 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
         const ft = p.FTCLASS;
         const ftgroup = (ft === 'Freeway') ? 'Freeway' : 'NonFreeway';
 
-        const classMatch = bFocusClass === 'All' || bFocusClass === ftgroup;
-        const countyMatch = bFocusCounty === 99 || Number(p.CO_FIPS) === bFocusCounty;
-        const focused = classMatch && countyMatch;
+        const focused = bFocusClass === 'All' || bFocusClass === ftgroup;
 
         let weight = 1;
         if (ft === 'Freeway' || ft === 'Expressway') { weight = 4; }
@@ -1787,14 +1801,6 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
         );
       }
     }).addTo(map);
-
-    // Focus Geography pans/zooms to that county's segments; "Region" keeps the default full-region view.
-    if (bFocusCounty !== 99) {
-      const focusFeatures = runFeatures.filter(f => Number(f.properties.CO_FIPS) === bFocusCounty);
-      if (focusFeatures.length) {
-        map.fitBounds(LM.geoJSON({type: "FeatureCollection", features: focusFeatures}).getBounds(), {padding: [30, 30]});
-      }
-    }
   }
 
   // Legend
@@ -1836,7 +1842,7 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
 :::
 ::::
 
-The table below is a full reference view -- it always lists every county and roadway class for the selected Vehicle Type, independent of the Focus controls above.
+The tables below are a full reference view -- one per geography, always listing Freeway, Non-Freeway, and an All Roadways subtotal for the selected Vehicle Type, independent of the Focus Roadway Class control above.
 
 ```{ojs}
 function fmtVmt(value) {
@@ -1848,39 +1854,60 @@ function fmtPct(value) {
   return (value * 100).toFixed(1) + '%';
 }
 
-tableRows = vmtT
-  .filter(d => d.ClassLevel === 'FTGROUP' && d.vehType === bVehType && d.calib_run === globalCalibRun)
-  .map(d => ({
-    County: countyNames.get(d.CO_FIPS),
-    ClassLabel: classLabels.get(d.FTCLASS) ?? d.FTCLASS,
-    VMT_Mod: d.VMT_Mod,
-    VMT_Target: d.VMT_Target,
-    vmtDiff: d.vmtDiff,
-    vmtDiffPct: d.vmtDiffPct
-  }))
-  .sort((a, b) => countyOrder.indexOf(a.County) - countyOrder.indexOf(b.County) || d3.ascending(a.ClassLabel, b.ClassLabel))
+// One group per geography (Region + counties), each with its Freeway /
+// Non-Freeway rows plus an "All Roadways" subtotal row.
+tableGroups = countyOrder.map(county => {
+  const fips = Array.from(countyNames).find(([, name]) => name === county)[0];
+  const rows = vmtT
+    .filter(d => d.ClassLevel === 'FTGROUP' && d.vehType === bVehType && d.calib_run === globalCalibRun && d.CO_FIPS === fips)
+    .map(d => ({ClassLabel: classLabels.get(d.FTCLASS) ?? d.FTCLASS, VMT_Mod: d.VMT_Mod, VMT_Target: d.VMT_Target, vmtDiff: d.vmtDiff, vmtDiffPct: d.vmtDiffPct}))
+    .sort((a, b) => a.ClassLabel === 'Freeway' ? -1 : b.ClassLabel === 'Freeway' ? 1 : 0);
+  const modSum = d3.sum(rows, d => d.VMT_Mod);
+  const targetSum = d3.sum(rows, d => d.VMT_Target);
+  const subtotal = {
+    ClassLabel: 'All Roadways',
+    VMT_Mod: modSum,
+    VMT_Target: targetSum,
+    vmtDiff: modSum - targetSum,
+    vmtDiffPct: targetSum ? (modSum - targetSum) / targetSum : undefined
+  };
+  return {County: county, rows: [...rows, subtotal]};
+})
 ```
 
 ```{ojs}
+function renderCountyTable(g) {
+  return html`<div>
+    <strong>${g.County}</strong>
+    <table style="width:100%; border-collapse:collapse; margin: 4px 0 16px;">
+      <thead>
+        <tr>${["Class", "Model", "Target", "Diff", "% Diff"].map((d, i) => html`<th style='text-align: ${i === 0 ? "left" : "right"}; padding: 4px 6px; border-bottom: 2px solid #999; font-size: 12px;'>${d}</th>`)}</tr>
+      </thead>
+      <tbody>
+        ${g.rows.map(row => {
+          const isTotal = row.ClassLabel === 'All Roadways';
+          const rowStyle = isTotal
+            ? 'background-color: #e0e0e0; border-top: 2px solid #999; font-weight: bold;'
+            : 'border-bottom: 1px solid lightgrey;';
+          const diffColor = Math.abs(row.vmtDiffPct) > 0.1 ? themeDanger : 'inherit';
+          return html`<tr style='${rowStyle}'>
+            <td style='padding: 4px 6px; font-size: 12px;'>${row.ClassLabel}</td>
+            <td style='padding: 4px 6px; text-align:right; font-size: 12px;'>${fmtVmt(row.VMT_Mod)}</td>
+            <td style='padding: 4px 6px; text-align:right; font-size: 12px;'>${fmtVmt(row.VMT_Target)}</td>
+            <td style='padding: 4px 6px; text-align:right; font-size: 12px; color:${diffColor};'>${fmtVmt(row.vmtDiff)}</td>
+            <td style='padding: 4px 6px; text-align:right; font-size: 12px; color:${diffColor};'>${fmtPct(row.vmtDiffPct)}</td>
+          </tr>`;
+        })}
+      </tbody>
+    </table>
+  </div>`;
+}
+
 html`
 <h4>Total Daily VMT by County and Roadway Class</h4>
-<table style="width:100%; border-collapse:collapse;">
-  <thead>
-    <tr>
-      ${["County", "Roadway Class", "Model", "Target", "Difference", "Percent Difference"].map((d, i) => html`<th style='text-align: ${i < 2 ? "left" : "right"}; padding: 6px 10px; border-bottom: 2px solid #999;'>${d}</th>`)}
-    </tr>
-  </thead>
-  <tbody>
-    ${tableRows.map(row => html`<tr style='border-bottom: 1px solid lightgrey;'>
-      <td style='padding: 6px 10px;'>${row.County}</td>
-      <td style='padding: 6px 10px;'>${row.ClassLabel}</td>
-      <td style='padding: 6px 10px; text-align:right;'>${fmtVmt(row.VMT_Mod)}</td>
-      <td style='padding: 6px 10px; text-align:right;'>${fmtVmt(row.VMT_Target)}</td>
-      <td style='padding: 6px 10px; text-align:right; color:${Math.abs(row.vmtDiffPct) > 0.1 ? themeDanger : "inherit"};'>${fmtVmt(row.vmtDiff)}</td>
-      <td style='padding: 6px 10px; text-align:right; color:${Math.abs(row.vmtDiffPct) > 0.1 ? themeDanger : "inherit"};'>${fmtPct(row.vmtDiffPct)}</td>
-    </tr>`)}
-  </tbody>
-</table>`
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:0 24px;">
+  ${tableGroups.map(renderCountyTable)}
+</div>`
 ```
 
 
