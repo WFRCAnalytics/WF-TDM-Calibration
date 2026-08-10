@@ -1615,13 +1615,18 @@ viewof bFocusClass = Inputs.radio(
 
 ```{ojs}
 countyOrder = ['Region', 'Box Elder County - WFRC', 'Weber County - WFRC', 'Davis County', 'Salt Lake County', 'Utah County']
+chartCountyOrder = countyOrder.filter(c => c !== 'Region')
 countyNames = new Map([[99, 'Region'], [3, 'Box Elder County - WFRC'], [57, 'Weber County - WFRC'], [11, 'Davis County'], [35, 'Salt Lake County'], [49, 'Utah County']])
 classLabels = new Map([['Freeway', 'Freeway'], ['NonFreeway', 'Non-Freeway']])
 
 vmtT = transpose(vmt)
 
+// Region is the sum of the 5 counties, not an independent geography -- left
+// out of the chart (where it would dominate the shared x-axis and let
+// offsetting county-level errors cancel out) but still in the reference
+// table below via countyOrder/countyNames.
 dumbbellData = vmtT
-  .filter(d => d.ClassLevel === 'FTGROUP' && d.vehType === bVehType && d.calib_run === globalCalibRun && (bFocusClass === 'All' || d.FTCLASS === bFocusClass))
+  .filter(d => d.ClassLevel === 'FTGROUP' && d.vehType === bVehType && d.calib_run === globalCalibRun && d.CO_FIPS !== 99 && (bFocusClass === 'All' || d.FTCLASS === bFocusClass))
   .map(d => ({
     ...d,
     County: countyNames.get(d.CO_FIPS),
@@ -1644,11 +1649,11 @@ keyVmtDumbbell = Legend(vmtColorScale, {title: "Data Source"})
 //| fig-cap: Model vs Target VMT by Roadway Class and Geography
 Plot.plot({
   width: 380,
-  height: bFocusClass === 'All' ? 600 : 320,
+  height: bFocusClass === 'All' ? 520 : 280,
   marginLeft: 130,
   facet: {data: dumbbellData, y: "ClassLabel"},
   fy: {domain: bFocusClass === 'All' ? ["Freeway", "Non-Freeway"] : [classLabels.get(bFocusClass)]},
-  y: {domain: countyOrder, label: null},
+  y: {domain: chartCountyOrder, label: null},
   x: {label: "Total Daily VMT (millions)", grid: true, nice: true},
   marks: [
     Plot.link(dumbbellData, {
