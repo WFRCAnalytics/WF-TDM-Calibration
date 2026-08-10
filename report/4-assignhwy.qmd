@@ -1590,17 +1590,7 @@ ojs_define(vmt = allveh_vmt)
 
 ### Model vs Target VMT
 
-@fig-assign-vmt-dumbbell always shows every county, as one chart per Vehicle Type (Total, Medium CV, Heavy CV) -- each independently scaled to its own VMT range, since Medium/Heavy CV volumes are much smaller than Total -- with Roadway Class (All Roadways, Freeway, Non-Freeway) faceted down the rows within each. Only its diff labels follow the Display control below. @fig-assign-compare-interactive, below the chart, shows the same model-vs-target differences at the individual segment level and responds to all three controls: Vehicle Type, Display, and Focus Roadway Class. The values for Box Elder and Weber counties are only the portions within the MPO planning area.
-
-```{ojs}
-html`<br/>`
-viewof bVehType = Inputs.select(new Map([['All Vehicles', 'All'], ['Cars + Light CV', 'PCLT'], ['Medium CV', 'MD'], ['Heavy CV', 'HV']]), {value: 'All', label: "Vehicle Type:"})
-viewof bDiffType = Inputs.radio(new Map([['Percent Difference', 'Pct'], ['Difference (Model − Target)', 'Abs']]), {value: 'Pct', label: "Display:"})
-viewof bFocusClass = Inputs.radio(
-  new Map([["All", "All"], ["Freeway", "Freeway"], ["Non-Freeway", "NonFreeway"]]),
-  {value: "All", label: "Focus Roadway Class:"}
-)
-```
+@fig-assign-vmt-dumbbell always shows every county, vehicle type, and roadway class at once -- it's a fixed reference view, not driven by any control on this page. The tables further down break the same data out by county. @fig-assign-compare-interactive, at the end of this section, is the one part that's still interactive -- its Vehicle Type / Display / Focus Roadway Class controls sit just above it, since it's the only view here where filtering to one slice at a time actually helps. The values for Box Elder and Weber counties are only the portions within the MPO planning area.
 
 ```{ojs}
 countyOrder = ['Region', 'Box Elder County - WFRC', 'Weber County - WFRC', 'Davis County', 'Salt Lake County', 'Utah County']
@@ -1609,7 +1599,7 @@ countyNames = new Map([[99, 'Region'], [3, 'Box Elder County - WFRC'], [57, 'Web
 classLabels = new Map([['Freeway', 'Freeway'], ['NonFreeway', 'Non-Freeway']])
 vehTypeLabels = new Map([['All', 'All Vehicles'], ['PCLT', 'Cars + Light CV'], ['MD', 'Medium CV'], ['HV', 'Heavy CV']])
 // The chart facets on just these 3 vehicle types (Cars + Light CV omitted --
-// still selectable via Vehicle Type above for the map/table).
+// still selectable via the Vehicle Type control below, near the map/table).
 chartVehLabels = new Map([['All', 'Total'], ['MD', 'Medium CV'], ['HV', 'Heavy CV']])
 
 vmtT = transpose(vmt)
@@ -1620,11 +1610,11 @@ vmtT = transpose(vmt)
 // table below via countyOrder/countyNames.
 vmtGroupRows = vmtT.filter(d => d.ClassLevel === 'FTGROUP' && d.calib_run === globalCalibRun && d.CO_FIPS !== 99 && chartVehLabels.has(d.vehType))
 
-// The chart is a fixed 3x3 facet grid (always every Vehicle Type x Roadway
-// Class combination) rather than reacting to Vehicle Type / Focus Roadway
-// Class -- those two controls now only affect the map and table below.
-// Freeway/Non-Freeway rows come straight from the data; "All Roadways" is
-// computed here by summing the two per County x Vehicle Type.
+// The chart always shows every Vehicle Type x Roadway Class combination --
+// it doesn't react to any control on this page (Vehicle Type / Display /
+// Focus Roadway Class only affect the map, and Vehicle Type also affects
+// the table). Freeway/Non-Freeway rows come straight from the data; "All
+// Roadways" is computed here by summing the two per County x Vehicle Type.
 dumbbellData = {
   const rows = vmtGroupRows.map(d => ({
     County: countyNames.get(d.CO_FIPS),
@@ -1703,7 +1693,7 @@ function vmtDumbbellChart(classLabel, data) {
       }),
       Plot.text(data, {
         x: d => Math.max(d.ModelM, d.TargetM), y: "County",
-        text: d => bDiffType === 'Pct' ? d3.format("+.1%")(d.vmtDiffPct) : d3.format("+,.2f")(d.vmtDiff / 1e6) + "M",
+        text: d => d3.format("+.1%")(d.vmtDiffPct),
         dx: 8, textAnchor: "start", fontSize: 13, fontWeight: 600,
         fill: d => Math.abs(d.vmtDiffPct) > 0.1 ? themeDanger : themeNeutral
       })
@@ -1721,6 +1711,89 @@ html`<div>
 </div>`
 ```
 
+The tables below are a full reference view -- one per geography, always listing Freeway, Non-Freeway, and an All Roadways subtotal. They follow the Vehicle Type control below (next to the map), not any control higher up the page -- each table's own heading names which Vehicle Type it's currently showing.
+
+```{ojs}
+function fmtVmt(value) {
+  if (typeof value === 'undefined' || value === null || Number.isNaN(value)) return '';
+  return Math.round(value).toLocaleString();
+}
+function fmtPct(value) {
+  if (typeof value === 'undefined' || value === null || Number.isNaN(value)) return '';
+  return (value * 100).toFixed(1) + '%';
+}
+
+// One group per geography (Region + counties), each with its Freeway /
+// Non-Freeway rows plus an "All Roadways" subtotal row. References
+// bVehType, defined further down (in the controls cell next to the map --
+// OJS cells form a reactive graph, so definition order in the source
+// doesn't matter for execution, only for a human reading top-to-bottom).
+tableGroups = countyOrder.map(county => {
+  const fips = Array.from(countyNames).find(([, name]) => name === county)[0];
+  const rows = vmtT
+    .filter(d => d.ClassLevel === 'FTGROUP' && d.vehType === bVehType && d.calib_run === globalCalibRun && d.CO_FIPS === fips)
+    .map(d => ({ClassLabel: classLabels.get(d.FTCLASS) ?? d.FTCLASS, VMT_Mod: d.VMT_Mod, VMT_Target: d.VMT_Target, vmtDiff: d.vmtDiff, vmtDiffPct: d.vmtDiffPct}))
+    .sort((a, b) => a.ClassLabel === 'Freeway' ? -1 : b.ClassLabel === 'Freeway' ? 1 : 0);
+  const modSum = d3.sum(rows, d => d.VMT_Mod);
+  const targetSum = d3.sum(rows, d => d.VMT_Target);
+  const subtotal = {
+    ClassLabel: 'All Roadways',
+    VMT_Mod: modSum,
+    VMT_Target: targetSum,
+    vmtDiff: modSum - targetSum,
+    vmtDiffPct: targetSum ? (modSum - targetSum) / targetSum : undefined
+  };
+  return {County: county, rows: [...rows, subtotal]};
+})
+```
+
+```{ojs}
+function renderCountyTable(g) {
+  return html`<div>
+    <strong>${g.County}</strong>
+    <table style="width:100%; border-collapse:collapse; margin: 4px 0 16px;">
+      <thead>
+        <tr>${["Class", "Model", "Target", "Diff", "% Diff"].map((d, i) => html`<th style='text-align: ${i === 0 ? "left" : "right"}; padding: 4px 6px; border-bottom: 2px solid #999; font-size: 12px;'>${d}</th>`)}</tr>
+      </thead>
+      <tbody>
+        ${g.rows.map(row => {
+          const isTotal = row.ClassLabel === 'All Roadways';
+          const rowStyle = isTotal
+            ? 'background-color: #e0e0e0; border-top: 2px solid #999; font-weight: bold;'
+            : 'border-bottom: 1px solid lightgrey;';
+          const diffColor = Math.abs(row.vmtDiffPct) > 0.1 ? themeDanger : 'inherit';
+          return html`<tr style='${rowStyle}'>
+            <td style='padding: 4px 6px; font-size: 12px;'>${row.ClassLabel}</td>
+            <td style='padding: 4px 6px; text-align:right; font-size: 12px;'>${fmtVmt(row.VMT_Mod)}</td>
+            <td style='padding: 4px 6px; text-align:right; font-size: 12px;'>${fmtVmt(row.VMT_Target)}</td>
+            <td style='padding: 4px 6px; text-align:right; font-size: 12px; color:${diffColor};'>${fmtVmt(row.vmtDiff)}</td>
+            <td style='padding: 4px 6px; text-align:right; font-size: 12px; color:${diffColor};'>${fmtPct(row.vmtDiffPct)}</td>
+          </tr>`;
+        })}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+html`
+<h4>Total Daily VMT by County and Roadway Class — ${vehTypeLabels.get(bVehType) ?? bVehType}</h4>
+<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:0 24px;">
+  ${tableGroups.map(renderCountyTable)}
+</div>`
+```
+
+@fig-assign-compare-interactive is the interactive, segment-level counterpart to the reference views above -- these controls apply to it (and the Vehicle Type control also drives the tables above).
+
+```{ojs}
+html`<br/>`
+viewof bVehType = Inputs.select(new Map([['All Vehicles', 'All'], ['Cars + Light CV', 'PCLT'], ['Medium CV', 'MD'], ['Heavy CV', 'HV']]), {value: 'All', label: "Vehicle Type:"})
+viewof bDiffType = Inputs.radio(new Map([['Percent Difference', 'Pct'], ['Difference (Model − Target)', 'Abs']]), {value: 'Pct', label: "Display:"})
+viewof bFocusClass = Inputs.radio(
+  new Map([["All", "All"], ["Freeway", "Freeway"], ["Non-Freeway", "NonFreeway"]]),
+  {value: "All", label: "Focus Roadway Class:"}
+)
+```
+
 ```{ojs}
 //| label: fig-assign-compare-interactive
 //| fig-cap: Segment-Level Model vs Target Volume Comparison
@@ -1729,8 +1802,8 @@ html`<div>
 LM = require("leaflet@1.9.4")
 html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">`
 
-// 2. MAP RENDERING (shares bVehType / bDiffType with the chart above, which
-// no longer reacts to either -- bFocusClass dims non-matching segments here)
+// 2. MAP RENDERING -- the only view in this section still driven by
+// controls (Vehicle Type / Display / Focus Roadway Class, just above)
 {
   const vehSuffix = new Map([["All", "Total"], ["PCLT", "PCLT"], ["MD", "MD"], ["HV", "HV"]]).get(bVehType);
   const prefix = bDiffType === "Pct" ? "PctDiff_" : "Diff_";
@@ -1860,74 +1933,6 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
 
   return container;
 }
-```
-
-The tables below are a full reference view -- one per geography, always listing Freeway, Non-Freeway, and an All Roadways subtotal for the selected Vehicle Type, independent of the Focus Roadway Class control above.
-
-```{ojs}
-function fmtVmt(value) {
-  if (typeof value === 'undefined' || value === null || Number.isNaN(value)) return '';
-  return Math.round(value).toLocaleString();
-}
-function fmtPct(value) {
-  if (typeof value === 'undefined' || value === null || Number.isNaN(value)) return '';
-  return (value * 100).toFixed(1) + '%';
-}
-
-// One group per geography (Region + counties), each with its Freeway /
-// Non-Freeway rows plus an "All Roadways" subtotal row.
-tableGroups = countyOrder.map(county => {
-  const fips = Array.from(countyNames).find(([, name]) => name === county)[0];
-  const rows = vmtT
-    .filter(d => d.ClassLevel === 'FTGROUP' && d.vehType === bVehType && d.calib_run === globalCalibRun && d.CO_FIPS === fips)
-    .map(d => ({ClassLabel: classLabels.get(d.FTCLASS) ?? d.FTCLASS, VMT_Mod: d.VMT_Mod, VMT_Target: d.VMT_Target, vmtDiff: d.vmtDiff, vmtDiffPct: d.vmtDiffPct}))
-    .sort((a, b) => a.ClassLabel === 'Freeway' ? -1 : b.ClassLabel === 'Freeway' ? 1 : 0);
-  const modSum = d3.sum(rows, d => d.VMT_Mod);
-  const targetSum = d3.sum(rows, d => d.VMT_Target);
-  const subtotal = {
-    ClassLabel: 'All Roadways',
-    VMT_Mod: modSum,
-    VMT_Target: targetSum,
-    vmtDiff: modSum - targetSum,
-    vmtDiffPct: targetSum ? (modSum - targetSum) / targetSum : undefined
-  };
-  return {County: county, rows: [...rows, subtotal]};
-})
-```
-
-```{ojs}
-function renderCountyTable(g) {
-  return html`<div>
-    <strong>${g.County}</strong>
-    <table style="width:100%; border-collapse:collapse; margin: 4px 0 16px;">
-      <thead>
-        <tr>${["Class", "Model", "Target", "Diff", "% Diff"].map((d, i) => html`<th style='text-align: ${i === 0 ? "left" : "right"}; padding: 4px 6px; border-bottom: 2px solid #999; font-size: 12px;'>${d}</th>`)}</tr>
-      </thead>
-      <tbody>
-        ${g.rows.map(row => {
-          const isTotal = row.ClassLabel === 'All Roadways';
-          const rowStyle = isTotal
-            ? 'background-color: #e0e0e0; border-top: 2px solid #999; font-weight: bold;'
-            : 'border-bottom: 1px solid lightgrey;';
-          const diffColor = Math.abs(row.vmtDiffPct) > 0.1 ? themeDanger : 'inherit';
-          return html`<tr style='${rowStyle}'>
-            <td style='padding: 4px 6px; font-size: 12px;'>${row.ClassLabel}</td>
-            <td style='padding: 4px 6px; text-align:right; font-size: 12px;'>${fmtVmt(row.VMT_Mod)}</td>
-            <td style='padding: 4px 6px; text-align:right; font-size: 12px;'>${fmtVmt(row.VMT_Target)}</td>
-            <td style='padding: 4px 6px; text-align:right; font-size: 12px; color:${diffColor};'>${fmtVmt(row.vmtDiff)}</td>
-            <td style='padding: 4px 6px; text-align:right; font-size: 12px; color:${diffColor};'>${fmtPct(row.vmtDiffPct)}</td>
-          </tr>`;
-        })}
-      </tbody>
-    </table>
-  </div>`;
-}
-
-html`
-<h4>Total Daily VMT by County and Roadway Class — ${vehTypeLabels.get(bVehType) ?? bVehType}</h4>
-<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:0 24px;">
-  ${tableGroups.map(renderCountyTable)}
-</div>`
 ```
 
 
