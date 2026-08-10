@@ -1719,8 +1719,6 @@ html`<div>
 </div>`
 ```
 
-The tables below are a full reference view -- one per geography, always listing Freeway, Non-Freeway, and an All Roadways subtotal. They follow the Vehicle Type control below (next to the map), not any control higher up the page -- each table's own heading names which Vehicle Type it's currently showing.
-
 ```{ojs}
 function fmtVmt(value) {
   if (typeof value === 'undefined' || value === null || Number.isNaN(value)) return '';
@@ -1753,6 +1751,11 @@ tableGroups = countyOrder.map(county => {
   };
   return {County: county, rows: [...rows, subtotal]};
 })
+```
+
+```{ojs}
+html`<br/>`
+viewof bVehType = Inputs.select(new Map([['All Vehicles', 'All'], ['Cars + Light CV', 'PCLT'], ['Medium CV', 'MD'], ['Heavy CV', 'HV']]), {value: 'All', label: "Vehicle Type:"})
 ```
 
 ```{ojs}
@@ -1790,11 +1793,8 @@ html`
 </div>`
 ```
 
-@fig-assign-compare-interactive is the interactive, segment-level counterpart to the reference views above -- these controls apply to it (and the Vehicle Type control also drives the tables above).
-
 ```{ojs}
 html`<br/>`
-viewof bVehType = Inputs.select(new Map([['All Vehicles', 'All'], ['Cars + Light CV', 'PCLT'], ['Medium CV', 'MD'], ['Heavy CV', 'HV']]), {value: 'All', label: "Vehicle Type:"})
 viewof bDiffType = Inputs.radio(new Map([['Percent Difference', 'Pct'], ['Difference (Model − Target)', 'Abs']]), {value: 'Pct', label: "Display:"})
 viewof bFocusClass = Inputs.radio(
   new Map([["All", "All"], ["Freeway", "Freeway"], ["Non-Freeway", "NonFreeway"]]),
@@ -1818,32 +1818,37 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
   const activeCol = prefix + vehSuffix;
   const isPct = bDiffType === "Pct";
 
-  let bins;
+  let bins, colors;
   if (isPct) {
-      // Bins for Percentages (-50%, -25%, -10%, +10%, +25%, +50%)
-      bins = [-0.5, -0.25, -0.1, 0.1, 0.25, 0.5];
+      // Bins for Percentages (-90%, -50%, -25%, -10%, +10%, +25%, +50%, +90%)
+      bins = [-0.9, -0.5, -0.25, -0.1, 0.1, 0.25, 0.5, 0.9];
+      // ColorBrewer RdBu-9 -- extends the 7-class scheme below with a
+      // darker blue/red pair for the two new extreme bins.
+      colors = [
+        "#053061", "#2166ac", "#4393c3", "#92c5de", // Blues
+        "#f7f7f7",                                  // Neutral
+        "#f4a582", "#d6604d", "#b2182b", "#67001f"  // Reds
+      ];
   } else {
       // Bins for Absolute Volumes
       const useLargeBins = ["All", "PCLT"].includes(bVehType);
       bins = useLargeBins
         ? [-15000, -7500, -2500, 2500, 7500, 15000]
         : [-5000, -1500, -500, 500, 1500, 5000];
+      colors = [
+        "#2166ac", "#4393c3", "#92c5de", // Blues
+        "#f7f7f7",                       // Neutral
+        "#f4a582", "#d6604d", "#b2182b"  // Reds
+      ];
   }
 
-  const colors = [
-    "#2166ac", "#4393c3", "#92c5de", // Blues
-    "#f7f7f7",                       // Neutral
-    "#f4a582", "#d6604d", "#b2182b"  // Reds
-  ];
-
+  // Generic over bins.length so it works for either the 8-breakpoint
+  // percent scale or the 6-breakpoint absolute scale.
   const getColor = (val) => {
-    if (val < bins[0]) return colors[0];
-    if (val < bins[1]) return colors[1];
-    if (val < bins[2]) return colors[2];
-    if (val < bins[3]) return colors[3];
-    if (val < bins[4]) return colors[4];
-    if (val < bins[5]) return colors[5];
-    return colors[6];
+    for (let i = 0; i < bins.length; i++) {
+      if (val < bins[i]) return colors[i];
+    }
+    return colors[bins.length];
   };
 
   const container = document.createElement("div");
@@ -1927,7 +1932,7 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
         `<i style="background:${colors[i+1]}; width:12px; height:12px; display:inline-block;"></i> ${fmt(bins[i])} to ${fmt(bins[i+1])}`
       );
     }
-    labels.push(`<i style="background:${colors[6]}; width:12px; height:12px; display:inline-block;"></i> > ${fmt(bins[5])}`);
+    labels.push(`<i style="background:${colors[bins.length]}; width:12px; height:12px; display:inline-block;"></i> > ${fmt(bins[bins.length - 1])}`);
 
     div.innerHTML = labels.join("<br>");
     return div;

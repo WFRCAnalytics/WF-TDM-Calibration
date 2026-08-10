@@ -12,7 +12,7 @@ documented swatches (_extensions/WFRCAnalytics/wfrc-brand/assets/theme/
 _wfrc-colors.scss) rather than invented tones, and validated against the
 dataviz skill's categorical checks (Model/Target/TargetAlt/Accent clear
 lightness, chroma, and CVD-separation on the site's light surface #fcfcfb;
-Target's contrast WARN at 2.79:1 needs relief via direct labels/legend,
+Model's contrast WARN at 2.79:1 needs relief via direct labels/legend,
 not a bare fill). Meaning stays consistent site-wide:
 
   themeModel        Modeled data, always
@@ -30,8 +30,8 @@ not a bare fill). Meaning stays consistent site-wide:
 
 ```{ojs}
 //| echo: false
-themeModel = "#036fa8"       // WFRC core blue
-themeTarget = "#ea7b00"      // WFRC core orange
+themeModel = "#ea7b00"       // WFRC core orange
+themeTarget = "#036fa8"      // WFRC core blue
 themeTargetAlt = "#007426"   // WFRC core green
 themeTargetLight = "#f8b93e" // WFRC yellow -- lighter warm variant of Target
 themeAccent = "#9d4879"      // WFRC RTP fuschia
