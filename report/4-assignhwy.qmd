@@ -1590,7 +1590,7 @@ ojs_define(vmt = allveh_vmt)
 
 ### Model vs Target VMT
 
-@fig-assign-vmt-dumbbell always shows every county, faceted by Vehicle Type (Total, Medium CV, Heavy CV) across the columns and Roadway Class (All Roadways, Freeway, Non-Freeway) down the rows -- only its diff labels follow the Display control below. @fig-assign-compare-interactive, below the chart, shows the same model-vs-target differences at the individual segment level and responds to all three controls: Vehicle Type, Display, and Focus Roadway Class. The values for Box Elder and Weber counties are only the portions within the MPO planning area.
+@fig-assign-vmt-dumbbell always shows every county, as one chart per Vehicle Type (Total, Medium CV, Heavy CV) -- each independently scaled to its own VMT range, since Medium/Heavy CV volumes are much smaller than Total -- with Roadway Class (All Roadways, Freeway, Non-Freeway) faceted down the rows within each. Only its diff labels follow the Display control below. @fig-assign-compare-interactive, below the chart, shows the same model-vs-target differences at the individual segment level and responds to all three controls: Vehicle Type, Display, and Focus Roadway Class. The values for Box Elder and Weber counties are only the portions within the MPO planning area.
 
 ```{ojs}
 html`<br/>`
@@ -1670,38 +1670,49 @@ keyVmtDumbbell = Legend(vmtColorScale, {title: "Data Source"})
 ```{ojs}
 //| label: fig-assign-vmt-dumbbell
 //| fig-cap: Model vs Target VMT by Vehicle Type and Roadway Class
-Plot.plot({
-  width: width,
-  height: 860,
-  marginLeft: 140,
-  marginRight: 60,
-  facet: {data: dumbbellData, x: "VehLabel", y: "ClassLabel"},
-  fx: {domain: ["Total", "Medium CV", "Heavy CV"]},
-  fy: {domain: ["All Roadways", "Freeway", "Non-Freeway"]},
-  y: {domain: chartCountyOrder, label: null},
-  x: {label: "Total Daily VMT (millions)", grid: true, nice: true},
-  marks: [
-    Plot.link(dumbbellData, {
-      x1: "ModelM", x2: "TargetM", y: "County",
-      stroke: d => Math.abs(d.vmtDiffPct) > 0.1 ? themeDanger : themeNeutral,
-      strokeWidth: 3, strokeOpacity: 0.6
-    }),
-    Plot.dot(dumbbellData, {
-      x: "ModelM", y: "County", fill: themeModel, r: 8,
-      title: d => `${d.County} — ${d.VehLabel} — ${d.ClassLabel}\nModel: ${d3.format(",.2f")(d.ModelM)}M VMT`
-    }),
-    Plot.dot(dumbbellData, {
-      x: "TargetM", y: "County", fill: themeTarget, r: 8,
-      title: d => `${d.County} — ${d.VehLabel} — ${d.ClassLabel}\nTarget: ${d3.format(",.2f")(d.TargetM)}M VMT`
-    }),
-    Plot.text(dumbbellData, {
-      x: d => Math.max(d.ModelM, d.TargetM), y: "County",
-      text: d => bDiffType === 'Pct' ? d3.format("+.1%")(d.vmtDiffPct) : d3.format("+,.2f")(d.vmtDiff / 1e6) + "M",
-      dx: 8, textAnchor: "start", fontSize: 13, fontWeight: 600,
-      fill: d => Math.abs(d.vmtDiffPct) > 0.1 ? themeDanger : themeNeutral
-    })
-  ]
-})
+
+// One chart per Vehicle Type, each auto-scaled to its own data's range --
+// Total, Medium CV, and Heavy CV differ by roughly an order of magnitude,
+// so sharing one x-axis (as a single faceted grid) squished the two CV
+// columns down near zero. Roadway Class stays faceted as rows within each.
+function vmtDumbbellChart(vehLabel, data) {
+  return Plot.plot({
+    width: width,
+    height: 260,
+    marginLeft: 140,
+    marginRight: 60,
+    title: vehLabel,
+    facet: {data, y: "ClassLabel"},
+    fy: {domain: ["All Roadways", "Freeway", "Non-Freeway"]},
+    y: {domain: chartCountyOrder, label: null},
+    x: {label: "Total Daily VMT (millions)", grid: true, nice: true},
+    marks: [
+      Plot.link(data, {
+        x1: "ModelM", x2: "TargetM", y: "County",
+        stroke: d => Math.abs(d.vmtDiffPct) > 0.1 ? themeDanger : themeNeutral,
+        strokeWidth: 3, strokeOpacity: 0.6
+      }),
+      Plot.dot(data, {
+        x: "ModelM", y: "County", fill: themeModel, r: 8,
+        title: d => `${d.County} — ${d.VehLabel} — ${d.ClassLabel}\nModel: ${d3.format(",.2f")(d.ModelM)}M VMT`
+      }),
+      Plot.dot(data, {
+        x: "TargetM", y: "County", fill: themeTarget, r: 8,
+        title: d => `${d.County} — ${d.VehLabel} — ${d.ClassLabel}\nTarget: ${d3.format(",.2f")(d.TargetM)}M VMT`
+      }),
+      Plot.text(data, {
+        x: d => Math.max(d.ModelM, d.TargetM), y: "County",
+        text: d => bDiffType === 'Pct' ? d3.format("+.1%")(d.vmtDiffPct) : d3.format("+,.2f")(d.vmtDiff / 1e6) + "M",
+        dx: 8, textAnchor: "start", fontSize: 13, fontWeight: 600,
+        fill: d => Math.abs(d.vmtDiffPct) > 0.1 ? themeDanger : themeNeutral
+      })
+    ]
+  });
+}
+
+html`<div>
+  ${["Total", "Medium CV", "Heavy CV"].map(veh => vmtDumbbellChart(veh, dumbbellData.filter(d => d.VehLabel === veh)))}
+</div>`
 ```
 
 ```{ojs}
@@ -2555,6 +2566,62 @@ calculateSlope = (data, xKey, yKey) => {
 
 slope = calculateSlope(timeT_filtered, "tmeObs", "tmeMod");
 yMaxLine = slope * chartMaxTime;
+```
+
+The chart below summarizes the whole region across all four periods at once (unfiltered by the Period / Geography controls above), so you don't have to flip through each period to see the overall picture; the detailed scatter plots below it still follow those controls.
+
+```{ojs}
+regionTimeSummary = {
+  const periodLabels = new Map([['AM', 'AM Peak'], ['MD', 'Midday'], ['PM', 'PM Peak'], ['EV', 'Evening']]);
+  return Array.from(periodLabels, ([code, label]) => {
+    const rows = timeT.filter(d => d.Period === code);
+    const obsMean = d3.mean(rows, d => d.tmeObs);
+    const modMean = d3.mean(rows, d => d.tmeMod);
+    return {
+      Period: label,
+      obsMean, modMean,
+      diff: modMean - obsMean,
+      diffPct: obsMean ? (modMean - obsMean) / obsMean : undefined
+    };
+  });
+}
+
+timeColorScale = d3.scaleOrdinal(["Model", "Observed"], [themeModel, themeTarget])
+keyTimeDumbbell = Legend(timeColorScale, {title: "Data Source"})
+```
+
+```{ojs}
+//| label: fig-assign-time-summary
+//| fig-cap: Region-Wide Average Travel Time -- Model vs Observed
+Plot.plot({
+  width: width,
+  height: 220,
+  marginLeft: 100,
+  marginRight: 60,
+  y: {domain: ["AM Peak", "Midday", "PM Peak", "Evening"], label: null},
+  x: {label: "Average Travel Time (minutes)", grid: true, nice: true},
+  marks: [
+    Plot.link(regionTimeSummary, {
+      x1: "obsMean", x2: "modMean", y: "Period",
+      stroke: d => Math.abs(d.diffPct) > 0.1 ? themeDanger : themeNeutral,
+      strokeWidth: 3, strokeOpacity: 0.6
+    }),
+    Plot.dot(regionTimeSummary, {
+      x: "obsMean", y: "Period", fill: themeTarget, r: 8,
+      title: d => `${d.Period}\nObserved: ${d3.format(",.1f")(d.obsMean)} min`
+    }),
+    Plot.dot(regionTimeSummary, {
+      x: "modMean", y: "Period", fill: themeModel, r: 8,
+      title: d => `${d.Period}\nModel: ${d3.format(",.1f")(d.modMean)} min`
+    }),
+    Plot.text(regionTimeSummary, {
+      x: d => Math.max(d.obsMean, d.modMean), y: "Period",
+      text: d => d3.format("+.1%")(d.diffPct),
+      dx: 8, textAnchor: "start", fontSize: 13, fontWeight: 600,
+      fill: d => Math.abs(d.diffPct) > 0.1 ? themeDanger : themeNeutral
+    })
+  ]
+})
 ```
 
 :::: {.columns}
