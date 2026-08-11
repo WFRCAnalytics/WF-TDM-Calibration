@@ -39,7 +39,7 @@ viewof globalCalibRun = {
   if (options.length === 0) {
     return Inputs.select([], {label: "Calibration Run:", disabled: true});
   }
-  // Default to the run with the highest numeric ID (e.g. "C50" over "C33"),
+  // Default to the run with the highest numeric ID (e.g. "C51" over "C50"),
   // not just the last entry in `options` -- that list comes from a plain
   // alphabetical sort (see list_available_runs in _validation_scripts.py),
   // which only happens to match numeric order today because both IDs have
