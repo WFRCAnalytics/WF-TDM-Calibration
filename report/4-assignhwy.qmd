@@ -1689,7 +1689,7 @@ function vmtDumbbellChart(vehLabel, data) {
       // Target drawn first, Model second, so the Model ring always sits on
       // top where the two dots overlap.
       Plot.dot(data, {
-        x: "TargetM", y: "County", fill: themeTarget, r: 12,
+        x: "TargetM", y: "County", fill: themeTarget, r: 10,
         title: d => `${d.County} — ${d.VehLabel} — ${d.ClassLabel}\nTarget: ${d3.format(",.2f")(d.TargetM)}M VMT`
       }),
       Plot.dot(data, {
@@ -2682,7 +2682,7 @@ Plot.plot({
     // Observed drawn first, Model second, so the Model ring always sits on
     // top where the two dots overlap.
     Plot.dot(regionTimeSummary, {
-      x: "obsMean", y: "Period", fill: themeTarget, r: 12,
+      x: "obsMean", y: "Period", fill: themeTarget, r: 10,
       title: d => `${d.Period}\nObserved: ${d3.format(",.1f")(d.obsMean)} min`
     }),
     Plot.dot(regionTimeSummary, {
