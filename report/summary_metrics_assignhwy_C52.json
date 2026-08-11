@@ -3,8 +3,8 @@
   "stage": "assignhwy",
   "metrics": {
     "total_target_volume": 5931367.615497676,
-    "total_modeled_volume": 5472477.8,
-    "total_pct_diff": -0.07736661175724015,
-    "segment_rmse": 2248.611806060083
+    "total_modeled_volume": 5440383.4,
+    "total_pct_diff": -0.08277757295211569,
+    "segment_rmse": 2254.6424304932143
   }
 }

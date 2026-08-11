@@ -1,0 +1,565 @@
+{
+  "schema_version": 1,
+  "calib_run_id": "C52",
+  "run_id": "20260811-122529-6410",
+  "status": "success",
+  "execution_mode": "cli",
+  "started_at": "2026-08-11T12:25:29.694910+00:00",
+  "finished_at": "2026-08-11T18:07:28.901941+00:00",
+  "framework_commit": "5fc3ed1120c3bf0c4bfd60b602013c5af717ff76",
+  "tdm": {
+    "requested_ref": "calib/C52",
+    "resolved_commit": "97d5ac7d6ba60eef5e833c3ccf615857a1b6efe0",
+    "resolved_tag": "calib/C52",
+    "branch": null,
+    "detached_head": true,
+    "dirty": false
+  },
+  "control_center": {
+    "baseline_file": "_ControlCenter - BY_2023.block",
+    "overrides": {
+      "UserName": "Bill Hereth",
+      "UserCompany": "WFRC",
+      "keyOutputPrfx": "_"
+    },
+    "rendered_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C52\\_ControlCenter.block",
+    "driver_script": "Scenarios/_default/__HailMary_resumable.s"
+  },
+  "scenario_folder": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C52",
+  "execution": {
+    "command": [
+      "cmd.exe",
+      "/c",
+      "M:\\GitHub\\WF-TDM-Calibration\\bin\\RunModel.bat",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C52\\_ControlCenter.block",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C52"
+    ],
+    "exit_code": 1,
+    "log_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C52\\logs\\orchestrator_invocation.log",
+    "status_source": "model_log",
+    "model_log": {
+      "outcome": "success",
+      "crashed_step": null,
+      "started_at": "2026-08-11,  06:25:39",
+      "finished_at": "2026-08-11,  12:01:46",
+      "run_time": "005:36:08",
+      "exit_code_mismatch": true
+    }
+  },
+  "outputs": {
+    "inventory_count": 1041,
+    "inventory_total_bytes": 36410950889,
+    "curated": [
+      {
+        "relative_path": "0_InputProcessing/SE_File.dbf",
+        "size_bytes": 1693167,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "8e81c8171de28a3889338df5a9a56c986828ab00a615181179dec24a4290280e",
+        "repo_path": "runs/C52/SE_File.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/Joint_HHSize_Income_Worker.dbf",
+        "size_bytes": 3639523,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "64815687d3d135cbed9cc30c372eebcdb188d9425fe81f074de032f3249bbf53",
+        "repo_path": "runs/C52/Joint_HHSize_Income_Worker.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/VO_HH1_IncLoHi_Worker_VehOwn.dbf",
+        "size_bytes": 1068015,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "d3e84585970f65f162e6b00374728742bcba01dde11b902a71dd6cafb5453f26",
+        "repo_path": "runs/C52/VO_HH1_IncLoHi_Worker_VehOwn.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/VO_HH2_IncLoHi_Worker_VehOwn.dbf",
+        "size_bytes": 1068015,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "e9b26f4ef5b0a46edbff1cf95f00013d47522c72d013188efb155acc8af8d713",
+        "repo_path": "runs/C52/VO_HH2_IncLoHi_Worker_VehOwn.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/VO_HH3_IncLoHi_Worker_VehOwn.dbf",
+        "size_bytes": 1068015,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "d8ec61f0da654609cd74c0abdad9ac364dad7dcf6b7cd89b7d853bff00342aaa",
+        "repo_path": "runs/C52/VO_HH3_IncLoHi_Worker_VehOwn.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/VO_HH4_IncLoHi_Worker_VehOwn.dbf",
+        "size_bytes": 1068015,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "72b3caa7f3c689e14c4955933ba1e89ad9c9d95f13d8c454d8b901b41ba6f2b5",
+        "repo_path": "runs/C52/VO_HH4_IncLoHi_Worker_VehOwn.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/VO_HH5_IncLoHi_Worker_VehOwn.dbf",
+        "size_bytes": 1068015,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "7e7b5489942c61038df39fc8219fc3c3a54d4bdb8f15420ce92d23d76ad76d3e",
+        "repo_path": "runs/C52/VO_HH5_IncLoHi_Worker_VehOwn.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/VO_HH6_IncLoHi_Worker_VehOwn.dbf",
+        "size_bytes": 1068015,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "19a4e5aa404e094d91ea0c492185912e01b684a8b19c6c68f9dd2ad7bec6f2a1",
+        "repo_path": "runs/C52/VO_HH6_IncLoHi_Worker_VehOwn.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/VO_HHSize_VehOwn.dbf",
+        "size_bytes": 995435,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "e082a669cf584414dd28891fb5432f4860bfc574663150a28f8d54d2685a0cb7",
+        "repo_path": "runs/C52/VO_HHSize_VehOwn.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/PA_AllPurp_GRAVITY.mtx",
+        "size_bytes": 43936080,
+        "entry_type": "matrix",
+        "tabs": [
+          "HBW",
+          "HBShp",
+          "HBOth",
+          "HBSch_Pr",
+          "HBSch_Sc",
+          "HBC",
+          "NHBW",
+          "NHBNW"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "29d61fd156e4066130ad1f191e0656909f0fa89b7c318bad897e98a73618ecec",
+        "repo_path": "runs/C52/PA_AllPurp_GRAVITY.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/pa_final.csv",
+        "size_bytes": 589813,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "b559ef304ea9241845cf59f437f060ac831d31b3511771389a50472650805e06",
+        "repo_path": "runs/C52/pa_final.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_Dist.mtx",
+        "size_bytes": 334239639,
+        "entry_type": "matrix",
+        "tabs": [
+          "HBW",
+          "HBShp",
+          "HBOth",
+          "NHBW",
+          "NHBNW",
+          "HBS",
+          "LT",
+          "MD",
+          "HV",
+          "Ext"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "ac03d86082d53c53507605dfb9da62a37b3a0ade897fc7fde010988632348040",
+        "repo_path": "runs/C52/skm_DY_Dist.omx",
+        "committed": false
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_GC.mtx",
+        "size_bytes": 364871023,
+        "entry_type": "matrix",
+        "tabs": [
+          "HBW",
+          "HBShp",
+          "HBOth",
+          "NHBW",
+          "NHBNW",
+          "HBS",
+          "LT",
+          "MD",
+          "HV",
+          "Ext"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "e7ed90bd0500e359bcf88ae65e1e97129e5e954d750b416007df9c98e966797d",
+        "repo_path": "runs/C52/skm_DY_GC.omx",
+        "committed": false
+      },
+      {
+        "relative_path": "3_Distribute/SumToDistricts/DISTLRG_PA_Gravity_AllPurp.csv",
+        "size_bytes": 490998,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "9f3b4d3e34fae011ddbb5c2fe50b9a1797f2523a48d4599cf96dd40c6372f7fb",
+        "repo_path": "runs/C52/DISTLRG_PA_Gravity_AllPurp.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/TLF/TLF_Cost.csv",
+        "size_bytes": 216812,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "a95684999e00edf5a09076f4e7e132768f353df1643173829e5bf165ad3f4f12",
+        "repo_path": "runs/C52/TLF_Cost.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/TLF/TLF_Dist.csv",
+        "size_bytes": 108812,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "ec441d93c36dff395cd155ff4f724aff33a1cb47d56144fd4bb9a3c6803250ab",
+        "repo_path": "runs/C52/TLF_Dist.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/TLF/TLF_Time.csv",
+        "size_bytes": 108812,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "264fb0413908b743be4d0f8fc6eb51c2f8d67a33f27dd52e415df2194227ec89",
+        "repo_path": "runs/C52/TLF_Time.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/1a_Skims/skm_d8_Ok.mtx",
+        "size_bytes": 2822393,
+        "entry_type": "matrix",
+        "tabs": [
+          "D8"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "48c4e85f20d01f6672ee6a62e2d7368862e2f0e181cc0cef215c6726536c074e",
+        "repo_path": "runs/C52/skm_d8_Ok.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/1a_Skims/skm_d8_Pk.mtx",
+        "size_bytes": 3050815,
+        "entry_type": "matrix",
+        "tabs": [
+          "D8"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "29f70663f43886b1db94a579dd2983442b707401299f1c5af9d7b5222edf207a",
+        "repo_path": "runs/C52/skm_d8_Pk.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/1a_Skims/skm_w8_Ok.mtx",
+        "size_bytes": 1152294,
+        "entry_type": "matrix",
+        "tabs": [
+          "D8"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "a1a02a04e8230cb78f604f03cee4ebc6e8b1afe6372c891bdcf82bd535fce62a",
+        "repo_path": "runs/C52/skm_w8_Ok.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/1a_Skims/skm_w8_Pk.mtx",
+        "size_bytes": 1359506,
+        "entry_type": "matrix",
+        "tabs": [
+          "D8"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "5725650acb6da08996cc7e4a877a1a589204da2b7b7724b6aafc3528752ab538",
+        "repo_path": "runs/C52/skm_w8_Pk.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/2_DetailedTripMatrices/AllTrips_Ok.mtx",
+        "size_bytes": 3882407,
+        "entry_type": "matrix",
+        "tabs": [
+          "wCRT",
+          "dCRT"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "b3e6100e09b1fc51e97a7db2a3fc5fec91f6ff1c15e17bf47cde101ad0658e96",
+        "repo_path": "runs/C52/AllTrips_Ok.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/2_DetailedTripMatrices/AllTrips_Pk.mtx",
+        "size_bytes": 4492474,
+        "entry_type": "matrix",
+        "tabs": [
+          "wCRT",
+          "dCRT"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "7583df5d83aeaf74c22d7e4f32d6bc3aaa5c6a80833d149bb07e8d361b490962",
+        "repo_path": "runs/C52/AllTrips_Pk.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/2_DetailedTripMatrices/IMZ_TripTotals.csv",
+        "size_bytes": 139,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "767ac161a707d3347a759b4b404f3a1f3121e7b537e5c601e1ab3b95e5ff7cde",
+        "repo_path": "runs/C52/IMZ_TripTotals.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/3_TransitAssign/_transit_brding_summary_node.csv",
+        "size_bytes": 12258805,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "75fd5c33e8bc6d13aed5b6a80484cc543bfcc2028190dc3ddb89e8b31ffcbd45",
+        "repo_path": "runs/C52/_transit_brding_summary_node.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/3_TransitAssign/_transit_rider_summary_link.csv",
+        "size_bytes": 21220492,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "ba3a0d2476833d7ee677e0d536fa7000dbbaabfb217e222d769c776612c6357e",
+        "repo_path": "runs/C52/_transit_rider_summary_link.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/4_Shares/_RegionShares_Ok.csv",
+        "size_bytes": 8510,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "75768ff48d3597977c9737dba03143079bd3d03e1dc23277b7b64b8d7dc30966",
+        "repo_path": "runs/C52/_RegionShares_Ok.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/4_Shares/_RegionShares_Pk.csv",
+        "size_bytes": 8506,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "68a88c411dcecc4b5f32202763dba3d0b1e8b196a838f77a76ed1cb6f1c14e0f",
+        "repo_path": "runs/C52/_RegionShares_Pk.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/5_DistrictSummary/DISTLRG_PA_AllPurp.csv",
+        "size_bytes": 121815,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "5360a8124b62dbd409cb81b010aba067664a380153f17083460aca203f36f391",
+        "repo_path": "runs/C52/DISTLRG_PA_AllPurp.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "5_AssignHwy/4_Summaries/_Summary_SEGID.csv",
+        "size_bytes": 7386288,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "4e7677754c99c750d37fd1dabc7d98fa2e87ae936e0d554aa4024181c28e18a4",
+        "repo_path": "runs/C52/_Summary_SEGID.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "5_AssignHwy/4_Summaries/_Summary_SEGID_Detailed.csv",
+        "size_bytes": 46134152,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "08d0d7f94452101f7aba2d8e6f1cd48aa978612a1570e990d352b448be91c76f",
+        "repo_path": "runs/C52/_Summary_SEGID_Detailed.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "5_AssignHwy/5_FinalNetSkims/Skm_AM.mtx",
+        "size_bytes": 75484679,
+        "entry_type": "matrix",
+        "tabs": [
+          "GP_Dist",
+          "GP_IVT"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "d2696ac75d31d568ad2321226d7a684d8ffd12157dd9d24b0679f5a5b6a95441",
+        "repo_path": "runs/C52/Skm_AM.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "5_AssignHwy/5_FinalNetSkims/Skm_EV.mtx",
+        "size_bytes": 75144532,
+        "entry_type": "matrix",
+        "tabs": [
+          "GP_Dist",
+          "GP_IVT"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "d3453207a898bf189d063d2770ae475b2d7726932b09e21686f8121e6f687d70",
+        "repo_path": "runs/C52/Skm_EV.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "5_AssignHwy/5_FinalNetSkims/Skm_MD.mtx",
+        "size_bytes": 75289307,
+        "entry_type": "matrix",
+        "tabs": [
+          "GP_Dist",
+          "GP_IVT"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "5fdf033863d6d1796ade000744225bdc3a3bf4744a7e0733b2570a98e33a551b",
+        "repo_path": "runs/C52/Skm_MD.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "5_AssignHwy/5_FinalNetSkims/Skm_PM.mtx",
+        "size_bytes": 76246786,
+        "entry_type": "matrix",
+        "tabs": [
+          "GP_Dist",
+          "GP_IVT"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "3c843a0037a6dce3aede850237f422c0a92bc2e3f6d2631c6c2c7c71e4eb7261",
+        "repo_path": "runs/C52/Skm_PM.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "Temp/4_ModeChoice/pa_HBW_0veh_hi.mtx",
+        "size_bytes": 908721,
+        "entry_type": "matrix",
+        "tabs": [
+          "trips"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "00114b137910d51495010d4af127a96a1eda29aba3e303eb890a8de4d12ba24e",
+        "repo_path": "runs/C52/pa_HBW_0veh_hi.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "Temp/4_ModeChoice/pa_HBW_0veh_lo.mtx",
+        "size_bytes": 831622,
+        "entry_type": "matrix",
+        "tabs": [
+          "trips"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "a63e9404a75bf61d4ac4a93bfa037570fbae47c6abaccff8caac0190317ef321",
+        "repo_path": "runs/C52/pa_HBW_0veh_lo.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "Temp/4_ModeChoice/pa_HBW_1veh_hi.mtx",
+        "size_bytes": 4078261,
+        "entry_type": "matrix",
+        "tabs": [
+          "trips"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "293e3a46c946059a518fa54dc00f08b3813815a217a0cb68658b646ce27afdeb",
+        "repo_path": "runs/C52/pa_HBW_1veh_hi.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "Temp/4_ModeChoice/pa_HBW_1veh_lo.mtx",
+        "size_bytes": 3810565,
+        "entry_type": "matrix",
+        "tabs": [
+          "trips"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "2d9a84ee8777c6323e1bd4d5fc09557cfb97a0518167b33b840b1eebdade2ef3",
+        "repo_path": "runs/C52/pa_HBW_1veh_lo.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "Temp/4_ModeChoice/pa_HBW_2veh_hi_noXI.mtx",
+        "size_bytes": 8893671,
+        "entry_type": "matrix",
+        "tabs": [
+          "trips"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "883e443ca1cd4365c69dcb06157bcbc2885afe229db2df1062b53c08b2902853",
+        "repo_path": "runs/C52/pa_HBW_2veh_hi_noXI.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "Temp/4_ModeChoice/pa_HBW_2veh_lo_noXI.mtx",
+        "size_bytes": 4140196,
+        "entry_type": "matrix",
+        "tabs": [
+          "trips"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "2722b3dcc5d707884118d39d65ae17454a1fc7799b45d006fb1a15319adca57e",
+        "repo_path": "runs/C52/pa_HBW_2veh_lo_noXI.omx",
+        "committed": true
+      }
+    ]
+  },
+  "error": null,
+  "general_parameters": {
+    "overrides": {
+      "calibFac_LT_BE": 1.2,
+      "calibFac_LT_WE": 1.08,
+      "calibFac_LT_DA": 1.05,
+      "calibFac_LT_SL": 1.0,
+      "calibFac_LT_UT": 0.95,
+      "calibFac_MD_BE": 0.78,
+      "calibFac_MD_WE": 0.77,
+      "calibFac_MD_DA": 7.5,
+      "calibFac_MD_SL": 0.86,
+      "calibFac_MD_UT": 1.04,
+      "calibFac_HV_BE": 2.52,
+      "calibFac_HV_WE": 2.28,
+      "calibFac_HV_DA": 6.85,
+      "calibFac_HV_SL": 3.88,
+      "calibFac_HV_UT": 0.89,
+      "DA_FwyTruckCostFac": 1.3,
+      "DA_NonFwyTruckCostFac": 0.75,
+      "DA_RampTruckPenAdd": 1.7,
+      "SL_FwyTruckCostFac": 1.1,
+      "SL_NonFwyTruckCostFac": 0.95,
+      "SL_RampTruckPenAdd": 0.45
+    }
+  },
+  "preprocess": {
+    "status": "success"
+  },
+  "postprocess": {
+    "status": "failed",
+    "reason": "quarto render exited 1",
+    "stderr_tail": "  305\u001b[39m                 \u001b[38;5;129;01mor\u001b[39;00m response.status != HTTPStatus.PARTIAL_CONTENT\n\u001b[32m    306\u001b[39m             ):\n\u001b[32m    307\u001b[39m                 from_bytes = \u001b[38;5;28;01mTrue\u001b[39;00m\n\n\u001b[36mFile \u001b[39m\u001b[32mC:\\Python313\\Lib\\urllib\\request.py:189\u001b[39m, in \u001b[36murlopen\u001b[39m\u001b[34m(url, data, timeout, context)\u001b[39m\n\u001b[32m    187\u001b[39m \u001b[38;5;28;01melse\u001b[39;00m:\n\u001b[32m    188\u001b[39m     opener = _opener\n\u001b[32m--> \u001b[39m\u001b[32m189\u001b[39m \u001b[38;5;28;01mreturn\u001b[39;00m \u001b[30;43mopener\u001b[39;49m\u001b[30;43m.\u001b[39;49m\u001b[30;43mopen\u001b[39;49m\u001b[30;43m(\u001b[39;49m\u001b[30;43murl\u001b[39;49m\u001b[30;43m,\u001b[39;49m\u001b[30;43m \u001b[39;49m\u001b[30;43mdata\u001b[39;49m\u001b[30;43m,\u001b[39;49m\u001b[30;43m \u001b[39;49m\u001b[30;43mtimeout\u001b[39;49m\u001b[30;43m)\u001b[39;49m\n\n\u001b[36mFile \u001b[39m\u001b[32mC:\\Python313\\Lib\\urllib\\request.py:495\u001b[39m, in \u001b[36mOpenerDirector.open\u001b[39m\u001b[34m(self, fullurl, data, timeout)\u001b[39m\n\u001b[32m    493\u001b[39m \u001b[38;5;28;01mfor\u001b[39;00m processor \u001b[38;5;129;01min\u001b[39;00m \u001b[38;5;28mself\u001b[39m.process_response.get(protocol, []):\n\u001b[32m    494\u001b[39m     meth = \u001b[38;5;28mgetattr\u001b[39m(processor, meth_name)\n\u001b[32m--> \u001b[39m\u001b[32m495\u001b[39m     response = \u001b[30;43mmeth\u001b[39;49m\u001b[30;43m(\u001b[39;49m\u001b[30;43mreq\u001b[39;49m\u001b[30;43m,\u001b[39;49m\u001b[30;43m \u001b[39;49m\u001b[30;43mresponse\u001b[39;49m\u001b[30;43m)\u001b[39;49m\n\u001b[32m    497\u001b[39m \u001b[38;5;28;01mreturn\u001b[39;00m response\n\n\u001b[36mFile \u001b[39m\u001b[32mC:\\Python313\\Lib\\urllib\\request.py:604\u001b[39m, in \u001b[36mHTTPErrorProcessor.http_response\u001b[39m\u001b[34m(self, request, response)\u001b[39m\n\u001b[32m    601\u001b[39m \u001b[38;5;66;03m# According to RFC 2616, \"2xx\" code indicates that the client's\u001b[39;00m\n\u001b[32m    602\u001b[39m \u001b[38;5;66;03m# request was successfully received, understood, and accepted.\u001b[39;00m\n\u001b[32m    603\u001b[39m \u001b[38;5;28;01mif\u001b[39;00m \u001b[38;5;129;01mnot\u001b[39;00m (\u001b[32m200\u001b[39m <= code < \u001b[32m300\u001b[39m):\n\u001b[32m--> \u001b[39m\u001b[32m604\u001b[39m     response = \u001b[30;43mself\u001b[39;49m\u001b[30;43m.\u001b[39;49m\u001b[30;43mparent\u001b[39;49m\u001b[30;43m.\u001b[39;49m\u001b[30;43merror\u001b[39;49m\u001b[30;43m(\u001b[39;49m\n\u001b[32m    605\u001b[39m \u001b[30;43m        \u001b[39;49m\u001b[30;43m'\u001b[39;49m\u001b[30;43mhttp\u001b[39;49m\u001b[30;43m'\u001b[39;49m\u001b[30;43m,\u001b[39;49m\u001b[30;43m \u001b[39;49m\u001b[30;43mrequest\u001b[39;49m\u001b[30;43m,\u001b[39;49m\u001b[30;43m \u001b[39;49m\u001b[30;43mresponse\u001b[39;49m\u001b[30;43m,\u001b[39;49m\u001b[30;43m \u001b[39;49m\u001b[30;43mcode\u001b[39;49m\u001b[30;43m,\u001b[39;49m\u001b[30;43m \u001b[39;49m\u001b[30;43mmsg\u001b[39;49m\u001b[30;43m,\u001b[39;49m\u001b[30;43m \u001b[39;49m\u001b[30;43mhdrs\u001b[39;49m\u001b[30;43m)\u001b[39;49m\n\u001b[32m    607\u001b[39m \u001b[38;5;28;01mreturn\u001b[39;00m response\n\n\u001b[36mFile \u001b[39m\u001b[32mC:\\Python313\\Lib\\urllib\\request.py:533\u001b[39m, in \u001b[36mOpenerDirector.error\u001b[39m\u001b[34m(self, proto, *args)\u001b[39m\n\u001b[32m    531\u001b[39m \u001b[38;5;28;01mif\u001b[39;00m http_err:\n\u001b[32m    532\u001b[39m     args = (\u001b[38;5;28mdict\u001b[39m, \u001b[33m'\u001b[39m\u001b[33mdefault\u001b[39m\u001b[33m'\u001b[39m, \u001b[33m'\u001b[39m\u001b[33mhttp_error_default\u001b[39m\u001b[33m'\u001b[39m) + orig_args\n\u001b[32m--> \u001b[39m\u001b[32m533\u001b[39m     \u001b[38;5;28;01mreturn\u001b[39;00m \u001b[30;43mself\u001b[39;49m\u001b[30;43m.\u001b[39;49m\u001b[30;43m_call_chain\u001b[39;49m\u001b[30;43m(\u001b[39;49m\u001b[30;43m*\u001b[39;49m\u001b[30;43margs\u001b[39;49m\u001b[30;43m)\u001b[39;49m\n\n\u001b[36mFile \u001b[39m\u001b[32mC:\\Python313\\Lib\\urllib\\request.py:466\u001b[39m, in \u001b[36mOpenerDirector._call_chain\u001b[39m\u001b[34m(self, chain, kind, meth_name, *args)\u001b[39m\n\u001b[32m    464\u001b[39m \u001b[38;5;28;01mfor\u001b[39;00m handler \u001b[38;5;129;01min\u001b[39;00m handlers:\n\u001b[32m    465\u001b[39m     func = \u001b[38;5;28mgetattr\u001b[39m(handler, meth_name)\n\u001b[32m--> \u001b[39m\u001b[32m466\u001b[39m     result = \u001b[30;43mfunc\u001b[39;49m\u001b[30;43m(\u001b[39;49m\u001b[30;43m*\u001b[39;49m\u001b[30;43margs\u001b[39;49m\u001b[30;43m)\u001b[39;49m\n\u001b[32m    467\u001b[39m     \u001b[38;5;28;01mif\u001b[39;00m result \u001b[38;5;129;01mis\u001b[39;00m \u001b[38;5;129;01mnot\u001b[39;00m \u001b[38;5;28;01mNone\u001b[39;00m:\n\u001b[32m    468\u001b[39m         \u001b[38;5;28;01mreturn\u001b[39;00m result\n\n\u001b[36mFile \u001b[39m\u001b[32mC:\\Python313\\Lib\\urllib\\request.py:613\u001b[39m, in \u001b[36mHTTPDefaultErrorHandler.http_error_default\u001b[39m\u001b[34m(self, req, fp, code, msg, hdrs)\u001b[39m\n\u001b[32m    612\u001b[39m \u001b[38;5;28;01mdef\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34mhttp_error_default\u001b[39m(\u001b[38;5;28mself\u001b[39m, req, fp, code, msg, hdrs):\n\u001b[32m--> \u001b[39m\u001b[32m613\u001b[39m     \u001b[38;5;28;01mraise\u001b[39;00m HTTPError(req.full_url, code, msg, hdrs, fp)\n\n\u001b[31mHTTPError\u001b[39m: HTTP Error 520: <none>\n\nWARN: Error encountered when rendering files\n"
+  }
+}
