@@ -1704,7 +1704,7 @@ function vmtDumbbellChart(vehLabel, data) {
     ]
   });
   return html`<div>
-    <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: ${themeNeutral};">${vehLabel}</div>
+    <div style="font-size: 18px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: ${themeNeutral};">${vehLabel}</div>
     ${chart}
   </div>`;
 }
