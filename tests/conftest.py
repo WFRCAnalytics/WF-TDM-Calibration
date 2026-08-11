@@ -49,6 +49,37 @@ BASELINE_BLOCK_TEXT = """\
     endif
 """
 
+# A fake GeneralParameters.block, standing in for the TDM's real ~1200-line
+# file (tdm/1_Inputs/0_GlobalData/GeneralParameters.block) that
+# general_parameters.py validates calibration_run.yaml's
+# general_parameter_overrides against -- see its module docstring for why
+# this is a second, differently-applied override mechanism from the Control
+# Center's.
+GENERAL_PARAMETERS_BLOCK_TEXT = """\
+;General Parameters test fixture ------------------------------------------
+
+    calibFac_LT_BE = 1.00
+    calibFac_MD_BE = 1.00
+    DA_FwyTruckCostFac = 1.00
+"""
+
+# A minimal driver script, standing in for the TDM's real __HailMary(_
+# resumable).s (tdm/Scenarios/_default/) -- exercises both
+# driver_script.py's RESUME POINT rewrite and its GeneralParameters.block
+# override READ FILE insertion.
+DRIVER_SCRIPT_TEXT = """\
+:BEGINMODEL
+    READ FILE = '_ControlCenter.block'
+    READ FILE = '..\\..\\1_Inputs\\0_GlobalData\\GeneralParameters.block'
+
+    ;--- RESUME POINT: change the label below, then re-run. -----------------
+    GOTO STEP0
+    ;--------------------------------------------------------------------------
+
+:STEP0
+    ModelStep = 'STEP 0'
+"""
+
 
 @pytest.fixture
 def repo_root(tmp_path):
@@ -58,6 +89,7 @@ def repo_root(tmp_path):
     repo = tmp_path / "calib-repo"
     (repo / "config" / "schemas").mkdir(parents=True)
     (repo / "tdm" / "Scenarios" / "_default").mkdir(parents=True)
+    (repo / "tdm" / "1_Inputs" / "0_GlobalData").mkdir(parents=True)
     (repo / "calibration_runs").mkdir(parents=True)
 
     shutil.copytree(
@@ -67,10 +99,17 @@ def repo_root(tmp_path):
     (repo / "tdm" / "Scenarios" / "_default" / "TestBaseline.block").write_text(
         BASELINE_BLOCK_TEXT, encoding="utf-8"
     )
+    (repo / "tdm" / "1_Inputs" / "0_GlobalData" / "GeneralParameters.block").write_text(
+        GENERAL_PARAMETERS_BLOCK_TEXT, encoding="utf-8"
+    )
+    (repo / "tdm" / "Scenarios" / "_default" / "TestDriverScript.s").write_text(
+        DRIVER_SCRIPT_TEXT, encoding="utf-8"
+    )
 
     framework_yaml = {
         "tdm_submodule_path": "tdm",
         "control_center_defaults_dir": "Scenarios/_default",
+        "general_parameters_path": "1_Inputs/0_GlobalData/GeneralParameters.block",
         "scenario_folder_template": "Scenarios/{calib_run_id}",
         "execution": {
             "entry_point": "bin/RunModel.bat",
@@ -91,3 +130,13 @@ def repo_root(tmp_path):
 @pytest.fixture
 def baseline_path(repo_root):
     return repo_root / "tdm" / "Scenarios" / "_default" / "TestBaseline.block"
+
+
+@pytest.fixture
+def general_parameters_baseline_path(repo_root):
+    return repo_root / "tdm" / "1_Inputs" / "0_GlobalData" / "GeneralParameters.block"
+
+
+@pytest.fixture
+def driver_script_path(repo_root):
+    return repo_root / "tdm" / "Scenarios" / "_default" / "TestDriverScript.s"

@@ -74,6 +74,14 @@
         }
       }
     },
+    "general_parameters": {
+      "type": "object",
+      "required": ["overrides"],
+      "description": "Present only when this calibration run declared general_parameter_overrides. Records the GeneralParameters.block overrides applied via the per-run override file/extra READ FILE described in src/tdmcalib/general_parameters.py -- a separate mechanism from control_center's overrides above.",
+      "properties": {
+        "overrides": { "type": "object" }
+      }
+    },
     "scenario_folder": { "type": "string", "description": "The run's working folder inside the TDM submodule (Scenarios/{calib_run_id}/)." },
     "seeded_from": {
       "type": "object",

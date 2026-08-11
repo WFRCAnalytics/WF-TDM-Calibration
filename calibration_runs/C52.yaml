@@ -11,21 +11,49 @@
 # copy_files list is still the best record of where the TDM actually writes
 # each file within a run's working folder).
 #========================================================================================
-calib_run_id: C50
+calib_run_id: C52
 author: ""
 description: >
-  Calibration iteration C50, base year 2023.
+  Calibration iteration C52, base year 2023.
 
-tdm_ref: "calib/C50"
+tdm_ref: "calib/C52"
 baseline_control_center: "_ControlCenter - BY_2023.block"
 
 driver_script: "__HailMary_resumable.s"
-start_at_label: "STEP6"
+start_at_label: "STEP0"
 
 control_center_overrides:
   UserName: "Bill Hereth"
   UserCompany: "WFRC"
   keyOutputPrfx: "_"
+
+# calibFac_LT_*/calibFac_MD_*/calibFac_HV_* and the truck-cost/ramp-penalty
+# factors below are GeneralParameters.block keys (tdm/1_Inputs/0_GlobalData/),
+# not Control Center keys -- a separate override mechanism, since
+# GeneralParameters.block is shared across every calibration run's working
+# folder rather than templated per run (see src/tdmcalib/general_parameters.py).
+general_parameter_overrides:
+  calibFac_LT_BE: 1.20
+  calibFac_LT_WE: 1.08
+  calibFac_LT_DA: 1.05
+  calibFac_LT_SL: 1.00
+  calibFac_LT_UT: 0.95
+  calibFac_MD_BE: 0.78
+  calibFac_MD_WE: 0.77
+  calibFac_MD_DA: 7.50
+  calibFac_MD_SL: 0.86
+  calibFac_MD_UT: 1.04
+  calibFac_HV_BE: 2.52
+  calibFac_HV_WE: 2.28
+  calibFac_HV_DA: 6.85
+  calibFac_HV_SL: 3.88
+  calibFac_HV_UT: 0.89
+  DA_FwyTruckCostFac    : 1.30
+  DA_NonFwyTruckCostFac : 0.75
+  DA_RampTruckPenAdd    : 1.70
+  SL_FwyTruckCostFac    : 1.10
+  SL_NonFwyTruckCostFac : 0.95
+  SL_RampTruckPenAdd    : 0.45
 
 # No outputs section: this run's raw output matches the raw TDM Scenario
 # folder layout, so it uses config/framework.yaml's default outputs.include

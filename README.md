@@ -57,7 +57,7 @@ cp "F:\SHARED\Chris\large_files_calibration\v1000\UT_HTS_2023_Linked_Trips.csv" 
 |---------------------|-------------------------------------------------------------|
 | `tdm/`              | TDM submodule — **do not edit directly** (see below)         |
 | `config/`           | `tdmcalib` framework settings (`framework.yaml`, `local.yaml` — gitignored, copy from `local.example.yaml`), JSON schemas |
-| `calibration_runs/` | One YAML per calibration run (`C50.yaml`, ...) — `tdm_ref`, Control Center overrides, `outputs.include` |
+| `calibration_runs/` | One YAML per calibration run (`C50.yaml`, ...) — `tdm_ref`, `control_center_overrides`/`general_parameter_overrides`, `outputs.include` |
 | `runs/`             | `tdmcalib`'s curated, committed output, one folder per calibration run (`runs/{calib_run_id}/`) — curated files sit directly in that folder; `run_info/{run_id}.json` holds a permanent, never-deleted metadata record for every attempt |
 | `src/tdmcalib/`      | The orchestrator CLI itself |
 | `bin/`              | `RunModel.bat` — the Cube Voyager entry point `tdmcalib` invokes |

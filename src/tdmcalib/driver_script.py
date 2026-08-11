@@ -54,6 +54,7 @@ import shutil
 from pathlib import Path
 
 from tdmcalib import config as cfg
+from tdmcalib import general_parameters as gp
 from tdmcalib.exceptions import DriverScriptError
 
 # Matches the RESUME POINT marker comment in a resumable driver script
@@ -63,6 +64,17 @@ from tdmcalib.exceptions import DriverScriptError
 # for start_at_label's value. Cube Voyager PILOT's GOTO takes a bare label
 # (no ':' prefix -- that's only for the label's own definition).
 _RESUME_POINT_RE = re.compile(r"(RESUME POINT:.*?\n[ \t]*GOTO )(:?)([A-Za-z0-9_]+)", re.DOTALL)
+
+# Matches the driver script's own `READ FILE = '...GeneralParameters.block'`
+# line (see general_parameters.py) so an extra READ FILE for this
+# calibration run's override file can be inserted right after it, keeping
+# the same indentation. Path prefix is left open (`[^']*`) since it's a
+# relative path that depends on the working-folder depth convention (see
+# config/framework.yaml's scenario_folder_template comment) -- only the
+# filename itself is fixed.
+_GENERAL_PARAMETERS_READ_RE = re.compile(
+    r"^([ \t]*)READ FILE[ \t]*=[ \t]*'[^']*GeneralParameters\.block'[ \t]*$", re.MULTILINE
+)
 
 # start_at_label value meaning "run from the beginning" -- the required
 # default for all new calibration runs. No RESUME POINT rewrite is performed
@@ -76,6 +88,27 @@ def _rewrite_resume_point(text: str, label: str, script_path: Path) -> str:
         raise DriverScriptError(
             f"start_at_label is '{label}' but {script_path} has no 'RESUME POINT' "
             "GOTO marker to rewrite -- it isn't a resumable driver script variant."
+        )
+    return new_text
+
+
+def _insert_general_parameters_override_read(text: str, script_path: Path) -> str:
+    """Inserts an extra `READ FILE = '{gp.OVERRIDE_FILENAME}'` line right
+    after the driver script's own GeneralParameters.block READ, matching
+    that line's indentation -- see general_parameters.py for why this, not a
+    per-run copy of GeneralParameters.block itself, is how its overrides are
+    applied."""
+
+    def _insert(m: re.Match) -> str:
+        indent = m.group(1)
+        return f"{m.group(0)}\n{indent}READ FILE = '{gp.OVERRIDE_FILENAME}'"
+
+    new_text, n = _GENERAL_PARAMETERS_READ_RE.subn(_insert, text, count=1)
+    if n == 0:
+        raise DriverScriptError(
+            f"general_parameter_overrides is set but {script_path} has no "
+            "\"READ FILE = '...GeneralParameters.block'\" line to insert the override "
+            "READ FILE after -- it isn't a recognized driver script variant."
         )
     return new_text
 
@@ -98,7 +131,10 @@ def stage(
 
     When start_at_label is anything other than STEP0, the staged copy's
     RESUME POINT GOTO target is rewritten to that label after copying (see
-    _rewrite_resume_point) -- the source file itself is never modified."""
+    _rewrite_resume_point) -- the source file itself is never modified. When
+    calib_run declares a non-empty general_parameter_overrides, an extra READ
+    FILE line for general_parameters.py's per-run override file is inserted
+    the same way (see _insert_general_parameters_override_read)."""
     declared = cfg.resolved_driver_script(calib_run)
     if (calib_run_dir / declared).is_file():
         script_path = calib_run_dir / declared
@@ -115,9 +151,15 @@ def stage(
 
     dest_path = run_folder / script_path.name
     start_at_label = calib_run["start_at_label"]
-    if start_at_label != STEP0:
+    has_general_parameter_overrides = bool(calib_run.get("general_parameter_overrides"))
+
+    if start_at_label != STEP0 or has_general_parameter_overrides:
         text = script_path.read_text()
-        dest_path.write_text(_rewrite_resume_point(text, start_at_label, script_path))
+        if start_at_label != STEP0:
+            text = _rewrite_resume_point(text, start_at_label, script_path)
+        if has_general_parameter_overrides:
+            text = _insert_general_parameters_override_read(text, script_path)
+        dest_path.write_text(text)
     else:
         shutil.copy2(script_path, dest_path)
 

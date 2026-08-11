@@ -74,3 +74,8 @@ def test_write_block_file_appends_unknown_extra_keys(baseline_path, tmp_path):
 def test_format_cube_value_rejects_embedded_quote():
     with pytest.raises(ControlCenterError):
         cc._format_cube_value("has a ' quote")
+
+
+def test_render_assignment_lines_formats_each_key_value_pair():
+    lines = cc.render_assignment_lines({"calibFac_LT_BE": 1.2, "RunYear": 2050})
+    assert lines == ["    calibFac_LT_BE = 1.2", "    RunYear = 2050"]

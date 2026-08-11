@@ -22,7 +22,7 @@ baseline_control_center: "_ControlCenter - BY_2023.block"
 driver_script: "__HailMary_resumable.s"
 start_at_label: "STEP0"
 
-overrides:
+control_center_overrides:
   UserName: "Bill Hereth"
   UserCompany: "WFRC"
   keyOutputPrfx: "_"

@@ -14,6 +14,15 @@ tdm_submodule_path: "tdm"
 # resolved against this directory.
 control_center_defaults_dir: "Scenarios/_default"
 
+# Path to the TDM's GeneralParameters.block, relative to the submodule root --
+# the file the driver script's own `READ FILE = '..\..\1_Inputs\0_GlobalData\
+# GeneralParameters.block'` line resolves to, same for every calibration
+# run's working folder (see general_parameters.py for why this makes it a
+# different override mechanism from the per-run Control Center). Only read to
+# validate calibration_runs/*.yaml `general_parameter_overrides` keys against
+# what the file actually defines -- never copied or modified.
+general_parameters_path: "1_Inputs/0_GlobalData/GeneralParameters.block"
+
 # Convention for where a calibration run's working folder is created, relative
 # to the submodule root. Available placeholder: {calib_run_id}.
 #

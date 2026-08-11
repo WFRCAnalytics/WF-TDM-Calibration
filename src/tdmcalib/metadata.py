@@ -46,6 +46,7 @@ def build(
     tdm_state: dict,
     baseline_file: str,
     overrides: dict,
+    general_parameter_overrides: dict = None,
     rendered_path: str = None,
     driver_script: str = None,
     seeded_from: dict = None,
@@ -109,6 +110,11 @@ def build(
         },
         "error": error,
     }
+    # general_parameters is only set when this calibration run actually
+    # declares general_parameter_overrides -- absent otherwise, same
+    # "leave out entirely" convention (see general_parameters.py).
+    if general_parameter_overrides:
+        result["general_parameters"] = {"overrides": general_parameter_overrides}
     # seeded_from is only set when start_from_copy actually fired -- absent
     # otherwise, same "leave out entirely" convention.
     if seeded_from is not None:

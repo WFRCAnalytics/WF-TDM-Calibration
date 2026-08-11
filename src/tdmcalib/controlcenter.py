@@ -140,6 +140,15 @@ def _format_line(indent: str, key: str, value, comment: str | None) -> str:
     return f"{line}  {comment}" if comment else line
 
 
+def render_assignment_lines(overrides: dict, indent: str = "    ") -> list:
+    """Formats a dict of key/values as standalone Cube block 'KEY = value'
+    lines, no comments. Used both for write_block_file()'s extra-keys section
+    below and by general_parameters.py's standalone GeneralParameters.block
+    override file, which has no baseline template to preserve lines from at
+    all."""
+    return [_format_line(indent, key, value, None) for key, value in overrides.items()]
+
+
 def write_block_file(baseline_path: Path, overrides: dict, output_path: Path):
     """Writes output_path as a full copy of the baseline template at
     baseline_path, substituting the value of every line whose key appears in
@@ -163,8 +172,7 @@ def write_block_file(baseline_path: Path, overrides: dict, output_path: Path):
     if extra:
         out_lines.append("")
         out_lines.append(";--- keys set by the orchestrator, not present in the baseline template ---")
-        for key, value in extra.items():
-            out_lines.append(_format_line("    ", key, value, None))
+        out_lines.extend(render_assignment_lines(extra))
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", newline="\r\n") as f:

@@ -50,6 +50,7 @@ def validate_config(ctx, calib_run_id):
     for crid in calib_run_ids:
         try:
             from tdmcalib import controlcenter as cc
+            from tdmcalib import general_parameters as gp
 
             calib_run = cfg.load_calibration_run(repo_root, crid)
             baseline_filename = calib_run["baseline_control_center"]
@@ -57,8 +58,20 @@ def validate_config(ctx, calib_run_id):
                 tdm_path, framework["control_center_defaults_dir"], baseline_filename
             )
             cr_dir = repo_root / "calibration_runs"
-            overrides = cfg.resolved_overrides(calib_run, cr_dir)
-            cc.validate_overrides(baseline, overrides, f"calibration run '{crid}'.overrides")
+            overrides = cfg.resolved_control_center_overrides(calib_run, cr_dir)
+            cc.validate_overrides(
+                baseline, overrides, f"calibration run '{crid}'.control_center_overrides"
+            )
+
+            general_parameter_overrides = cfg.resolved_general_parameter_overrides(calib_run)
+            if general_parameter_overrides:
+                gp_baseline = gp.load_baseline(tdm_path, framework["general_parameters_path"])
+                cc.validate_overrides(
+                    gp_baseline,
+                    general_parameter_overrides,
+                    f"calibration run '{crid}'.general_parameter_overrides",
+                )
+
             cfg.resolved_output_spec(framework, calib_run)
             click.echo(f"[OK]   {crid}")
         except tdmcalibError as e:

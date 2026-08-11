@@ -136,12 +136,20 @@ def _resolve_input_files(calib_run_dir: Path, input_files: dict) -> dict:
     return resolved
 
 
-def resolved_overrides(calib_run: dict, calib_run_dir: Path) -> dict:
+def resolved_control_center_overrides(calib_run: dict, calib_run_dir: Path) -> dict:
     """Control Center overrides for this calibration run, with input_files
     entries resolved to absolute paths and merged in as override keys (e.g.
     WFRC_SEFile pointing at an absolute CSV path)."""
-    overrides = dict(calib_run.get("overrides", {}))
+    overrides = dict(calib_run.get("control_center_overrides", {}))
     input_files = calib_run.get("input_files", {})
     if input_files:
         overrides.update(_resolve_input_files(calib_run_dir, input_files))
     return overrides
+
+
+def resolved_general_parameter_overrides(calib_run: dict) -> dict:
+    """GeneralParameters.block overrides for this calibration run (see
+    general_parameters.py) -- no input_files-style path resolution, unlike
+    resolved_control_center_overrides(), since GeneralParameters.block has no
+    file-path keys calibration runs currently need to override."""
+    return dict(calib_run.get("general_parameter_overrides", {}))

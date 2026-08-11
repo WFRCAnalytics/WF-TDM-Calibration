@@ -54,7 +54,7 @@ TDM version — nothing here should silently change which TDM commit is in use.
 |---------------------|-------------------------------------------------------------|
 | `tdm/`              | TDM submodule — read-only from this repo's perspective       |
 | `config/`           | `tdmcalib` framework settings (`framework.yaml`, `local.yaml` — gitignored, per-machine, copy from `local.example.yaml`), JSON schemas |
-| `calibration_runs/` | One YAML per calibration run (`C50.yaml`, ...) — `tdm_ref`, Control Center overrides, `outputs.include` — see `README.md`'s tdmcalib section |
+| `calibration_runs/` | One YAML per calibration run (`C50.yaml`, ...) — `tdm_ref`, `control_center_overrides`/`general_parameter_overrides`, `outputs.include` — see `README.md`'s tdmcalib section |
 | `runs/`             | `tdmcalib`'s curated, committed output, one folder per calibration run (`runs/{calib_run_id}/`) — curated files sit directly in that folder (only the latest attempt's outputs are kept); `run_info/{run_id}.json` holds a permanent metadata record for every attempt, never deleted |
 | `src/tdmcalib/`     | The orchestrator (installable as the `tdmcalib` CLI) — ported from the sibling `WF-TDM-Runs` repo's `tdmruns`, flattened for a single calibration-run axis instead of run_set/scenario nesting |
 

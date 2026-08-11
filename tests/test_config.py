@@ -22,10 +22,10 @@ def _write_calib_run(repo_root, calib_run_id, data=None):
 
 
 def test_load_calibration_run_roundtrip(repo_root):
-    _write_calib_run(repo_root, "C50", {"overrides": {"CalibrationCode": "C50"}})
+    _write_calib_run(repo_root, "C50", {"control_center_overrides": {"CalibrationCode": "C50"}})
     data = cfg.load_calibration_run(repo_root, "C50")
     assert data["tdm_ref"] == "calib/C50-start"
-    assert data["overrides"]["CalibrationCode"] == "C50"
+    assert data["control_center_overrides"]["CalibrationCode"] == "C50"
 
 
 def test_load_calibration_run_id_mismatch_raises(repo_root):
@@ -98,18 +98,27 @@ def test_resolved_output_spec_rejects_ceiling_above_framework_max(repo_root):
         cfg.resolved_output_spec(framework, calib_run)
 
 
-def test_resolved_overrides_resolves_input_files_to_absolute_paths(repo_root):
+def test_resolved_control_center_overrides_resolves_input_files_to_absolute_paths(repo_root):
     calib_run_dir = repo_root / "calibration_runs"
     (calib_run_dir / "inputs").mkdir()
     (calib_run_dir / "inputs" / "SE_2050.csv").write_text("a,b\n1,2\n")
 
     calib_run = {
-        "overrides": {"RunYear": 2050},
+        "control_center_overrides": {"RunYear": 2050},
         "input_files": {"WFRC_SEFile": "inputs/SE_2050.csv"},
     }
-    resolved = cfg.resolved_overrides(calib_run, calib_run_dir)
+    resolved = cfg.resolved_control_center_overrides(calib_run, calib_run_dir)
     assert resolved["RunYear"] == 2050
     assert resolved["WFRC_SEFile"].endswith("SE_2050.csv")
     from pathlib import Path
 
     assert Path(resolved["WFRC_SEFile"]).is_absolute()
+
+
+def test_resolved_general_parameter_overrides_returns_declared_dict():
+    calib_run = {"general_parameter_overrides": {"calibFac_LT_BE": 1.20}}
+    assert cfg.resolved_general_parameter_overrides(calib_run) == {"calibFac_LT_BE": 1.20}
+
+
+def test_resolved_general_parameter_overrides_defaults_to_empty():
+    assert cfg.resolved_general_parameter_overrides({}) == {}

@@ -30,9 +30,14 @@
       "description": "Input file paths for this run, relative to the calibration_runs/ directory. Resolved to absolute paths by the framework before writing the Control Center -- keeps this file machine-independent.",
       "additionalProperties": { "type": "string" }
     },
-    "overrides": {
+    "control_center_overrides": {
       "type": "object",
-      "description": "Control Center key/value overrides for this calibration run.",
+      "description": "Control Center key/value overrides for this calibration run, applied to a per-run copy of the baseline_control_center template.",
+      "additionalProperties": true
+    },
+    "general_parameter_overrides": {
+      "type": "object",
+      "description": "GeneralParameters.block (tdm/1_Inputs/0_GlobalData/, config/framework.yaml's general_parameters_path) key/value overrides for this calibration run. A separate mechanism from control_center_overrides: GeneralParameters.block is shared by every calibration run's working folder rather than templated per run, so these are applied via an extra READ FILE the framework inserts into the staged driver script, not by editing a per-run copy of the file itself -- see src/tdmcalib/general_parameters.py.",
       "additionalProperties": true
     },
     "variables": {

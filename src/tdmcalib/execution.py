@@ -25,6 +25,7 @@ from pathlib import Path
 from tdmcalib import config as cfg
 from tdmcalib import controlcenter as cc
 from tdmcalib import driver_script as ds
+from tdmcalib import general_parameters as gp
 from tdmcalib import metadata as md
 from tdmcalib import model_log as mlog
 from tdmcalib import outputs as out
@@ -172,6 +173,37 @@ def decide_status(
     return status, error, "model_log", model_log_result
 
 
+def _validate_overrides(
+    tdm_path: Path,
+    framework: dict,
+    calib_run_id: str,
+    baseline: dict,
+    overrides: dict,
+    general_parameter_overrides: dict,
+    local_layer: dict,
+) -> dict:
+    """Hard-fails before anything else in run() executes if any override key
+    -- this calibration run's control_center_overrides/
+    general_parameter_overrides, or config/local.yaml's machine-specific
+    values -- doesn't actually exist in its respective baseline file.
+    Returns cc_local_layer (local_layer minus Voyager_EXE, which is a
+    framework-only value, not a real Control Center key) for render() to use."""
+    cc.validate_overrides(
+        baseline, overrides, f"calibration run '{calib_run_id}'.control_center_overrides"
+    )
+    cc_local_layer = {k: v for k, v in local_layer.items() if k != "Voyager_EXE"}
+    cc.validate_overrides(baseline, cc_local_layer, "config/local.yaml")
+
+    if general_parameter_overrides:
+        gp_baseline = gp.load_baseline(tdm_path, framework["general_parameters_path"])
+        cc.validate_overrides(
+            gp_baseline,
+            general_parameter_overrides,
+            f"calibration run '{calib_run_id}'.general_parameter_overrides",
+        )
+    return cc_local_layer
+
+
 def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
     """
     Executes one full attempt of a calibration run: resolve version, render
@@ -193,7 +225,8 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
     requested_ref = calib_run["tdm_ref"]
     baseline_filename = calib_run["baseline_control_center"]
     cr_dir = repo_root / "calibration_runs"
-    overrides = cfg.resolved_overrides(calib_run, cr_dir)
+    overrides = cfg.resolved_control_center_overrides(calib_run, cr_dir)
+    general_parameter_overrides = cfg.resolved_general_parameter_overrides(calib_run)
     output_spec = cfg.resolved_output_spec(framework, calib_run)
 
     run_id = generate_run_id()
@@ -207,13 +240,11 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
     baseline = cc.load_baseline(
         tdm_path, framework["control_center_defaults_dir"], baseline_filename
     )
-    cc.validate_overrides(baseline, overrides, f"calibration run '{calib_run_id}'.overrides")
     local_layer = framework.get("_local", {})
-    # Voyager_EXE is a framework-only value (used below for the VOYAGER_EXE
-    # env var) -- it is not a real Control Center key, so it's excluded from
-    # what gets validated/rendered into the block file.
-    cc_local_layer = {k: v for k, v in local_layer.items() if k != "Voyager_EXE"}
-    cc.validate_overrides(baseline, cc_local_layer, "config/local.yaml")
+    cc_local_layer = _validate_overrides(
+        tdm_path, framework, calib_run_id, baseline, overrides, general_parameter_overrides,
+        local_layer,
+    )
 
     # --- prep script (hard failure stops this run before execution) ---
     prep.run_prep_scripts(calib_run, cr_dir, calib_run_id)
@@ -248,6 +279,12 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
     baseline_path = tdm_path / framework["control_center_defaults_dir"] / baseline_filename
     control_center_path = folder / "_ControlCenter.block"
     cc.write_block_file(baseline_path, rendered, control_center_path)
+
+    # --- write the General Parameter override file, if declared (see
+    # general_parameters.py) -- driver_script.stage() below inserts the
+    # extra READ FILE line that picks this up ---
+    if general_parameter_overrides:
+        gp.write_override_file(general_parameter_overrides, folder / gp.OVERRIDE_FILENAME)
 
     # --- stage the driver script: driver_script is required, no framework default ---
     driver_script_path = ds.stage(
@@ -306,6 +343,7 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
         tdm_state=version_state.as_dict(),
         baseline_file=baseline_filename,
         overrides=overrides,
+        general_parameter_overrides=general_parameter_overrides,
         rendered_path=str(control_center_path),
         driver_script=driver_script_path,
         seeded_from=seeded_from,
@@ -374,7 +412,8 @@ def import_manual_run(repo_root: Path, calib_run_id: str, scenario_folder: Path 
     requested_ref = calib_run["tdm_ref"]
     baseline_filename = calib_run["baseline_control_center"]
     cr_dir = repo_root / "calibration_runs"
-    overrides = cfg.resolved_overrides(calib_run, cr_dir)
+    overrides = cfg.resolved_control_center_overrides(calib_run, cr_dir)
+    general_parameter_overrides = cfg.resolved_general_parameter_overrides(calib_run)
     output_spec = cfg.resolved_output_spec(framework, calib_run)
 
     run_id = generate_run_id()
@@ -402,6 +441,7 @@ def import_manual_run(repo_root: Path, calib_run_id: str, scenario_folder: Path 
         tdm_state=version_state.as_dict(),
         baseline_file=baseline_filename,
         overrides=overrides,
+        general_parameter_overrides=general_parameter_overrides,
         scenario_folder=str(scenario_folder),
         inventory_count=len(full_inventory),
         inventory_total_bytes=sum(e["size_bytes"] for e in full_inventory),
