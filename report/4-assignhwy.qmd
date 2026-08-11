@@ -1709,13 +1709,26 @@ function vmtDumbbellChart(vehLabel, data) {
   </div>`;
 }
 
+// Bootstrap nav-tabs markup (same classes/data attributes Quarto's own
+// .panel-tabset divs render to) so switching classes reuses the site's
+// existing tab JS instead of a bespoke widget -- and stays inside this one
+// OJS cell so the fig-assign-vmt-dumbbell label/crossref still applies to
+// the whole chart rather than splitting across separate cells.
+vmtClassTabId = cls => `vmt-tabset-${cls.replace(/\s+/g, "-").toLowerCase()}`
+
 html`<div>
-  ${["All Roadways", "Freeway", "Non-Freeway"].map(cls => html`<div style="margin-bottom: 32px;">
-    <h4 style="margin-bottom: 4px;">${cls}</h4>
-    <div style="display:flex; flex-direction:column; row-gap: 2px;">
-      ${["Total", "Medium CV", "Heavy CV"].map(veh => vmtDumbbellChart(veh, dumbbellData.filter(d => d.VehLabel === veh && d.ClassLabel === cls)))}
-    </div>
-  </div>`)}
+  <ul class="nav nav-tabs" role="tablist">
+    ${["All Roadways", "Freeway", "Non-Freeway"].map((cls, i) => html`<li class="nav-item" role="presentation">
+      <a class="nav-link${i === 0 ? " active" : ""}" id="${vmtClassTabId(cls)}-tab" data-bs-toggle="tab" data-bs-target="#${vmtClassTabId(cls)}" role="tab" aria-controls="${vmtClassTabId(cls)}" aria-selected="${i === 0}" href="">${cls}</a>
+    </li>`)}
+  </ul>
+  <div class="tab-content">
+    ${["All Roadways", "Freeway", "Non-Freeway"].map((cls, i) => html`<div id="${vmtClassTabId(cls)}" class="tab-pane${i === 0 ? " active" : ""}" role="tabpanel" aria-labelledby="${vmtClassTabId(cls)}-tab" style="padding-top: 16px;">
+      <div style="display:flex; flex-direction:column; row-gap: 2px;">
+        ${["Total", "Medium CV", "Heavy CV"].map(veh => vmtDumbbellChart(veh, dumbbellData.filter(d => d.VehLabel === veh && d.ClassLabel === cls)))}
+      </div>
+    </div>`)}
+  </div>
 </div>`
 ```
 
