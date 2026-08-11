@@ -26,6 +26,9 @@ not a bare fill). Meaning stays consistent site-wide:
                      calibration target line)
   themeNeutral      Neutral/reference series, not itself Model or Target
   themeDanger       Over-threshold / error highlight
+  themeLinkGrey     Purely-structural connector lines (e.g. a dumbbell's
+                     Model-Target link) that shouldn't compete with
+                     whatever color is doing the actual data encoding
 -->
 
 ```{ojs}
@@ -37,6 +40,7 @@ themeTargetLight = "#8ebed8" // Lighter tint of Target blue (#036fa8)
 themeAccent = "#9d4879"      // WFRC RTP fuschia
 themeNeutral = "#7f7a76"     // WFRC brand gray
 themeDanger = "#d32f00"      // WFRC core red -- status color, pair with a label/icon, never color alone
+themeLinkGrey = "#d8d7d6"    // Light tint of themeNeutral, for connector lines only
 
 // Diverging Model-vs-Target intensity scale, for markers that shade by how
 // far Model is from Target rather than a flat series color: red the more

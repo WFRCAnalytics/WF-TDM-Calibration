@@ -1684,16 +1684,20 @@ function vmtDumbbellChart(vehLabel, data) {
     marks: [
       Plot.link(data, {
         x1: "ModelM", x2: "TargetM", y: "County",
-        stroke: d => Math.abs(d.vmtDiffPct) > 0.1 ? themeDanger : themeNeutral,
-        strokeWidth: 3, strokeOpacity: 0.6
+        stroke: themeLinkGrey, strokeWidth: 3
       }),
+      // Target drawn first, Model second, so the Model ring always sits on
+      // top where the two dots overlap. Target uses themeTargetAlt (green)
+      // here instead of the usual themeTarget blue -- themeTarget would
+      // blend into the "Model under target" end of themeDiffColor's
+      // red/blue ring below.
       Plot.dot(data, {
-        x: "ModelM", y: "County", fill: d => themeDiffColor(d.vmtDiffPct), r: 8,
-        title: d => `${d.County} — ${d.VehLabel} — ${d.ClassLabel}\nModel: ${d3.format(",.2f")(d.ModelM)}M VMT`
-      }),
-      Plot.dot(data, {
-        x: "TargetM", y: "County", fill: themeTarget, r: 8,
+        x: "TargetM", y: "County", fill: themeTargetAlt, r: 8,
         title: d => `${d.County} — ${d.VehLabel} — ${d.ClassLabel}\nTarget: ${d3.format(",.2f")(d.TargetM)}M VMT`
+      }),
+      Plot.dot(data, {
+        x: "ModelM", y: "County", fill: "none", stroke: d => themeDiffColor(d.vmtDiffPct), strokeWidth: 3, r: 8,
+        title: d => `${d.County} — ${d.VehLabel} — ${d.ClassLabel}\nModel: ${d3.format(",.2f")(d.ModelM)}M VMT`
       }),
       // dx/textAnchor are constant style options on Plot's text mark, not
       // per-datum channels -- a function there silently collapses to dx=0 /
@@ -2676,15 +2680,19 @@ Plot.plot({
   marks: [
     Plot.link(regionTimeSummary, {
       x1: "obsMean", x2: "modMean", y: "Period",
-      stroke: d => Math.abs(d.diffPct) > 0.1 ? themeDanger : themeNeutral,
-      strokeWidth: 3, strokeOpacity: 0.6
+      stroke: themeLinkGrey, strokeWidth: 3
     }),
+    // Observed drawn first, Model second, so the Model ring always sits on
+    // top where the two dots overlap. Observed uses themeTargetAlt (green)
+    // here instead of the usual themeTarget blue -- themeTarget would
+    // blend into the "Model under target" end of themeDiffColor's
+    // red/blue ring below.
     Plot.dot(regionTimeSummary, {
-      x: "obsMean", y: "Period", fill: themeTarget, r: 8,
+      x: "obsMean", y: "Period", fill: themeTargetAlt, r: 8,
       title: d => `${d.Period}\nObserved: ${d3.format(",.1f")(d.obsMean)} min`
     }),
     Plot.dot(regionTimeSummary, {
-      x: "modMean", y: "Period", fill: d => themeDiffColor(d.diffPct), r: 8,
+      x: "modMean", y: "Period", fill: "none", stroke: d => themeDiffColor(d.diffPct), strokeWidth: 3, r: 8,
       title: d => `${d.Period}\nModel: ${d3.format(",.1f")(d.modMean)} min`
     }),
     // dx/textAnchor are constants on Plot's text mark, not per-datum
