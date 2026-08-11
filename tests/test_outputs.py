@@ -182,6 +182,85 @@ def test_copy_selected_matrix_mtx_source_without_voyager_raises(tmp_path):
         out.copy_selected(scenario_folder, selected, dest, 100, tmp_path, voyager_exe=None)
 
 
+def test_copy_selected_matrix_splits_when_combined_exceeds_ceiling(tmp_path):
+    scenario_folder = tmp_path / "scenario"
+    scenario_folder.mkdir()
+    src = scenario_folder / "skm_DY_Dist.omx"
+    tabs = ["HBW", "HBShp", "HBOth"]
+    rng = np.random.default_rng(0)
+    f = omx.open_file(str(src), "w")
+    try:
+        for tab in tabs:
+            f[tab] = rng.random((200, 200))
+    finally:
+        f.close()
+
+    dest = tmp_path / "outputs"
+    selected = [
+        {
+            "relative_path": "skm_DY_Dist.omx",
+            "size_bytes": src.stat().st_size,
+            "entry_type": "matrix",
+            "tabs": tabs,
+            "format": "omx",
+            "source_format": "omx",
+        }
+    ]
+    # Below the combined 3-tab size but above a single tab's roughly-equal
+    # share, so the combined extraction is oversized but each split-off tab
+    # individually isn't.
+    max_file_size_mb = (src.stat().st_size / len(tabs) * 1.5) / (1024 * 1024)
+    curated = out.copy_selected(
+        scenario_folder, selected, dest, max_file_size_mb=max_file_size_mb,
+        repo_root=tmp_path, voyager_exe=None,
+    )
+
+    assert not (dest / "skm_DY_Dist.omx").exists()  # combined file replaced by per-tab splits
+    assert len(curated) == 3
+    assert {c["tabs"][0] for c in curated} == set(tabs)
+    assert all(c["committed"] for c in curated)
+    assert not (dest / ".gitignore").exists()
+    for tab in tabs:
+        result = omx.open_file(str(dest / f"skm_DY_Dist__{tab}.omx"), "r")
+        try:
+            assert result.list_matrices() == [tab]
+        finally:
+            result.close()
+
+
+def test_copy_selected_matrix_single_tab_stays_uncommitted_when_oversized(tmp_path):
+    # A single-tab matrix entry has nothing to split -- oversized still
+    # means the old committed:False + .gitignore behavior, not a crash.
+    scenario_folder = tmp_path / "scenario"
+    scenario_folder.mkdir()
+    src = scenario_folder / "skm_DY_Dist.omx"
+    f = omx.open_file(str(src), "w")
+    try:
+        f["HBW"] = np.random.default_rng(0).random((200, 200))
+    finally:
+        f.close()
+
+    dest = tmp_path / "outputs"
+    selected = [
+        {
+            "relative_path": "skm_DY_Dist.omx",
+            "size_bytes": src.stat().st_size,
+            "entry_type": "matrix",
+            "tabs": ["HBW"],
+            "format": "omx",
+            "source_format": "omx",
+        }
+    ]
+    curated = out.copy_selected(
+        scenario_folder, selected, dest, max_file_size_mb=0.0001,
+        repo_root=tmp_path, voyager_exe=None,
+    )
+    assert len(curated) == 1
+    assert curated[0]["committed"] is False
+    assert (dest / "skm_DY_Dist.omx").exists()
+    assert "skm_DY_Dist.omx" in (dest / ".gitignore").read_text()
+
+
 def test_curate_marks_failed_when_include_declared_but_nothing_matched(tmp_path):
     scenario_folder = tmp_path / "scenario"
     scenario_folder.mkdir()

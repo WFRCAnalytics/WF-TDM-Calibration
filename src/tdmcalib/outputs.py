@@ -173,6 +173,58 @@ def _write_outputs_gitignore(dest_dir: Path, uncommitted_names: list):
     gitignore_path.write_text("\n".join(lines) + "\n")
 
 
+def _split_omx_by_tab(dst: Path, tabs: list, dest_dir: Path, stem: str, output_format: str) -> list:
+    """Splits an already-written multi-tab OMX file into one file per tab
+    ("<stem>__<tab>.<output_format>"), then removes the combined file.
+    Only called when the combined file exceeds max_file_size_mb -- a full
+    multi-purpose skim (e.g. skm_DY_Dist's 10 travel-purpose tables) is
+    routinely hundreds of MB even after trimming to just the tabs a report
+    needs, but each individual tab is a single TAZ x TAZ table, comfortably
+    under any reasonable ceiling on its own. Report loaders that read these
+    files fall back to globbing "<stem>__*" siblings when the combined
+    filename doesn't exist (see report/preprocess/distribution.py's
+    _iter_omx_sources()), so this is transparent to them either way."""
+    paths = []
+    for tab in tabs:
+        tab_dest = dest_dir / f"{stem}__{tab}.{output_format}"
+        matrix_utils.trim_omx_tabs(dst, [tab], tab_dest)
+        paths.append(tab_dest)
+    dst.unlink()
+    return paths
+
+
+def _curate_matrix_dest(entry: dict, dst: Path, dest_dir: Path, max_bytes: int, repo_root: Path) -> list:
+    """Turns one just-written matrix-entry destination into its curated
+    manifest entries -- normally a single entry for dst itself, or, when a
+    multi-tab extraction came out over max_bytes, one entry per tab after
+    splitting it (see _split_omx_by_tab())."""
+    size_bytes = dst.stat().st_size
+    if (
+        entry.get("format", "omx") == "omx"
+        and len(entry.get("tabs") or []) > 1
+        and size_bytes > max_bytes
+    ):
+        stem = Path(entry["relative_path"]).stem
+        split_paths = _split_omx_by_tab(dst, entry["tabs"], dest_dir, stem, entry["format"])
+        return [
+            _manifest_entry(entry, tab_dest, repo_root, max_bytes, tabs=[tab])
+            for tab, tab_dest in zip(entry["tabs"], split_paths, strict=True)
+        ]
+    return [_manifest_entry(entry, dst, repo_root, max_bytes)]
+
+
+def _manifest_entry(entry: dict, dst: Path, repo_root: Path, max_bytes: int, tabs: list = None) -> dict:
+    size_bytes = dst.stat().st_size
+    return {
+        **entry,
+        **({"tabs": tabs} if tabs is not None else {}),
+        "size_bytes": size_bytes,
+        "sha256": _sha256(dst),
+        "repo_path": dst.resolve().relative_to(repo_root.resolve()).as_posix(),
+        "committed": size_bytes <= max_bytes,
+    }
+
+
 def _write_filtered_csv(src: Path, dst: Path, columns: list):
     with open(src, newline="") as fin, open(dst, "w", newline="") as fout:
         reader = csv.DictReader(fin)
@@ -214,10 +266,15 @@ def copy_selected(
     "committed": False rather than deleted, and dest_dir/.gitignore is
     (re)written to list every such file (see _write_outputs_gitignore()) --
     so it's still usable locally (e.g. rendering reports on this machine)
-    without ever being committed. Raises OutputCollectionError only if
-    flattening would collide two selected files onto the same filename, or
-    for a genuine extraction failure (missing tabs/columns/fields, Voyager
-    not configured when required)."""
+    without ever being committed. The one exception is a multi-tab matrix
+    entry: if the combined extraction exceeds max_file_size_mb, it's split
+    into one file per tab instead (see _split_omx_by_tab()) -- each tab is
+    manifested as its own curated entry (and individually checked against
+    the ceiling, though a single TAZ x TAZ table is essentially always well
+    under it even when the full set isn't). Raises OutputCollectionError
+    only if flattening would collide two selected files onto the same
+    filename, or for a genuine extraction failure (missing tabs/columns/
+    fields, Voyager not configured when required)."""
     seen = {}
     for entry in selected:
         name = _dest_filename(entry)
@@ -262,18 +319,11 @@ def copy_selected(
         else:
             shutil.copy2(src, dst)
 
-        size_bytes = dst.stat().st_size
-        committed = size_bytes <= int(max_file_size_mb * 1024 * 1024)
-
-        curated.append(
-            {
-                **entry,
-                "size_bytes": size_bytes,
-                "sha256": _sha256(dst),
-                "repo_path": dst.resolve().relative_to(repo_root.resolve()).as_posix(),
-                "committed": committed,
-            }
-        )
+        max_bytes = int(max_file_size_mb * 1024 * 1024)
+        if entry.get("entry_type") == "matrix":
+            curated.extend(_curate_matrix_dest(entry, dst, dest_dir, max_bytes, repo_root))
+        else:
+            curated.append(_manifest_entry(entry, dst, repo_root, max_bytes))
 
     _write_outputs_gitignore(dest_dir, [c["repo_path"].rsplit("/", 1)[-1] for c in curated if not c["committed"]])
     return curated

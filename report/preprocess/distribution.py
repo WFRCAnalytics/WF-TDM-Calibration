@@ -73,34 +73,59 @@ def _load_taz(repo_root: Path) -> gpd.GeoDataFrame:
     return gpd.read_file(repo_root / "report" / TAZ_SHP, low_memory=False)
 
 
+def _iter_omx_sources(omx_path: Path):
+    """Yields every physical OMX file backing omx_path -- normally just
+    omx_path itself, but tdmcalib's output curation splits an oversized
+    multi-tab matrix into one file per tab instead (see
+    src/tdmcalib/outputs.py's _split_omx_by_tab()), named
+    "<stem>__<tab>.omx" and left as siblings of where the combined file
+    would have been. Raises if neither the combined file nor any split
+    sibling exists, so a genuinely missing output still fails loudly."""
+    if omx_path.exists():
+        yield omx_path
+        return
+    split_paths = sorted(omx_path.parent.glob(f"{omx_path.stem}__*{omx_path.suffix}"))
+    if not split_paths:
+        raise FileNotFoundError(
+            f"{omx_path} not found (and no split '{omx_path.stem}__*{omx_path.suffix}' siblings either)"
+        )
+    yield from split_paths
+
+
 def _extract_omx_to_df(omx_path, matrix_names, val_col_name, rename_dict=None, optional_missing=None):
     df_list = []
+    found = set()
     taz_ids = np.arange(1, 3630)
     rename_lookup = {k.upper(): v for k, v in (rename_dict or {}).items()}
     optional_missing = {m.upper() for m in (optional_missing or [])}
 
-    with omx.open_file(omx_path, "r") as f:
-        matrix_lookup = {mat.upper(): mat for mat in f.list_matrices()}
+    for path in _iter_omx_sources(Path(omx_path)):
+        with omx.open_file(path, "r") as f:
+            matrix_lookup = {mat.upper(): mat for mat in f.list_matrices()}
 
-        for mat_name in matrix_names:
-            mat_key = mat_name.upper()
-            actual_mat_name = matrix_lookup.get(mat_key)
+            for mat_name in matrix_names:
+                mat_key = mat_name.upper()
+                if mat_key in found:
+                    continue
+                actual_mat_name = matrix_lookup.get(mat_key)
+                if actual_mat_name is None:
+                    continue
+                found.add(mat_key)
 
-            if actual_mat_name is None:
-                if mat_key not in optional_missing:
-                    print(f"Warning: {mat_name} not found in OMX")
-                continue
+                mat = np.array(f[actual_mat_name]).astype(float)
+                ii, jj = np.nonzero(mat)
+                std_purpose = rename_lookup.get(mat_key, mat_name)
 
-            mat = np.array(f[actual_mat_name]).astype(float)
-            ii, jj = np.nonzero(mat)
-            std_purpose = rename_lookup.get(mat_key, mat_name)
+                df_list.append(pd.DataFrame({
+                    "i": taz_ids[ii],
+                    "j": taz_ids[jj],
+                    val_col_name: mat[ii, jj],
+                    "Purpose": std_purpose,
+                }))
 
-            df_list.append(pd.DataFrame({
-                "i": taz_ids[ii],
-                "j": taz_ids[jj],
-                val_col_name: mat[ii, jj],
-                "Purpose": std_purpose,
-            }))
+    for mat_name in matrix_names:
+        if mat_name.upper() not in found and mat_name.upper() not in optional_missing:
+            print(f"Warning: {mat_name} not found in OMX")
 
     if df_list:
         return pd.concat(df_list, ignore_index=True)
