@@ -1688,18 +1688,28 @@ function vmtDumbbellChart(vehLabel, data) {
         strokeWidth: 3, strokeOpacity: 0.6
       }),
       Plot.dot(data, {
-        x: "ModelM", y: "County", fill: themeModel, r: 8,
+        x: "ModelM", y: "County", fill: d => themeDiffColor(d.vmtDiffPct), r: 8,
         title: d => `${d.County} — ${d.VehLabel} — ${d.ClassLabel}\nModel: ${d3.format(",.2f")(d.ModelM)}M VMT`
       }),
       Plot.dot(data, {
         x: "TargetM", y: "County", fill: themeTarget, r: 8,
         title: d => `${d.County} — ${d.VehLabel} — ${d.ClassLabel}\nTarget: ${d3.format(",.2f")(d.TargetM)}M VMT`
       }),
-      Plot.text(data, {
+      // dx/textAnchor are constant style options on Plot's text mark, not
+      // per-datum channels -- a function there silently collapses to dx=0 /
+      // textAnchor="middle" instead of flipping per point. Split into two
+      // marks (one per side) so each gets a real constant.
+      Plot.text(data.filter(d => d.ModelM >= d.TargetM), {
         x: "ModelM", y: "County",
         text: d => d3.format("+.1%")(d.vmtDiffPct),
-        dx: d => d.ModelM >= d.TargetM ? 8 : -8,
-        textAnchor: d => d.ModelM >= d.TargetM ? "start" : "end",
+        dx: 8, textAnchor: "start",
+        fontSize: 13, fontWeight: 600,
+        fill: d => Math.abs(d.vmtDiffPct) > 0.1 ? themeDanger : themeNeutral
+      }),
+      Plot.text(data.filter(d => d.ModelM < d.TargetM), {
+        x: "ModelM", y: "County",
+        text: d => d3.format("+.1%")(d.vmtDiffPct),
+        dx: -8, textAnchor: "end",
         fontSize: 13, fontWeight: 600,
         fill: d => Math.abs(d.vmtDiffPct) > 0.1 ? themeDanger : themeNeutral
       })
@@ -2674,14 +2684,23 @@ Plot.plot({
       title: d => `${d.Period}\nObserved: ${d3.format(",.1f")(d.obsMean)} min`
     }),
     Plot.dot(regionTimeSummary, {
-      x: "modMean", y: "Period", fill: themeModel, r: 8,
+      x: "modMean", y: "Period", fill: d => themeDiffColor(d.diffPct), r: 8,
       title: d => `${d.Period}\nModel: ${d3.format(",.1f")(d.modMean)} min`
     }),
-    Plot.text(regionTimeSummary, {
+    // dx/textAnchor are constants on Plot's text mark, not per-datum
+    // channels -- split into two marks (one per side) so each point gets a
+    // real constant instead of collapsing to dx=0 / textAnchor="middle".
+    Plot.text(regionTimeSummary.filter(d => d.modMean >= d.obsMean), {
       x: "modMean", y: "Period",
       text: d => d3.format("+.1%")(d.diffPct),
-      dx: d => d.modMean >= d.obsMean ? 8 : -8,
-      textAnchor: d => d.modMean >= d.obsMean ? "start" : "end",
+      dx: 8, textAnchor: "start",
+      fontSize: 13, fontWeight: 600,
+      fill: d => Math.abs(d.diffPct) > 0.1 ? themeDanger : themeNeutral
+    }),
+    Plot.text(regionTimeSummary.filter(d => d.modMean < d.obsMean), {
+      x: "modMean", y: "Period",
+      text: d => d3.format("+.1%")(d.diffPct),
+      dx: -8, textAnchor: "end",
       fontSize: 13, fontWeight: 600,
       fill: d => Math.abs(d.diffPct) > 0.1 ? themeDanger : themeNeutral
     })
