@@ -1600,7 +1600,7 @@ classLabels = new Map([['Freeway', 'Freeway'], ['NonFreeway', 'Non-Freeway']])
 vehTypeLabels = new Map([['All', 'All Vehicles'], ['PCLT', 'Cars + Light CV'], ['MD', 'Medium CV'], ['HV', 'Heavy CV']])
 // The chart facets on just these 3 vehicle types (Cars + Light CV omitted --
 // still selectable via the Vehicle Type control below, near the map/table).
-chartVehLabels = new Map([['All', 'Total'], ['MD', 'Medium CV'], ['HV', 'Heavy CV']])
+chartVehLabels = new Map([['All', 'All Vehicles'], ['MD', 'Medium CV'], ['HV', 'Heavy CV']])
 
 vmtT = transpose(vmt)
 
@@ -1696,9 +1696,11 @@ function vmtDumbbellChart(vehLabel, data) {
         title: d => `${d.County} — ${d.VehLabel} — ${d.ClassLabel}\nTarget: ${d3.format(",.2f")(d.TargetM)}M VMT`
       }),
       Plot.text(data, {
-        x: d => Math.max(d.ModelM, d.TargetM), y: "County",
+        x: "ModelM", y: "County",
         text: d => d3.format("+.1%")(d.vmtDiffPct),
-        dx: 8, textAnchor: "start", fontSize: 13, fontWeight: 600,
+        dx: d => d.ModelM >= d.TargetM ? 8 : -8,
+        textAnchor: d => d.ModelM >= d.TargetM ? "start" : "end",
+        fontSize: 13, fontWeight: 600,
         fill: d => Math.abs(d.vmtDiffPct) > 0.1 ? themeDanger : themeNeutral
       })
     ]
@@ -1716,20 +1718,40 @@ function vmtDumbbellChart(vehLabel, data) {
 // the whole chart rather than splitting across separate cells.
 vmtClassTabId = cls => `vmt-tabset-${cls.replace(/\s+/g, "-").toLowerCase()}`
 
-html`<div>
+// Which roadway-class tab is active, kept in a `mutable` so it survives this
+// cell re-running -- without it, every re-render (e.g. switching
+// globalCalibRun, which dumbbellData depends on) would rebuild the tab
+// markup from scratch and fall back to hardcoding "All Roadways" active,
+// discarding whatever tab the user had clicked to.
+mutable vmtActiveTab = "All Roadways"
+
+{
+  const classes = ["All Roadways", "Freeway", "Non-Freeway"];
+  const root = html`<div>
   <ul class="nav nav-tabs" role="tablist">
-    ${["All Roadways", "Freeway", "Non-Freeway"].map((cls, i) => html`<li class="nav-item" role="presentation">
-      <a class="nav-link${i === 0 ? " active" : ""}" id="${vmtClassTabId(cls)}-tab" data-bs-toggle="tab" data-bs-target="#${vmtClassTabId(cls)}" role="tab" aria-controls="${vmtClassTabId(cls)}" aria-selected="${i === 0}" href="">${cls}</a>
+    ${classes.map(cls => html`<li class="nav-item" role="presentation">
+      <a class="nav-link${cls === vmtActiveTab ? " active" : ""}" id="${vmtClassTabId(cls)}-tab" data-bs-toggle="tab" data-bs-target="#${vmtClassTabId(cls)}" role="tab" aria-controls="${vmtClassTabId(cls)}" aria-selected="${cls === vmtActiveTab}" href="">${cls}</a>
     </li>`)}
   </ul>
   <div class="tab-content">
-    ${["All Roadways", "Freeway", "Non-Freeway"].map((cls, i) => html`<div id="${vmtClassTabId(cls)}" class="tab-pane${i === 0 ? " active" : ""}" role="tabpanel" aria-labelledby="${vmtClassTabId(cls)}-tab" style="padding-top: 16px;">
+    ${classes.map(cls => html`<div id="${vmtClassTabId(cls)}" class="tab-pane${cls === vmtActiveTab ? " active" : ""}" role="tabpanel" aria-labelledby="${vmtClassTabId(cls)}-tab" style="padding-top: 16px;">
       <div style="display:flex; flex-direction:column; row-gap: 2px;">
-        ${["Total", "Medium CV", "Heavy CV"].map(veh => vmtDumbbellChart(veh, dumbbellData.filter(d => d.VehLabel === veh && d.ClassLabel === cls)))}
+        ${["All Vehicles", "Medium CV", "Heavy CV"].map(veh => vmtDumbbellChart(veh, dumbbellData.filter(d => d.VehLabel === veh && d.ClassLabel === cls)))}
       </div>
     </div>`)}
   </div>
-</div>`
+</div>`;
+
+  // Bootstrap's own tab.js toggles the active classes on click; this just
+  // mirrors that choice into vmtActiveTab so the next re-render remembers it.
+  root.querySelectorAll('a[data-bs-toggle="tab"]').forEach((tabLink, i) => {
+    tabLink.addEventListener("shown.bs.tab", () => {
+      mutable vmtActiveTab = classes[i];
+    });
+  });
+
+  return root;
+}
 ```
 
 ```{ojs}
@@ -2656,9 +2678,11 @@ Plot.plot({
       title: d => `${d.Period}\nModel: ${d3.format(",.1f")(d.modMean)} min`
     }),
     Plot.text(regionTimeSummary, {
-      x: d => Math.max(d.obsMean, d.modMean), y: "Period",
+      x: "modMean", y: "Period",
       text: d => d3.format("+.1%")(d.diffPct),
-      dx: 8, textAnchor: "start", fontSize: 13, fontWeight: 600,
+      dx: d => d.modMean >= d.obsMean ? 8 : -8,
+      textAnchor: d => d.modMean >= d.obsMean ? "start" : "end",
+      fontSize: 13, fontWeight: 600,
       fill: d => Math.abs(d.diffPct) > 0.1 ? themeDanger : themeNeutral
     })
   ]
