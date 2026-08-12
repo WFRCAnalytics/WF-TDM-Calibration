@@ -1805,13 +1805,21 @@ viewof bVehType = Inputs.select(new Map([['All Vehicles', 'All'], ['Cars + Light
 ```
 
 :::: {.columns}
-::: {.column width="33%"}
+::: {.column width="33%" style="padding-right: 24px;"}
 
 ```{ojs}
+// Vertical county header instead of a title above each table -- shortens
+// the label ("Box Elder County - WFRC" -> "Box Elder") so it reads cleanly
+// rotated in a narrow strip, freeing up horizontal space in this 33%-wide
+// column for the data itself.
+function shortCountyLabel(county) {
+  return county.replace(' County - WFRC', '').replace(' County', '');
+}
+
 function renderCountyTable(g) {
-  return html`<div>
-    <strong>${g.County}</strong>
-    <table style="width:100%; border-collapse:collapse; margin: 4px 0 16px;">
+  return html`<div style="display:flex; align-items:stretch; margin: 4px 0 16px; border: 1px solid #ccc;">
+    <div style="writing-mode: vertical-rl; transform: rotate(180deg); background: #e0e0e0; font-weight: bold; font-size: 12px; padding: 6px 4px; display:flex; align-items:center; justify-content:center; white-space:nowrap;">${shortCountyLabel(g.County)}</div>
+    <table style="width:100%; border-collapse:collapse;">
       <thead>
         <tr>${["Class", "Model", "Target", "Diff", "% Diff"].map((d, i) => html`<th style='text-align: ${i === 0 ? "left" : "right"}; padding: 4px 6px; border-bottom: 2px solid #999; font-size: 12px;'>${d}</th>`)}</tr>
       </thead>
