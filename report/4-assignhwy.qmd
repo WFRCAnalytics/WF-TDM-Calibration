@@ -2596,6 +2596,20 @@ modTme['Period'] = modTme['Period'].str[3:]
 
 dfTme = pd.DataFrame.merge(obdTme, modTme, on=('O_TAZID','D_TAZID','Period','calib_run'))
 
+# Speed (mph) for the region-wide summary dumbbell -- each source's own
+# distance over its own time, so Model speed reflects the model's own
+# path, not the Google route (see report/preprocess/assignhwy.py's load_xx).
+obdDist = xx.melt(id_vars=('O_TAZID','D_TAZID','calib_run'),var_name='Period',value_vars=('obsDistAM','obsDistMD','obsDistPM','obsDistEV'), value_name='distObs')
+obdDist['Period'] = obdDist['Period'].str[7:]
+
+modDist = xx.melt(id_vars=('O_TAZID','D_TAZID','calib_run'),var_name='Period',value_vars=('modDistAM','modDistMD','modDistPM','modDistEV'), value_name='distMod')
+modDist['Period'] = modDist['Period'].str[7:]
+
+dfDist = pd.DataFrame.merge(obdDist, modDist, on=('O_TAZID','D_TAZID','Period','calib_run'))
+dfTme = pd.DataFrame.merge(dfTme, dfDist, on=('O_TAZID','D_TAZID','Period','calib_run'))
+dfTme['spdObs'] = dfTme['distObs'] / (dfTme['tmeObs'] / 60)
+dfTme['spdMod'] = dfTme['distMod'] / (dfTme['tmeMod'] / 60)
+
 # --------------------------------------------------------- #
 # NEW: Map Origin TAZ to County for the toggle
 # --------------------------------------------------------- #
@@ -2660,9 +2674,9 @@ The chart below summarizes the whole region across all four periods at once (unf
 regionTimeSummary = {
   const periodLabels = new Map([['AM', 'AM Peak'], ['MD', 'Midday'], ['PM', 'PM Peak'], ['EV', 'Evening']]);
   return Array.from(periodLabels, ([code, label]) => {
-    const rows = timeT.filter(d => d.Period === code);
-    const obsMean = d3.mean(rows, d => d.tmeObs);
-    const modMean = d3.mean(rows, d => d.tmeMod);
+    const rows = timeT.filter(d => d.Period === code && Number.isFinite(d.spdObs) && Number.isFinite(d.spdMod));
+    const obsMean = d3.mean(rows, d => d.spdObs);
+    const modMean = d3.mean(rows, d => d.spdMod);
     return {
       Period: label,
       obsMean, modMean,
@@ -2678,7 +2692,7 @@ keyTimeDumbbell = Legend(timeColorScale, {title: "Data Source"})
 
 ```{ojs}
 //| label: fig-assign-time-summary
-//| fig-cap: Region-Wide Average Travel Time -- Model vs Observed
+//| fig-cap: Region-Wide Average Speed -- Model vs Observed
 // Explicit [0, max] domain -- Plot's auto domain would otherwise start
 // near the smallest value, exaggerating Model-vs-Observed gaps visually.
 timeXMax = d3.max(regionTimeSummary, d => Math.max(d.obsMean, d.modMean)) || 1
@@ -2689,7 +2703,7 @@ Plot.plot({
   marginLeft: 100,
   marginRight: 60,
   y: {domain: ["AM Peak", "Midday", "PM Peak", "Evening"], label: null},
-  x: {label: "Average Travel Time (minutes)", domain: [0, timeXMax], grid: true, nice: true},
+  x: {label: "Average Speed (mph)", domain: [0, timeXMax], grid: true, nice: true},
   marks: [
     Plot.link(regionTimeSummary, {
       x1: "obsMean", x2: "modMean", y: "Period",
@@ -2699,11 +2713,11 @@ Plot.plot({
     // top where the two dots overlap.
     Plot.dot(regionTimeSummary, {
       x: "obsMean", y: "Period", fill: themeTarget, r: 10,
-      title: d => `${d.Period}\nObserved: ${d3.format(",.1f")(d.obsMean)} min`
+      title: d => `${d.Period}\nObserved: ${d3.format(",.1f")(d.obsMean)} mph`
     }),
     Plot.dot(regionTimeSummary, {
       x: "modMean", y: "Period", fill: themeModel, r: 8,
-      title: d => `${d.Period}\nModel: ${d3.format(",.1f")(d.modMean)} min`
+      title: d => `${d.Period}\nModel: ${d3.format(",.1f")(d.modMean)} mph`
     }),
     // dx/textAnchor are constants on Plot's text mark, not per-datum
     // channels -- split into two marks (one per side) so each point gets a

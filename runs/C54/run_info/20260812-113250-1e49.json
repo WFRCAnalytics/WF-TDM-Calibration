@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "calib_run_id": "C54",
+  "run_id": "20260812-113250-1e49",
+  "status": "failed",
+  "execution_mode": "cli",
+  "started_at": "2026-08-12T11:32:50.683029+00:00",
+  "finished_at": "2026-08-12T11:39:08.716504+00:00",
+  "framework_commit": "bee3636e089152c3f8b6bad365a5cfbd0ea1f15c",
+  "tdm": {
+    "requested_ref": "calib/C54",
+    "resolved_commit": "74c2be11bf2e1b22471e20b219439b20798431e6",
+    "resolved_tag": "calib/C54",
+    "branch": null,
+    "detached_head": true,
+    "dirty": false
+  },
+  "control_center": {
+    "baseline_file": "_ControlCenter - BY_2023.block",
+    "overrides": {
+      "UserName": "Bill Hereth",
+      "UserCompany": "WFRC",
+      "keyOutputPrfx": "_"
+    },
+    "rendered_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C54\\_ControlCenter.block",
+    "driver_script": "Scenarios/_default/__HailMary_resumable.s"
+  },
+  "scenario_folder": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C54",
+  "execution": {
+    "command": [
+      "cmd.exe",
+      "/c",
+      "M:\\GitHub\\WF-TDM-Calibration\\bin\\RunModel.bat",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C54\\_ControlCenter.block",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C54"
+    ],
+    "exit_code": 2,
+    "log_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C54\\logs\\orchestrator_invocation.log",
+    "status_source": "exit_code"
+  },
+  "outputs": {
+    "inventory_count": 372,
+    "inventory_total_bytes": 7470034154,
+    "curated": []
+  },
+  "error": "No resolved model completion report in M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C54\\_Log\\_RunTime.txt (see M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C54\\logs\\orchestrator_invocation.log). Voyager exit code: 2.\n\nVoyager errors (TPPL0631.PRN):\nF(105): Error writing file C:\\Users\\bhereth\\AppData\\Local\\Temp\\Voy2156Trn1_76400.$$$ :\nF(105): OS reports: There is not enough space on the disk.\nF(237): Return code: 2 - 298e30e6-876a-4b4c-be11-fc79a006d205 - Terminating condition noted on file TPPL0664.PRN:  F(105)\nF(237): Return code: 2 - 04b3969e-34b2-40c0-bd53-c5b1639c6d7e - Terminating condition noted on file TPPL0670.PRN:  F(105)\nF(237): Return code: 2 - 64a5020b-3856-4e54-95de-8a885337397a - Terminating condition noted on file TPPL0662.PRN:  F(105)\nF(237): Return code: 2 - 1b116944-dcd7-41ca-8875-d37870f9804b - Terminating condition noted on file TPPL0665.PRN:  F(105)\nF(237): Return code: 2 - 1c55c84c-c613-4bc4-b1f7-7da91b32aeaf - Terminating condition noted on file TPPL0663.PRN:  F(105)\nF(237): Return code: 2 - e2832a47-2fd2-40d6-9062-e5789370598a - Terminating condition noted on file TPPL0666.PRN:  F(105)\nF(237): Return code: 2 - 35b55d5b-1099-4085-bfad-665fcbeda75d - Terminating condition noted on file TPPL0667.PRN:  F(105)\nF(237): Return code: 2 - a1d7bb5d-e181-4729-abd3-7ec59af68e0c - Terminating condition noted on file TPPL0675.PRN:  F(105)\nF(237): Return code: 2 - bfbe9018-7011-4ac0-b3c5-e6e0a393b743 - Terminating condition noted on file TPPL0671.PRN:  F(105)\nF(237): Return code: 2 - a8b76355-11b9-4206-9b8c-1bb51dcb4a0b - Terminating condition noted on file TPPL0669.PRN:  F(105)\nF(237): Return code: 2 - 3215cd6d-f8df-4e84-a44e-d97542586c16 - Terminating condition noted on file TPPL0674.PRN:  F(105)\nF(237): Return code: 2 - 4311a48d-37d1-417d-ab8a-5f1d4ac10a85 - Terminating condition noted on file TPPL0676.PRN:  F(105)\nF(237): Return code: 2 - 63e75dc2-0747-4b8a-8b21-314177ade716 - Terminating condition noted on file TPPL0673.PRN:  F(105)\nF(237): Return code: 2 - 340c8fd4-e37b-4eae-aa09-29c8e2fb6e8a - Terminating condition noted on file TPPL0668.PRN:  F(105)\nF(237): Return code: 2 - 724a74ea-a3ab-448e-9692-02ff6471410e - Terminating condition noted on file TPPL0672.PRN:  F(105)\nF(641): Step 365, RUN MATRIX can not be run while ONRUNERRORGOTO processing.",
+  "general_parameters": {
+    "overrides": {
+      "calibFac_LT_BE": 1.49,
+      "calibFac_LT_WE": 1.22,
+      "calibFac_LT_DA": 1.06,
+      "calibFac_LT_SL": 1.0,
+      "calibFac_LT_UT": 0.89,
+      "calibFac_MD_BE": 0.75,
+      "calibFac_MD_WE": 0.67,
+      "calibFac_MD_DA": 5.08,
+      "calibFac_MD_SL": 0.87,
+      "calibFac_MD_UT": 1.06,
+      "calibFac_HV_BE": 2.93,
+      "calibFac_HV_WE": 2.27,
+      "calibFac_HV_DA": 6.02,
+      "calibFac_HV_SL": 4.05,
+      "calibFac_HV_UT": 0.89,
+      "DA_FwyTruckCostFac": 1.3,
+      "DA_NonFwyTruckCostFac": 0.75,
+      "DA_RampTruckPenAdd": 1.7,
+      "SL_FwyTruckCostFac": 1.1,
+      "SL_NonFwyTruckCostFac": 0.95,
+      "SL_RampTruckPenAdd": 0.45,
+      "calibFac_Ext_PL_3604": 1.1,
+      "calibFac_Ext_MD_3604": 1.1,
+      "calibFac_Ext_HV_3604": 1.1,
+      "calibFac_Ext_PL_3612": 1.1,
+      "calibFac_Ext_MD_3612": 1.1,
+      "calibFac_Ext_HV_3612": 1.1
+    }
+  }
+}

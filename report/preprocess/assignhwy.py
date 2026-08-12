@@ -324,41 +324,47 @@ def _build_base_xx(repo_root: Path) -> pd.DataFrame:
         inplace=True,
     )
     dfa = pd.concat([dfa, dfb])
-    dfx = dfa[["O_TAZID", " D_TAZID", "Period", " ODTime"]]
-    dfx = dfx.rename(columns={" ODTime": "Time", " D_TAZID": "D_TAZID"})
+    dfx = dfa[["O_TAZID", " D_TAZID", "Period", " ODTime", " ODDistance"]]
+    dfx = dfx.rename(columns={" ODTime": "Time", " D_TAZID": "D_TAZID", " ODDistance": "Distance"})
     dfx["Time"] = dfx["Time"] / 60
+    dfx["Distance"] = dfx["Distance"] / 1609.344  # meters -> miles
 
-    return (
-        dfx.groupby(["O_TAZID", "D_TAZID", "Period"])
-        .agg({"Time": "median"})
-        .unstack()
-        .Time.rename_axis([None], axis=1)
-        .reset_index()
-    )
+    grouped = dfx.groupby(["O_TAZID", "D_TAZID", "Period"]).agg({"Time": "median", "Distance": "median"}).unstack()
+    # Time columns keep their existing obsAM/obsMD/... names (unchanged
+    # contract for callers); Distance columns get an inserted "Dist" so the
+    # two metrics don't collide, e.g. obsDistAM alongside obsAM.
+    grouped.columns = [
+        period if metric == "Time" else f"{period[:3]}Dist{period[3:]}" for metric, period in grouped.columns
+    ]
+    return grouped.reset_index()
 
 
 _XX_OMX_FILES = ["Skm_AM.omx", "Skm_MD.omx", "Skm_PM.omx", "Skm_EV.omx"]
 _XX_COLUMNS = ["modAM", "modMD", "modPM", "modEV"]
+_XX_DIST_COLUMNS = ["modDistAM", "modDistMD", "modDistPM", "modDistEV"]
 
 
-def _extract_ivt_from_omx(omx_file_path, column_name, base_df):
+def _extract_skim_from_omx(omx_file_path, tab_name, column_name, base_df):
     with omx.open_file(omx_file_path, "r") as f:
-        ivt_matrix = f["GP_IVT"][:]
+        matrix = f[tab_name][:]
 
-    o_ids = base_df["O_TAZID"].astype(int)
-    d_ids = base_df["D_TAZID"].astype(int)
+    o_idx = base_df["O_TAZID"].to_numpy(dtype=int) - 1
+    d_idx = base_df["D_TAZID"].to_numpy(dtype=int) - 1
 
-    base_df[column_name] = [
-        ivt_matrix[i - 1, j - 1] if ivt_matrix[i - 1, j - 1] != 0 else 0
-        for i, j in zip(o_ids, d_ids)
-    ]
+    base_df[column_name] = matrix[o_idx, d_idx]
     return base_df
 
 
 def load_xx(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataFrame:
-    """Observed (Google API) vs. modeled (GP_IVT skim) median travel time by
-    O/D TAZ x period, for one calibration run."""
+    """Observed (Google API) vs. modeled (GP_IVT/GP_Dist skims) median travel
+    time and distance by O/D TAZ x period, for one calibration run. Distance
+    is each source's own: observed road distance from the Google data,
+    modeled path distance (GP_Dist, already in miles) from the same skim
+    file GP_IVT comes from -- so Model speed = model time over the model's
+    own path, not the Google route."""
     df_run = _build_base_xx(repo_root)
     for omx_file, column_name in zip(_XX_OMX_FILES, _XX_COLUMNS):
-        df_run = _extract_ivt_from_omx(outputs_dir / omx_file, column_name, df_run)
+        df_run = _extract_skim_from_omx(outputs_dir / omx_file, "GP_IVT", column_name, df_run)
+    for omx_file, column_name in zip(_XX_OMX_FILES, _XX_DIST_COLUMNS):
+        df_run = _extract_skim_from_omx(outputs_dir / omx_file, "GP_Dist", column_name, df_run)
     return df_run
