@@ -1804,6 +1804,9 @@ html`<br/>`
 viewof bVehType = Inputs.select(new Map([['All Vehicles', 'All'], ['Cars + Light CV', 'PCLT'], ['Medium CV', 'MD'], ['Heavy CV', 'HV']]), {value: 'All', label: "Vehicle Type:"})
 ```
 
+:::: {.columns}
+::: {.column width="33%"}
+
 ```{ojs}
 function renderCountyTable(g) {
   return html`<div>
@@ -1834,10 +1837,13 @@ function renderCountyTable(g) {
 
 html`
 <h4>Total Daily VMT by County and Roadway Class — ${vehTypeLabels.get(bVehType) ?? bVehType}</h4>
-<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:0 24px;">
+<div style="display:grid; grid-template-columns:repeat(1, 1fr); gap:0 24px;">
   ${tableGroups.map(renderCountyTable)}
 </div>`
 ```
+
+:::
+::: {.column width="67%"}
 
 ```{ojs}
 html`<br/>`
@@ -1994,6 +2000,8 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
 }
 ```
 
+:::
+::::
 
 ## HOT Lane Validation
 ```{python}
