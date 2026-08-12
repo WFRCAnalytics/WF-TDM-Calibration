@@ -43,6 +43,27 @@ def generate_run_id() -> str:
     return f"{ts}-{suffix}"
 
 
+def _write_running_record(
+    framework: dict, run_dir: Path, *, control_center_path: Path, driver_script_path: str,
+    command: list, log_path: Path, **build_kwargs,
+) -> None:
+    """
+    Writes a "running" run_info/ record before the model is invoked.
+
+    See the call site in run() for why this exists.
+    """
+    running_metadata = md.build(
+        schema_version=framework["run_metadata_schema_version"],
+        status="running",
+        rendered_path=str(control_center_path),
+        driver_script=driver_script_path,
+        command=command,
+        log_path=str(log_path),
+        **build_kwargs,
+    )
+    md.write(run_dir, running_metadata)
+
+
 def _reset_run_outputs(run_dir: Path):
     """Clears everything under run_dir except run_info/ (see metadata.py) --
     curated outputs and the report cache are wiped and rebuilt fresh on
@@ -298,6 +319,33 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
     # --- execute ---
     command = build_command(framework, repo_root, control_center_path, folder)
     log_path = folder / "logs" / "orchestrator_invocation.log"
+    run_dir = repo_root / "runs" / calib_run_id
+
+    # Write a "running" record to run_info/ *before* invoking the model, not
+    # after. invoke() below can run for hours (Cube Voyager); without this,
+    # an attempt killed mid-run by a crash or power loss leaves zero trace
+    # anywhere -- run_info/ is supposed to be the permanent audit trail of
+    # every attempt, so "started but never finished" needs its own record
+    # rather than nothing. Overwritten in place (same run_id -> same
+    # filename) with the terminal status once the attempt actually finishes.
+    _write_running_record(
+        framework, run_dir,
+        control_center_path=control_center_path,
+        driver_script_path=driver_script_path,
+        command=command,
+        log_path=log_path,
+        calib_run_id=calib_run_id,
+        run_id=run_id,
+        started_at=started_at,
+        framework_commit_sha=fw_commit,
+        tdm_state=version_state.as_dict(),
+        baseline_file=baseline_filename,
+        overrides=overrides,
+        general_parameter_overrides=general_parameter_overrides,
+        seeded_from=seeded_from,
+        scenario_folder=str(folder),
+    )
+
     exit_code = invoke(
         command,
         cwd=tdm_path,
@@ -318,7 +366,6 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
     # more "best effort on failure": a run that didn't unambiguously
     # complete doesn't get its outputs pulled into runs/, partial or not.
     full_inventory = out.inventory(folder)
-    run_dir = repo_root / "runs" / calib_run_id
     # Only the latest attempt's outputs are ever kept on disk for a
     # calib_run_id -- wipe whatever a previous attempt left (everything but
     # run_info/'s permanent history) before this attempt's own curate()

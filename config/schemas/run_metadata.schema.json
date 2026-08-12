@@ -12,7 +12,11 @@
     "schema_version": { "type": "integer", "minimum": 1 },
     "calib_run_id": { "type": "string" },
     "run_id": { "type": "string" },
-    "status": { "type": "string", "enum": ["pending", "running", "success", "failed"] },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "running", "success", "failed"],
+      "description": "\"running\" is written to disk immediately before the model process is invoked (execution_mode \"cli\" only), so an attempt that never reaches a terminal status -- e.g. killed by a power loss or crash mid-run -- still leaves a permanent record in run_info/ rather than nothing at all. Overwritten in place with \"success\"/\"failed\" once the attempt finishes."
+    },
     "execution_mode": {
       "type": "string",
       "enum": ["cli", "manual"],
@@ -95,8 +99,8 @@
     "outputs": {
       "type": "object",
       "properties": {
-        "inventory_count": { "type": "integer" },
-        "inventory_total_bytes": { "type": "integer" },
+        "inventory_count": { "type": ["integer", "null"] },
+        "inventory_total_bytes": { "type": ["integer", "null"] },
         "curated": {
           "type": "array",
           "items": {
