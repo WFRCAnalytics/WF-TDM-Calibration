@@ -1805,7 +1805,7 @@ viewof bVehType = Inputs.select(new Map([['All Vehicles', 'All'], ['Cars + Light
 ```
 
 :::: {.columns}
-::: {.column width="33%" style="padding-right: 24px;"}
+::: {.column style="width:33%; padding-right: 24px;"}
 
 ```{ojs}
 // Vertical county header instead of a title above each table -- shortens
