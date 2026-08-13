@@ -1904,9 +1904,19 @@ html`
 html`<br/>`
 viewof bDiffType = Inputs.radio(new Map([['Percent Difference', 'Pct'], ['Difference (Model − Target)', 'Abs']]), {value: 'Pct', label: "Display:"})
 viewof bFocusClass = Inputs.radio(
-  new Map([["Freeway", "Freeway"], ["Non-Freeway", "NonFreeway"]]),
+  new Map([["Freeway", "Freeway"], ["Non-Freeway", "NonFreeway"], ["All Roadways", "All"]]),
   {value: "Freeway", label: "Focus Roadway Class:"}
 )
+```
+
+```{ojs}
+// Plain (non-mutable) binding holding the map's last pan/zoom -- deliberately
+// NOT a `mutable` cell, so panning/zooming the map (which writes into this
+// object's properties, not reassigns it) never re-triggers OJS reactivity.
+// The map cell below reads it once per re-render (e.g. when Focus Roadway
+// Class changes) to restore the view instead of resetting to a hardcoded
+// default every time a control above changes.
+vmtMapViewState = ({center: [40.7608, -111.8910], zoom: 9})
 ```
 
 ```{ojs}
@@ -1961,8 +1971,12 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
   const container = document.createElement("div");
   container.style.height = "600px";
   container.style.width = "100%";
-  const map = LM.map(container).setView([40.7608, -111.8910], 9);
+  const map = LM.map(container).setView(vmtMapViewState.center, vmtMapViewState.zoom);
   ctrlScrollZoom(map, container);
+  map.on("moveend", () => {
+    vmtMapViewState.center = map.getCenter();
+    vmtMapViewState.zoom = map.getZoom();
+  });
 
   LM.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap &copy; CARTO',
@@ -1984,7 +1998,7 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
         const ft = p.FTCLASS;
         const ftgroup = (ft === 'Freeway') ? 'Freeway' : 'NonFreeway';
 
-        const focused = bFocusClass === ftgroup;
+        const focused = bFocusClass === "All" || bFocusClass === ftgroup;
 
         let weight = 1;
         if (ft === 'Freeway' || ft === 'Expressway') { weight = 4; }

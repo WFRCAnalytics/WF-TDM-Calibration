@@ -455,26 +455,6 @@ df_obs["boarding_mode"] = df_obs["boarding_mode"].replace("Microtransit", "Local
 
 # See report/preprocess/modechoice.py.
 df_boardings_long = vs.load_cached_per_run(repo_root, "boardings")
-
-# OJS HANDSHAKE
-df_step1 = pd.melt(
-    df_boardings_long,
-    id_vars=["Mode", "Title", "Difference", "% Difference", "calib_run"],
-    value_vars=["Model", "Target"],
-    var_name="DataSource",
-    value_name="Value",
-)
-
-df_boardings_viz = pd.melt(
-    df_step1,
-    id_vars=["Mode", "Title", "DataSource", "calib_run"],
-    value_vars=["Value", "Difference", "% Difference"],
-    var_name="View",
-    value_name="ViewValue",
-)
-
-# Remove totals for charts
-df_boardings_viz = df_boardings_viz[df_boardings_viz["Mode"] != "All"]
 ```
 
 ```{python}
@@ -523,7 +503,6 @@ txt = {
 
 ojs_define(dataLong=df_final_melt)
 ojs_define(dataTable=df_final)
-ojs_define(boardChart=df_boardings_viz)
 ojs_define(boardTable=df_boardings_long)
 
 # Define hierarchy names for OJS dropdowns
@@ -602,11 +581,6 @@ viewof plotSelect = Inputs.select(
   ],
   {value: "Motorized / Non-Motorized", label: "Mode Group:"}
 )
-viewof periodSelect = Inputs.select(
-  new Map([['Daily', 'DY'], ['Peak', 'PK'], ['Off-Peak', 'OK']]),
-  {value: 'DY', label: "Time Period:"}
-)
-
 // Removed: viewof purposeSelect
 
 dataLT = transpose(dataLong)
@@ -622,31 +596,46 @@ facetLabels   = new Map([
   ["NHB", "Non-Home Based"]
 ])
 
-// Build one filtered dataset per purpose facet
+// Time periods now facet as chart rows instead of a Time Period select
+facetPeriods = ["DY", "PK", "OK"]
+periodLabels = new Map([["DY", "Daily"], ["PK", "Peak"], ["OK", "Off-Peak"]])
+
+// Build one filtered dataset per purpose x period facet cell
 filtered_data = facetPurposes.flatMap(purp =>
-  dataLT
-    .filter(d =>
-      plotSelect === d.ModeGroup &&
-      periodSelect === d.Period &&
-      purp === d.TripPurpose &&
-      d.Mode !== "Core Bus" &&
-      d.calib_run === globalCalibRun
-    )
-    .map(d => ({...d, PurposeLabel: facetLabels.get(purp)}))
+  facetPeriods.flatMap(per =>
+    dataLT
+      .filter(d =>
+        plotSelect === d.ModeGroup &&
+        per === d.Period &&
+        purp === d.TripPurpose &&
+        d.Mode !== "Core Bus" &&
+        d.calib_run === globalCalibRun
+      )
+      .map(d => ({...d, PurposeLabel: facetLabels.get(purp), PeriodLabel: periodLabels.get(per)}))
+  )
 )
 
-table_filtered_data = dataTT.filter(d =>
-  plotSelect === d.ModeGroup &&
-  periodSelect === d.Period &&
-  d.Mode !== "Core Bus" &&
-  d.calib_run === globalCalibRun
-)
+table_filtered_data = dataTT
+  .filter(d =>
+    plotSelect === d.ModeGroup &&
+    d.Mode !== "Core Bus" &&
+    d.calib_run === globalCalibRun
+  )
+  .map(d => ({...d, PeriodLabel: periodLabels.get(d.Period) ?? d.Period}))
 
-import {GroupedBarChart} from "@d3/grouped-bar-chart"
 import {Legend, Swatches} from "@d3/color-legend"
 import {howto, altplot} from "@d3/example-components"
 
 formatPercent = d3.format(".1%")
+
+// Mode Share chart only (@fig-mode-share) -- drops the decimal above 1% since
+// it's just noise at that scale, but keeps it below 1% where it's the only
+// thing distinguishing a rare mode's share from zero.
+fmtSharePercent = d3.format(".0%")
+fmtSharePercentFine = d3.format(".1%")
+function fmtShare(value) {
+  return Math.abs(value) > 0.01 ? fmtSharePercent(value) : fmtSharePercentFine(value);
+}
 
 xDomain = {
   const sources = ["Model", "Target"]
@@ -684,12 +673,18 @@ xDomain = {
   )
 
   const chart = Plot.plot({
-    height : 300,
+    // marginTop/marginBottom/facetMarginTop (150px) are paid once for the
+    // whole 3-row facet grid, not per row, so shrinking each row means
+    // shrinking the shared content band, not the total height: fixed
+    // margins (150) + 80% of the prior content band (473 * 0.8 = 378.4),
+    // i.e. 20% off the 623px version.
+    height : 528,
     width  : 950,
     marginLeft  : 55,
     marginBottom: 80,
     marginTop : 40,
     facetMarginTop: 30,
+    facetMarginRight: 60,
 
     style: { backgroundColor: "transparent", fontSize: "0.85em", fontFamily: "Inter, system-ui, sans-serif" },
 
@@ -698,6 +693,17 @@ xDomain = {
       label: null,
       tickSize: 0,
       axis: "top",
+    },
+
+    fy: {
+      domain: ["Daily", "Peak", "Off-Peak"],
+      label: null,
+      tickSize: 0,
+      // Plot's facet padding is a fraction of each row's band step, not a
+      // literal pixel gap -- doubled again from 0.2 to 0.4 (Plot's default
+      // is 0.1) for another doubling of row gap; nudge higher/lower if
+      // it reads off after previewing.
+      padding: 0.4,
     },
 
     x: {
@@ -722,6 +728,7 @@ xDomain = {
     marks: [
       Plot.barY(filtered_data, {
         fx   : "PurposeLabel",
+        fy   : "PeriodLabel",
         x    : d => `${d.Mode}||${d.DataSource}`,
         y    : "Percent",
         fill : "DataSource",
@@ -729,16 +736,17 @@ xDomain = {
         tip  : {
           format: {
             x    : d => d.split("||")[0],
-            y    : d => d3.format(".1%")(d),
+            y    : d => fmtShare(d),
             fill : true,
           }
         }
       }),
       Plot.text(filtered_data, {
         fx         : "PurposeLabel",
+        fy         : "PeriodLabel",
         x          : d => `${d.Mode}||${d.DataSource}`,
         y          : "Percent",
-        text       : d => d3.format(".1%")(d.Percent),
+        text       : d => fmtShare(d.Percent),
         textAnchor : "middle",
         lineAnchor : "bottom",
         dy         : -4,
@@ -772,16 +780,16 @@ html`
 <table>
     <thead>
     <tr>
-        ${["Mode", "Purpose", "Model", "Target", "Difference"].map((d, i) =>
-        html`<th style='text-align: ${i <= 1 ? "left" : "right"}; padding: 5px; ${i <= 1 ? "width: 140px;" : ""}'>${d}</th>`)}
+        ${["Mode", "Purpose", "Period", "Model", "Target", "Difference"].map((d, i) =>
+        html`<th style='text-align: ${i <= 2 ? "left" : "right"}; padding: 5px; ${i <= 2 ? "width: 140px;" : ""}'>${d}</th>`)}
     </tr>
     </thead>
     <tbody>
     ${table_filtered_data.map(row => html`
         <tr style='border-bottom: 1px solid lightgrey;'>
-        ${["Mode", "TripPurpose", "Model", "Target", "Difference"].map((d, i) => {
-            const val = (i <= 1) ? row[d] : formatPercent(row[d]);
-            return html`<td style='text-align: ${i <= 1 ? "left" : "right"}; padding: 5px; ${i <= 1 ? "width: 140px;" : ""}'>${val}</td>`
+        ${["Mode", "TripPurpose", "PeriodLabel", "Model", "Target", "Difference"].map((d, i) => {
+            const val = (i <= 2) ? row[d] : formatPercent(row[d]);
+            return html`<td style='text-align: ${i <= 2 ? "left" : "right"}; padding: 5px; ${i <= 2 ? "width: 140px;" : ""}'>${val}</td>`
         })}
         </tr>`)}
     </tbody>
@@ -796,130 +804,132 @@ html`<br/><br/>`
 
 ## Transit Trips and Boardings
 
-```{ojs}
-html`<br/>`
-viewof bPlotSelect = Inputs.select(new Map([['Trips by Hierarchical Mode', 'Trips by Hierarchical Mode'], ['Boardings by Hierarchical Mode', 'Boardings by Hierarchical Mode'], ['Transfer Ratio by Hierarchical Mode','Transfer Ratio'], ['Boardings by Observed Mode','Boardings by Mode Surveyed']]), {value: 'Trips by Hierarchical Mode', label: "Category"})
+Each tab below is a dumbbell chart comparing Model to Target by mode for one category -- the connecting line's length is the gap, and the percent label is the model's difference from target. "All" is the system-wide total across every mode. Transfer Ratio (model boardings per model trip) isn't a count, so it keeps its own 2-decimal scale rather than sharing an axis with the trip/boarding counts.
 
+```{ojs}
 // reuses globalCalibRun (the shared sidebar-bar selector, _calib_run_selector.qmd)
-dataBLC = transpose(boardChart)
-filtered_bDataC = dataBLC.filter(function(dataBLC) {
-    return bPlotSelect == dataBLC.Title &&
-           "Value" == dataBLC.View &&
-           dataBLC.calib_run === globalCalibRun &&
-           dataBLC.Mode !== "Core Bus"; // <--- EXCLUDE CORE BUS
-})
 dataBTT = transpose(boardTable)
-filtered_bDataT = dataBTT.filter(function(dataBTT) {
-    return bPlotSelect == dataBTT.Title &&
-           dataBTT.calib_run === globalCalibRun &&
-           dataBTT.Mode !== "Core Bus"; // <--- EXCLUDE CORE BUS
-})
 
-// Define Formatters
-formatInt = d3.format(",.0f")  // 1,234
-formatRatio = d3.format(".2f") // 1.25
-formatPct = d3.format(".1%")   // 12.5%
+transitCategories = ["Trips by Hierarchical Mode", "Boardings by Hierarchical Mode", "Transfer Ratio", "Boardings by Mode Surveyed"]
+transitCategoryLabels = new Map([
+  ["Trips by Hierarchical Mode", "Trips by Hierarchical Mode"],
+  ["Boardings by Hierarchical Mode", "Boardings by Hierarchical Mode"],
+  ["Transfer Ratio", "Transfer Ratio by Hierarchical Mode"],
+  ["Boardings by Mode Surveyed", "Boardings by Observed Mode"]
+])
+// Same fixed mode order regardless of category (matches the row order the
+// removed table/bar chart used). "All" (the system-wide subtotal row
+// already present in boardTable) is excluded -- it dwarfs every individual
+// mode, which forced the shared x-axis out so far that per-mode dumbbells
+// were unreadable.
+transitModeOrder = ["Local Bus", "Express Bus", "BRT", "LRT", "CRT"]
 
-// Helper to choose format based on context
-function getFormat(col, val, title) {
-    if (col === "Mode") return val;
-    if (col === "% Difference") return formatPct(val);
-
-    // For Model, Observed, Difference: check if we are looking at Ratios or Trips
-    if (title === "Transfer Ratio") return formatRatio(val);
-
-    return formatInt(val);
-}
+transitDataByCategory = new Map(transitCategories.map(cat => [
+  cat,
+  dataBTT.filter(d =>
+    d.Title === cat &&
+    d.calib_run === globalCalibRun &&
+    d.Mode !== "Core Bus" && // <--- EXCLUDE CORE BUS
+    d.Mode !== "All"
+  )
+]))
 ```
 
-:::: {.columns}
-::: {.column width="43%"}
-
 ```{ojs}
-html`
-<br/>
-<table>
-    <thead>
-    <tr>
-        ${["Mode", "Model", "Target", "Difference", "% Difference"].map((d, i) => {
-            const widths = ['90px', '60px', '70px', '75px', '90px'];
-            return html`<th style='text-align: ${i === 0 ? "left" : "right"}; padding: 5px; width: ${widths[i]};'>${d}</th>`;
-        })}
-    </tr>
-    </thead>
-    <tbody>
-        ${filtered_bDataT.map(row => {
-            const isBold = row['Mode'] === 'All';
-            return html`<tr style='border-bottom: 1px solid lightgrey;'>
-                ${["Mode", "Model", "Target", "Difference", "% Difference"].map((d, i) => {
-                    const widths = ['90px', '60px', '70px', '75px', '90px'];
-                    // Apply conditional formatting
-                    const val = getFormat(d, row[d], bPlotSelect);
-                    return html`<td style='text-align: ${i === 0 ? "left" : "right"}; padding: 5px; width: ${widths[i]}; font-weight: ${isBold ? 'bold' : 'normal'};'>${val}</td>`;
-                })}
-            </tr>`;
-        })}
-    </tbody>
-</table>`
+transitColorScale = d3.scaleOrdinal(["Model", "Target"], [themeModel, themeTarget])
+keyTransitDumbbell = Legend(transitColorScale, {title: "Data Source"})
 ```
 
-:::
-::: {.column width="57%"}
-
 ```{ojs}
-key2 = Legend(bChart.scales.color, {title: "Data Source"})
+//| label: fig-mc-transit-dumbbell
+//| fig-cap: Trips and Boardings by Mode -- Model vs Target Comparison
 
-bChart = GroupedBarChart(filtered_bDataC, {
-    x: d => d.Mode,
-    y: d => d.ViewValue,
-    z: d => d.DataSource,
-    // REMOVED 'Core Bus' from this list
-    xDomain: ['Local Bus', 'Express Bus', 'BRT', 'LRT', 'CRT'],
-    yLabel: "Value",
-    // Conditionally format Y axis based on selection
-    yFormat: (bPlotSelect === "Transfer Ratio") ? ".2f" : "s",
-    zDomain: ['Model','Target'],
-    width: 500,
-    height: 225,
-    colors: [themeModel, themeTarget]
-})
+function transitDumbbellChart(category, data) {
+  const isRatio = category === "Transfer Ratio";
+  const fmtVal = isRatio ? d3.format(",.2f") : d3.format(",.0f");
+  const xLabel = isRatio ? "Transfer Ratio" : (category.startsWith("Trips") ? "Daily Trips" : "Daily Boardings");
+  const xMax = d3.max(data, d => Math.max(d.Model, d.Target)) || 1;
 
-filtered_bData2 = dataBLC.filter(function(dataBLC) {
-    return bPlotSelect == dataBLC.Title  &&
-           metric == dataBLC.View &&
-           dataBLC.calib_run === globalCalibRun &&
-           dataBLC.Mode !== "Core Bus"; // <--- EXCLUDE CORE BUS
-})
-
-viewof metric = Inputs.radio(new Map([["% Difference", "% Difference"],["Difference", "Difference"]]), {value: "% Difference", label: "View:"})
-
-//https://observablehq.com/@d3/diverging-bar-chart
-import {DivergingBarChart} from "@d3/diverging-bar-chart"
-
-html`<br/>`
-chart3 = {
-  const maxAbs = d3.max(filtered_bData2, d => Math.abs(d.ViewValue)) ?? 0;
-  const domainMax = Math.max(0.05, maxAbs);
-
-  return DivergingBarChart(filtered_bData2, {
-    x: d => d.ViewValue,
-    y: d => d.Mode,
-    xDomain: [-domainMax, domainMax],
-    xFormat: metric === "Difference" ? "+,d" : "+.1%",
-    xLabel: "Model vs Target Differences",
-    height: 200,
-    colors: d3.schemeRdBu[3]
+  const chart = Plot.plot({
+    width: width,
+    height: 260,
+    marginLeft: 110,
+    marginRight: 60,
+    marginTop: 12,
+    y: {domain: transitModeOrder, label: null},
+    x: {label: xLabel, domain: [0, xMax], grid: true, nice: true},
+    marks: [
+      Plot.link(data, {
+        x1: "Model", x2: "Target", y: "Mode",
+        stroke: themeLinkGrey, strokeWidth: 3
+      }),
+      // Target drawn first, Model second, so the Model ring always sits on
+      // top where the two dots overlap.
+      Plot.dot(data, {
+        x: "Target", y: "Mode", fill: themeTarget, r: 10,
+        title: d => `${d.Mode}\nTarget: ${fmtVal(d.Target)}`
+      }),
+      Plot.dot(data, {
+        x: "Model", y: "Mode", fill: themeModel, r: 8,
+        title: d => `${d.Mode}\nModel: ${fmtVal(d.Model)}`
+      }),
+      Plot.text(data.filter(d => d.Model >= d.Target), {
+        x: "Model", y: "Mode",
+        text: d => d3.format("+.1%")(d["% Difference"]),
+        dx: 8, textAnchor: "start",
+        fontSize: 13, fontWeight: 600,
+        fill: d => Math.abs(d["% Difference"]) > 0.1 ? themeDanger : themeNeutral
+      }),
+      Plot.text(data.filter(d => d.Model < d.Target), {
+        x: "Model", y: "Mode",
+        text: d => d3.format("+.1%")(d["% Difference"]),
+        dx: -8, textAnchor: "end",
+        fontSize: 13, fontWeight: 600,
+        fill: d => Math.abs(d["% Difference"]) > 0.1 ? themeDanger : themeNeutral
+      })
+    ]
   });
+  return html`<div>${chart}</div>`;
 }
-```
 
-:::
-::::
+// Bootstrap nav-tabs markup (same classes/data attributes Quarto's own
+// .panel-tabset divs render to) so switching categories reuses the site's
+// existing tab JS instead of a bespoke widget -- and stays inside this one
+// OJS cell so the fig-mc-transit-dumbbell label/crossref still applies to
+// the whole chart rather than splitting across separate cells.
+transitTabId = cat => `transit-tabset-${cat.replace(/\s+/g, "-").toLowerCase()}`
 
-```{ojs}
-//|label: fig-mc-boardings
-//|fig-cap: Trips and Boardings by Mode Surveyed - Model vs. Target Comparison
-tbEmptyCell = 1
+// Which category tab is active, kept in a `mutable` so it survives this
+// cell re-running -- without it, every re-render (e.g. switching
+// globalCalibRun, which transitDataByCategory depends on) would rebuild the
+// tab markup from scratch and fall back to hardcoding the first tab active,
+// discarding whatever tab the user had clicked to.
+mutable transitActiveTab = transitCategories[0]
+
+{
+  const root = html`<div>
+  <ul class="nav nav-tabs" role="tablist">
+    ${transitCategories.map(cat => html`<li class="nav-item" role="presentation">
+      <a class="nav-link${cat === transitActiveTab ? " active" : ""}" id="${transitTabId(cat)}-tab" data-bs-toggle="tab" data-bs-target="#${transitTabId(cat)}" role="tab" aria-controls="${transitTabId(cat)}" aria-selected="${cat === transitActiveTab}" href="">${transitCategoryLabels.get(cat)}</a>
+    </li>`)}
+  </ul>
+  <div class="tab-content">
+    ${transitCategories.map(cat => html`<div id="${transitTabId(cat)}" class="tab-pane${cat === transitActiveTab ? " active" : ""}" role="tabpanel" aria-labelledby="${transitTabId(cat)}-tab" style="padding-top: 16px;">
+      ${transitDumbbellChart(cat, transitDataByCategory.get(cat))}
+    </div>`)}
+  </div>
+</div>`;
+
+  // Bootstrap's own tab.js toggles the active classes on click; this just
+  // mirrors that choice into transitActiveTab so the next re-render remembers it.
+  root.querySelectorAll('a[data-bs-toggle="tab"]').forEach((tabLink, i) => {
+    tabLink.addEventListener("shown.bs.tab", () => {
+      mutable transitActiveTab = transitCategories[i];
+    });
+  });
+
+  return root;
+}
 ```
 
 ```{ojs}
