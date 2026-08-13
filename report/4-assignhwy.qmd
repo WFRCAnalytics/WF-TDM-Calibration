@@ -45,6 +45,7 @@ config_paths = {
     "google_speeds_wfrc": r"data/4-assignhwy/google-api-speeds/WFRC/both_time_*_2023.csv",
     "ccs_lanes1": r"../inputs/2023 Station 301-431.xlsx",
     "ccs_lanes2": r"../inputs/2023 Station 501-733.xlsx",
+    "path_in_screenlines": r"data/4-assignhwy/Screenlines/CVM_Screenlines_V10b.shp",
 }
 ```
 
@@ -669,6 +670,42 @@ error_bounds = {
 
 // 7. HELPER: Color-blind friendly palette (Okabe-Ito)
 palette = ["#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#0072B2", "#D55E00", "#F0E442", "#999999"]
+
+// 8. HELPER: Ctrl/Cmd+scroll to zoom every Leaflet map on this page -- a
+// bare mousewheel over the map only zooms it (with a fading hint) instead
+// of being captured and trapping the page scroll, which is what happens
+// with Leaflet's default scrollWheelZoom. Same pattern Google Maps embeds
+// use. Shared across all three maps on this page since they'd otherwise
+// each need this boilerplate duplicated.
+function ctrlScrollZoom(map, container) {
+  map.scrollWheelZoom.disable();
+
+  const hint = document.createElement("div");
+  hint.textContent = /Mac|iPhone|iPad/.test(navigator.platform) ? "Use ⌘ + scroll to zoom" : "Use Ctrl + scroll to zoom";
+  Object.assign(hint.style, {
+    position: "absolute", inset: "0", display: "flex",
+    alignItems: "center", justifyContent: "center",
+    background: "rgba(0,0,0,0.45)", color: "white",
+    fontSize: "14px", fontWeight: "600", pointerEvents: "none",
+    opacity: "0", transition: "opacity 0.15s ease", zIndex: "1000"
+  });
+  container.style.position = "relative";
+  container.appendChild(hint);
+
+  let hideTimer;
+  container.addEventListener("wheel", (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const latlng = map.mouseEventToLatLng(e);
+      map.setZoomAround(latlng, map.getZoom() + (e.deltaY < 0 ? 1 : -1));
+      hint.style.opacity = "0";
+    } else {
+      hint.style.opacity = "1";
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => { hint.style.opacity = "0"; }, 1000);
+    }
+  }, { passive: false });
+}
 ```
 
 ::: {.panel-tabset}
@@ -813,6 +850,7 @@ map_display = {
 
   // C. INITIALIZE MAP
   const map = L.map(container).setView([40.7608, -111.8910], 9);
+  ctrlScrollZoom(map, container);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap &copy; CARTO',
     maxZoom: 19
@@ -1597,7 +1635,6 @@ countyOrder = ['Region', 'Box Elder County - WFRC', 'Weber County - WFRC', 'Davi
 chartCountyOrder = countyOrder.filter(c => c !== 'Region')
 countyNames = new Map([[99, 'Region'], [3, 'Box Elder County - WFRC'], [57, 'Weber County - WFRC'], [11, 'Davis County'], [35, 'Salt Lake County'], [49, 'Utah County']])
 classLabels = new Map([['Freeway', 'Freeway'], ['NonFreeway', 'Non-Freeway']])
-vehTypeLabels = new Map([['All', 'All Vehicles'], ['PCLT', 'Cars + Light CV'], ['MD', 'Medium CV'], ['HV', 'Heavy CV']])
 // The chart facets on just these 3 vehicle types (Cars + Light CV omitted --
 // still selectable via the Vehicle Type control below, near the map/table).
 chartVehLabels = new Map([['All', 'All Vehicles'], ['MD', 'Medium CV'], ['HV', 'Heavy CV']])
@@ -1766,9 +1803,13 @@ mutable vmtActiveTab = "All Roadways"
 ```
 
 ```{ojs}
+// Values in thousands -- the raw daily VMT totals run into the millions
+// (7-8 digits), which forced the table wider than its column no matter how
+// much padding/font-size got trimmed. Thousands keeps every cell to ~6
+// characters so the table actually fits in a narrow column.
 function fmtVmt(value) {
   if (typeof value === 'undefined' || value === null || Number.isNaN(value)) return '';
-  return Math.round(value).toLocaleString();
+  return Math.round(value / 1000).toLocaleString();
 }
 function fmtPct(value) {
   if (typeof value === 'undefined' || value === null || Number.isNaN(value)) return '';
@@ -1800,17 +1841,23 @@ tableGroups = countyOrder.map(county => {
 ```
 
 ```{ojs}
+// Heading lives in its own cell so it spans full width above both the
+// select widget and the columns below.
+html`<h4>Total Daily VMT by County and Roadway Class</h4>`
+```
+
+```{ojs}
 html`<br/>`
 viewof bVehType = Inputs.select(new Map([['All Vehicles', 'All'], ['Cars + Light CV', 'PCLT'], ['Medium CV', 'MD'], ['Heavy CV', 'HV']]), {value: 'All', label: "Vehicle Type:"})
 ```
 
-:::: {.columns}
-::: {.column style="width:33%; padding-right: 24px;"}
+:::: {.columns style="display:flex; flex-wrap:nowrap; align-items:flex-start;"}
+::: {.column style="width:32%; flex:0 0 32%; min-width:0; padding-right: 16px;"}
 
 ```{ojs}
 // Vertical county header instead of a title above each table -- shortens
 // the label ("Box Elder County - WFRC" -> "Box Elder") so it reads cleanly
-// rotated in a narrow strip, freeing up horizontal space in this 33%-wide
+// rotated in a narrow strip, freeing up horizontal space in this narrow
 // column for the data itself.
 function shortCountyLabel(county) {
   return county.replace(' County - WFRC', '').replace(' County', '');
@@ -1821,7 +1868,7 @@ function renderCountyTable(g) {
     <div style="writing-mode: vertical-rl; transform: rotate(180deg); background: #e0e0e0; font-weight: bold; font-size: 12px; padding: 6px 4px; display:flex; align-items:center; justify-content:center; white-space:nowrap;">${shortCountyLabel(g.County)}</div>
     <table style="width:100%; border-collapse:collapse;">
       <thead>
-        <tr>${["Class", "Model", "Target", "Diff", "% Diff"].map((d, i) => html`<th style='text-align: ${i === 0 ? "left" : "right"}; padding: 4px 6px; border-bottom: 2px solid #999; font-size: 12px;'>${d}</th>`)}</tr>
+        <tr>${["Class", "Model", "Target", "Diff", "% Diff"].map((d, i) => html`<th style='text-align: ${i === 0 ? "left" : "right"}; padding: 3px 4px; border-bottom: 2px solid #999; font-size: 11px; white-space:nowrap;'>${d}</th>`)}</tr>
       </thead>
       <tbody>
         ${g.rows.map(row => {
@@ -1831,11 +1878,11 @@ function renderCountyTable(g) {
             : 'border-bottom: 1px solid lightgrey;';
           const diffColor = Math.abs(row.vmtDiffPct) > 0.1 ? themeDanger : 'inherit';
           return html`<tr style='${rowStyle}'>
-            <td style='padding: 4px 6px; font-size: 12px;'>${row.ClassLabel}</td>
-            <td style='padding: 4px 6px; text-align:right; font-size: 12px;'>${fmtVmt(row.VMT_Mod)}</td>
-            <td style='padding: 4px 6px; text-align:right; font-size: 12px;'>${fmtVmt(row.VMT_Target)}</td>
-            <td style='padding: 4px 6px; text-align:right; font-size: 12px; color:${diffColor};'>${fmtVmt(row.vmtDiff)}</td>
-            <td style='padding: 4px 6px; text-align:right; font-size: 12px; color:${diffColor};'>${fmtPct(row.vmtDiffPct)}</td>
+            <td style='padding: 3px 4px; font-size: 11px; white-space:nowrap;'>${row.ClassLabel}</td>
+            <td style='padding: 3px 4px; text-align:right; font-size: 11px; white-space:nowrap;'>${fmtVmt(row.VMT_Mod)}</td>
+            <td style='padding: 3px 4px; text-align:right; font-size: 11px; white-space:nowrap;'>${fmtVmt(row.VMT_Target)}</td>
+            <td style='padding: 3px 4px; text-align:right; font-size: 11px; white-space:nowrap; color:${diffColor};'>${fmtVmt(row.vmtDiff)}</td>
+            <td style='padding: 3px 4px; text-align:right; font-size: 11px; white-space:nowrap; color:${diffColor};'>${fmtPct(row.vmtDiffPct)}</td>
           </tr>`;
         })}
       </tbody>
@@ -1844,21 +1891,21 @@ function renderCountyTable(g) {
 }
 
 html`
-<h4>Total Daily VMT by County and Roadway Class — ${vehTypeLabels.get(bVehType) ?? bVehType}</h4>
-<div style="display:grid; grid-template-columns:repeat(1, 1fr); gap:0 24px;">
+<div style="font-size: 11px; color: ${themeNeutral}; margin-bottom: 4px;">VMT in thousands</div>
+<div style="display:grid; grid-template-columns:repeat(1, 1fr); gap:0 24px; overflow-x:auto;">
   ${tableGroups.map(renderCountyTable)}
 </div>`
 ```
 
 :::
-::: {.column width="67%"}
+::: {.column style="width:68%; flex:1 1 auto; min-width:0; padding-left: 16px;"}
 
 ```{ojs}
 html`<br/>`
 viewof bDiffType = Inputs.radio(new Map([['Percent Difference', 'Pct'], ['Difference (Model − Target)', 'Abs']]), {value: 'Pct', label: "Display:"})
 viewof bFocusClass = Inputs.radio(
-  new Map([["All", "All"], ["Freeway", "Freeway"], ["Non-Freeway", "NonFreeway"]]),
-  {value: "All", label: "Focus Roadway Class:"}
+  new Map([["Freeway", "Freeway"], ["Non-Freeway", "NonFreeway"]]),
+  {value: "Freeway", label: "Focus Roadway Class:"}
 )
 ```
 
@@ -1915,6 +1962,7 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
   container.style.height = "600px";
   container.style.width = "100%";
   const map = LM.map(container).setView([40.7608, -111.8910], 9);
+  ctrlScrollZoom(map, container);
 
   LM.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap &copy; CARTO',
@@ -1936,7 +1984,7 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
         const ft = p.FTCLASS;
         const ftgroup = (ft === 'Freeway') ? 'Freeway' : 'NonFreeway';
 
-        const focused = bFocusClass === 'All' || bFocusClass === ftgroup;
+        const focused = bFocusClass === ftgroup;
 
         let weight = 1;
         if (ft === 'Freeway' || ft === 'Expressway') { weight = 4; }
@@ -2010,6 +2058,435 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
 
 :::
 ::::
+
+### Screenline Comparison
+
+Screenlines aggregate volumes across every facility crossing a corridor into one crossing total, smoothing out segment-level count noise for a bigger-picture check on the model's overall travel pattern by corridor. Modeled totals come straight from the TDM's own per-run `Summary_Screenline.csv` (built by summing `Summary_SEGID.csv` up to each `ScreenlineID` via a segment-to-screenline crosswalk, both produced fresh every run). Observed totals reuse the same 2023 AADT-based target built for the VMT comparison above, aggregated up to screenline level via that same crosswalk, then split across AM/MD/PM/EV using the model's own period shares (the raw CCS-derived observed data is daily-only).
+
+```{python}
+# ---------------------------------------------------------
+# SCREENLINE COMPARISON. screenline_model_df (Summary_Screenline.csv) is a
+# genuine per-run output -- model behavior varies by run -- so it's loaded
+# per run like mod_df_wide above. screenline_lookup_df (the SEGID ->
+# ScreenlineID crosswalk) is a static network attribute -- same spatial
+# join against the same pinned network every run -- so, like ft_df above,
+# the per-run copies are just collapsed down to one. The observed side
+# reuses tgt_df (already built above from segShp's AADT2023 x FAC_WDAVG,
+# split into PCLT/MD/HV via ft_df/ratio_df) rather than rebuilding the same
+# AADT-to-vehicle-type math a second time.
+# ---------------------------------------------------------
+def normalize_screenline_id(value):
+    if pd.isna(value):
+        return np.nan
+    text = str(value).strip()
+    try:
+        return f"{float(text):.2f}"
+    except ValueError:
+        return text
+
+
+def _load_screenline_model(calib_run, outputs_dir):
+    return pd.read_csv(vs.find_one(outputs_dir, "*Summary_Screenline.csv"))
+
+
+def _load_screenline_lookup(calib_run, outputs_dir):
+    return pd.read_csv(
+        vs.find_one(outputs_dir, "Screenline_Segment_Lookup.csv"), dtype={"SEGID": str}
+    )
+
+
+screenline_model_df = vs.load_per_run(repo_root, _load_screenline_model)
+screenline_model_df["ScreenlineID"] = screenline_model_df["ScreenlineID"].map(normalize_screenline_id)
+
+screenline_lookup_df = vs.load_per_run(repo_root, _load_screenline_lookup)
+screenline_lookup_df["ScreenlineID"] = screenline_lookup_df["ScreenlineID"].map(normalize_screenline_id)
+screenline_lookup_df = screenline_lookup_df[["SEGID", "ScreenlineID"]].drop_duplicates()
+
+# Observed side: reuse tgt_df (SEGID x vehType -> AWDT, from the VMT section
+# above), rolled up to ScreenlineID via the crosswalk.
+screenline_obs_daily_long = tgt_df.merge(screenline_lookup_df, on="SEGID", how="inner")
+
+screenline_counties = (
+    screenline_obs_daily_long[["ScreenlineID", "CO_FIPS"]]
+    .dropna()
+    .assign(COUNTY_NAME=lambda x: x["CO_FIPS"].map(fips_map).fillna("Other"))
+    .drop_duplicates()
+    .groupby("ScreenlineID")["COUNTY_NAME"]
+    .agg(lambda s: ", ".join(sorted(s)))
+    .reset_index()
+)
+
+screenline_obs_daily_long = (
+    screenline_obs_daily_long.groupby(["ScreenlineID", "vehType"], as_index=False)["AWDT"]
+    .sum()
+    .rename(columns={"AWDT": "Observed_DY"})
+)
+
+# Modeled side: melt Summary_Screenline.csv's wide AM/MD/PM/EV/DY_Vol_* columns
+# into long ScreenlineID x calib_run x PERIOD x vehType -> Modeled.
+screenline_periods = ["AM", "MD", "PM", "EV", "DY"]
+screenline_veh_types = ["PCLT", "MD", "HV"]
+screenline_model_long_parts = []
+for period in screenline_periods:
+    part = screenline_model_df[["ScreenlineID", "calib_run"]].copy()
+    part["PCLT"] = (
+        screenline_model_df[f"{period}_Vol_PC"] + screenline_model_df[f"{period}_Vol_LT"]
+    )
+    for veh in ["MD", "HV"]:
+        part[veh] = screenline_model_df[f"{period}_Vol_{veh}"]
+    part["All"] = part[screenline_veh_types].sum(axis=1)
+    part["PERIOD"] = period
+    screenline_model_long_parts.append(part)
+
+screenline_model_long = pd.concat(screenline_model_long_parts, ignore_index=True)
+screenline_model_long = screenline_model_long.melt(
+    id_vars=["ScreenlineID", "calib_run", "PERIOD"],
+    value_vars=["All", "PCLT", "MD", "HV"],
+    var_name="vehType",
+    value_name="Modeled",
+)
+
+# Allocate the daily observed total across periods using each run's own
+# modeled period share, then join back to Modeled for the final comparison.
+screenline_model_share = screenline_model_long.merge(
+    screenline_model_long[screenline_model_long["PERIOD"] == "DY"][
+        ["ScreenlineID", "calib_run", "vehType", "Modeled"]
+    ].rename(columns={"Modeled": "Modeled_DY"}),
+    on=["ScreenlineID", "calib_run", "vehType"],
+    how="left",
+)
+screenline_model_share["Period_Share"] = np.where(
+    screenline_model_share["Modeled_DY"] > 0,
+    screenline_model_share["Modeled"] / screenline_model_share["Modeled_DY"],
+    0,
+)
+
+screenline_obs_long = screenline_model_share.merge(
+    screenline_obs_daily_long, on=["ScreenlineID", "vehType"], how="left"
+)
+screenline_obs_long["Observed"] = np.where(
+    screenline_obs_long["PERIOD"] == "DY",
+    screenline_obs_long["Observed_DY"],
+    screenline_obs_long["Observed_DY"] * screenline_obs_long["Period_Share"],
+)
+
+screenline_compare = screenline_model_long.merge(
+    screenline_obs_long[["ScreenlineID", "calib_run", "PERIOD", "vehType", "Observed"]],
+    on=["ScreenlineID", "calib_run", "PERIOD", "vehType"],
+    how="inner",
+)
+screenline_compare["Observed"] = screenline_compare["Observed"].round(0)
+screenline_compare["Modeled"] = screenline_compare["Modeled"].round(0)
+screenline_compare["Obs_K"] = screenline_compare["Observed"] / 1000
+screenline_compare["Mod_K"] = screenline_compare["Modeled"] / 1000
+screenline_compare["Pct_Diff"] = np.where(
+    screenline_compare["Observed"] > 0,
+    (screenline_compare["Modeled"] - screenline_compare["Observed"]) / screenline_compare["Observed"],
+    np.nan,
+)
+screenline_compare = screenline_compare.merge(screenline_counties, on="ScreenlineID", how="left")
+screenline_compare["COUNTY_NAME"] = screenline_compare["COUNTY_NAME"].fillna("Other")
+screenline_compare["Screenline_Label"] = screenline_compare["ScreenlineID"].astype(str)
+screenline_compare["ScreenlineKey"] = screenline_compare["ScreenlineID"].map(normalize_screenline_id)
+screenline_compare["PERIOD_LABEL"] = screenline_compare["PERIOD"].map(
+    {"AM": "AM", "MD": "MD", "PM": "PM", "EV": "EV", "DY": "Daily"}
+)
+
+# Screenline geometry (static reference, not run-specific).
+gdf_screenlines = gpd.read_file(config_paths["path_in_screenlines"]).to_crs("EPSG:4326")
+screenline_id_col = next(
+    (
+        col
+        for col in [
+            "ScreenlineID", "SCREENLINEID", "SCREENLINE_ID", "Screenline",
+            "SCREENLINE", "ID2", "ID", "Id",
+        ]
+        if col in gdf_screenlines.columns
+    ),
+    None,
+)
+if screenline_id_col is None:
+    non_geom_cols = [c for c in gdf_screenlines.columns if c != "geometry"]
+    screenline_id_col = non_geom_cols[0]
+
+gdf_screenlines["ScreenlineID"] = gdf_screenlines[screenline_id_col].map(normalize_screenline_id)
+gdf_screenlines["ScreenlineKey"] = gdf_screenlines["ScreenlineID"]
+gdf_screenlines = gdf_screenlines.merge(screenline_counties, on="ScreenlineID", how="left")
+gdf_screenlines["COUNTY_NAME"] = gdf_screenlines["COUNTY_NAME"].fillna("Other")
+
+gdf_screenline_points = gdf_screenlines.copy()
+gdf_screenline_points["geometry"] = gdf_screenline_points.geometry.representative_point()
+
+ojs_define(
+    screenline_compare_py=screenline_compare,
+    screenline_geo_py=gdf_screenlines.__geo_interface__,
+    screenline_points_py=gdf_screenline_points.__geo_interface__,
+)
+```
+
+```{ojs}
+screenline_compare = transpose(screenline_compare_py)
+screenline_geo = screenline_geo_py
+screenline_points = screenline_points_py
+
+screenlineCountyOptions = {
+  const order = ["Box Elder", "Weber", "Davis", "Salt Lake", "Utah", "Other"]
+  const vals = new Set()
+  for (const d of screenline_compare) {
+    for (const county of String(d.COUNTY_NAME ?? "").split(",").map(s => s.trim()).filter(Boolean)) {
+      vals.add(county)
+    }
+  }
+  return order.filter(c => vals.has(c))
+}
+
+viewof screenlinePeriod = Inputs.select(
+  new Map([["Daily", "DY"], ["AM Peak", "AM"], ["Midday", "MD"], ["PM Peak", "PM"], ["Evening", "EV"]]),
+  {label: "Period:", value: "DY"}
+)
+
+viewof screenlineVehicle = Inputs.select(
+  new Map([["All Vehicles", "All"], ["Cars + Light CV", "PCLT"], ["Medium CV", "MD"], ["Heavy CV", "HV"]]),
+  {label: "Vehicle:", value: "All"}
+)
+
+viewof screenlineCounty = Inputs.select(
+  ["All Counties"].concat(screenlineCountyOptions),
+  {label: "County:", value: "All Counties"}
+)
+
+// calib_run comes from the shared globalCalibRun selector (see
+// _calib_run_selector.qmd), not a control of its own here.
+screenline_filtered = screenline_compare.filter(
+  d =>
+    d.calib_run === globalCalibRun &&
+    d.PERIOD === screenlinePeriod &&
+    d.vehType === screenlineVehicle &&
+    (
+      screenlineCounty === "All Counties" ||
+      String(d.COUNTY_NAME ?? "").split(",").map(s => s.trim()).includes(screenlineCounty)
+    )
+)
+
+max_screenline_k = Math.max(
+  d3.max(screenline_filtered, d => d.Obs_K) ?? 0,
+  d3.max(screenline_filtered, d => d.Mod_K) ?? 0,
+  1
+)
+
+screenlineOriginSlope = {
+  const pts = screenline_filtered.filter(d => Number.isFinite(d.Obs_K) && Number.isFinite(d.Mod_K))
+  const denom = d3.sum(pts, d => d.Obs_K * d.Obs_K)
+  if (!denom) return 1
+  return d3.sum(pts, d => d.Obs_K * d.Mod_K) / denom
+}
+
+screenlineTrendline = [
+  {x: 0, y: 0},
+  {x: max_screenline_k * 1.05, y: max_screenline_k * 1.05 * screenlineOriginSlope}
+]
+```
+
+::: {.panel-tabset}
+
+###### Model vs. Observed Scatter Plot
+
+```{ojs}
+Plot.plot({
+  width: Math.min(width, 900),
+  height: 520,
+  grid: true,
+  x: {
+    label: `Observed ${screenlinePeriod === "DY" ? "Daily" : screenlinePeriod} Screenline Volume (000s)`,
+    domain: [0, max_screenline_k * 1.05]
+  },
+  y: {
+    label: `Modeled ${screenlinePeriod === "DY" ? "Daily" : screenlinePeriod} Screenline Volume (000s)`,
+    domain: [0, max_screenline_k * 1.05]
+  },
+  marks: [
+    Plot.line([{x: 0, y: 0}, {x: max_screenline_k * 1.05, y: max_screenline_k * 1.05}], {
+      x: "x", y: "y", stroke: "currentColor", strokeOpacity: 0.5, strokeWidth: 1.5
+    }),
+    Plot.line(screenlineTrendline, {
+      x: "x", y: "y", stroke: themeModel, strokeDasharray: "4 4", strokeWidth: 2
+    }),
+    Plot.dot(screenline_filtered, {
+      x: "Obs_K", y: "Mod_K", fill: themeModel, stroke: "white", strokeOpacity: 0.7, r: 5,
+      title: d => `Screenline ${d.Screenline_Label}\nCounty: ${d.COUNTY_NAME}\nPeriod: ${d.PERIOD_LABEL}\nVehicle Type: ${d.vehType}\nObserved: ${Math.round(d.Observed).toLocaleString()}\nModeled: ${Math.round(d.Modeled).toLocaleString()}\nPercent Diff: ${d.Pct_Diff == null ? "N/A" : (d.Pct_Diff * 100).toFixed(1) + "%"}`
+    }),
+    Plot.tip(
+      screenline_filtered,
+      Plot.pointer({
+        x: "Obs_K", y: "Mod_K",
+        title: d => `Screenline ${d.Screenline_Label}\nCounty: ${d.COUNTY_NAME}\nPeriod: ${d.PERIOD_LABEL}\nVehicle Type: ${d.vehType}\nObserved: ${Math.round(d.Observed).toLocaleString()}\nModeled: ${Math.round(d.Modeled).toLocaleString()}\nPercent Diff: ${d.Pct_Diff == null ? "N/A" : (d.Pct_Diff * 100).toFixed(1) + "%"}`
+      })
+    )
+  ]
+})
+```
+
+###### Interactive Mapping
+
+```{ojs}
+screenlineLeaflet = require("leaflet@1.9.4")
+html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">`
+
+normalizeScreenlineIdJs = value => {
+  if (value == null) return ""
+  const text = String(value).trim()
+  const num = Number(text)
+  return Number.isFinite(num) ? num.toFixed(2) : text
+}
+
+screenlineStatsMap = new Map(screenline_filtered.map(d => [String(d.ScreenlineKey), d]))
+
+screenlineColor = pct => {
+  if (!Number.isFinite(pct)) return "#7f8c8d"
+  if (pct >= 0.2) return "#b2182b"
+  if (pct >= 0.1) return "#d6604d"
+  if (pct > 0.02) return "#f4a582"
+  if (pct <= -0.2) return "#2166ac"
+  if (pct <= -0.1) return "#4393c3"
+  if (pct < -0.02) return "#92c5de"
+  return "#7fbf7b"
+}
+
+screenlineMap = {
+  const container = document.createElement("div")
+  container.style.height = "650px"
+  container.style.width = "100%"
+  container.style.borderRadius = "8px"
+  container.style.border = "1px solid #ccc"
+
+  const map = screenlineLeaflet.map(container).setView([40.7608, -111.8910], 9)
+  ctrlScrollZoom(map, container)
+  screenlineLeaflet.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    attribution: "&copy; OpenStreetMap &copy; CARTO",
+    maxZoom: 19
+  }).addTo(map)
+
+  let lineLayer
+  let pointLayer
+
+  const resetStyles = () => {
+    if (lineLayer) lineLayer.eachLayer(l => lineLayer.resetStyle(l))
+    if (pointLayer) {
+      pointLayer.eachLayer(l => {
+        const d = screenlineStatsMap.get(l._screenlineId)
+        l.setStyle({
+          radius: 6,
+          fillColor: screenlineColor(d ? d.Pct_Diff : NaN),
+          color: "#1f1f1f",
+          weight: 1.5,
+          fillOpacity: 0.95
+        })
+      })
+    }
+  }
+
+  const highlightId = id => {
+    if (lineLayer) {
+      lineLayer.eachLayer(l => {
+        if (l._screenlineId === id) {
+          l.setStyle({color: "#00e5ff", weight: 6, opacity: 1})
+          l.bringToFront()
+        }
+      })
+    }
+    if (pointLayer) {
+      pointLayer.eachLayer(l => {
+        if (l._screenlineId === id) {
+          l.setStyle({color: "#00e5ff", fillColor: "#00e5ff", weight: 2.5})
+          l.setRadius(8)
+          l.bringToFront()
+        }
+      })
+    }
+  }
+
+  lineLayer = screenlineLeaflet.geoJSON(screenline_geo, {
+    style: feature => {
+      const id = String(feature.properties.ScreenlineKey ?? normalizeScreenlineIdJs(feature.properties.ScreenlineID))
+      const d = screenlineStatsMap.get(id)
+      return {
+        color: screenlineColor(d ? d.Pct_Diff : NaN),
+        weight: d ? 6 : 3,
+        opacity: d ? 0.95 : 0.35
+      }
+    },
+    onEachFeature: (feature, layer) => {
+      const id = String(feature.properties.ScreenlineKey ?? normalizeScreenlineIdJs(feature.properties.ScreenlineID))
+      layer._screenlineId = id
+      layer.on("mouseover", () => { resetStyles(); highlightId(id) })
+      layer.on("mouseout", () => resetStyles())
+    }
+  }).addTo(map)
+
+  pointLayer = screenlineLeaflet.geoJSON(screenline_points, {
+    pointToLayer: (feature, latlng) => {
+      const id = String(feature.properties.ScreenlineKey ?? normalizeScreenlineIdJs(feature.properties.ScreenlineID))
+      const d = screenlineStatsMap.get(id)
+      return screenlineLeaflet.circleMarker(latlng, {
+        radius: d ? 6 : 4,
+        fillColor: screenlineColor(d ? d.Pct_Diff : NaN),
+        color: "#1f1f1f",
+        weight: d ? 1.5 : 1,
+        opacity: d ? 1 : 0.5,
+        fillOpacity: d ? 0.95 : 0.35
+      })
+    },
+    onEachFeature: (feature, layer) => {
+      const id = String(feature.properties.ScreenlineKey ?? normalizeScreenlineIdJs(feature.properties.ScreenlineID))
+      layer._screenlineId = id
+      layer.on("mouseover", () => { resetStyles(); highlightId(id) })
+      layer.on("mouseout", () => resetStyles())
+    }
+  }).addTo(map)
+
+  const bounds = lineLayer.getBounds()
+  if (bounds.isValid()) {
+    map.fitBounds(bounds, {padding: [30, 30]})
+  }
+
+  const legend = screenlineLeaflet.control({position: "bottomright"})
+  legend.onAdd = function() {
+    const div = screenlineLeaflet.DomUtil.create("div", "info legend")
+    div.style.backgroundColor = "white"
+    div.style.padding = "10px"
+    div.style.borderRadius = "5px"
+    div.style.boxShadow = "0 0 15px rgba(0,0,0,0.2)"
+    div.style.fontSize = "12px"
+    div.innerHTML = `
+      <strong>Model vs Observed</strong><br>
+      <div><span style="display:inline-block;width:14px;height:14px;background:#2166ac;margin-right:6px;"></span>Under by 20%+</div>
+      <div><span style="display:inline-block;width:14px;height:14px;background:#4393c3;margin-right:6px;"></span>Under by 10-20%</div>
+      <div><span style="display:inline-block;width:14px;height:14px;background:#92c5de;margin-right:6px;"></span>Under by 2-10%</div>
+      <div><span style="display:inline-block;width:14px;height:14px;background:#7fbf7b;margin-right:6px;"></span>Within 2%</div>
+      <div><span style="display:inline-block;width:14px;height:14px;background:#f4a582;margin-right:6px;"></span>Over by 2-10%</div>
+      <div><span style="display:inline-block;width:14px;height:14px;background:#d6604d;margin-right:6px;"></span>Over by 10-20%</div>
+      <div><span style="display:inline-block;width:14px;height:14px;background:#b2182b;margin-right:6px;"></span>Over by 20%+</div>
+    `
+    return div
+  }
+  legend.addTo(map)
+
+  const resizeObserver = new ResizeObserver(() => {
+    map.invalidateSize()
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, {padding: [30, 30]})
+    }
+  })
+  resizeObserver.observe(container)
+
+  container.addEventListener("mouseleave", () => resetStyles())
+  return container
+}
+
+screenlineMap
+```
+
+:::
 
 ## HOT Lane Validation
 ```{python}
@@ -2429,6 +2906,7 @@ map_display2 = {
 
   // 3. INITIALIZE MAP (Now it knows its true size!)
   const map = L.map(container).setView([40.7608, -111.8910], 9);
+  ctrlScrollZoom(map, container);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap &copy; CARTO'
   }).addTo(map);

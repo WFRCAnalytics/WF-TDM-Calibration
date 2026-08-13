@@ -110,6 +110,8 @@ outputs:
     - datafile: "4_ModeChoice/4_Shares/*RegionShares_Pk.csv"
     - datafile: "5_AssignHwy/4_Summaries/*Summary_SEGID.csv"
     - datafile: "5_AssignHwy/4_Summaries/*Summary_SEGID_Detailed.csv"
+    - datafile: "5_AssignHwy/4_Summaries/*Summary_Screenline.csv"
+    - datafile: "Temp/5_AssignHwy/Screenline_Segment_Lookup.csv"
     # Matrix conversions (Cube .MTX -> .omx). source_format defaults to "mtx"
     # (Cube's native format, the real Scenarios/{calib_run_id}/ working
     # folder's actual output) -- requires config/local.yaml's Voyager_EXE to
