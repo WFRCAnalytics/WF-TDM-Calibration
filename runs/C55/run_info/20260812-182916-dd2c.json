@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "calib_run_id": "C55",
+  "run_id": "20260812-182916-dd2c",
+  "status": "failed",
+  "execution_mode": "cli",
+  "started_at": "2026-08-12T18:29:16.218724+00:00",
+  "finished_at": "2026-08-12T18:29:49.642110+00:00",
+  "framework_commit": "8152199aef05456896b32b087fba40bf2fe3746f",
+  "tdm": {
+    "requested_ref": "calib/C55",
+    "resolved_commit": "74c2be11bf2e1b22471e20b219439b20798431e6",
+    "resolved_tag": "calib/C55",
+    "branch": null,
+    "detached_head": true,
+    "dirty": false
+  },
+  "control_center": {
+    "baseline_file": "_ControlCenter - BY_2023.block",
+    "overrides": {
+      "UserName": "Bill Hereth",
+      "UserCompany": "WFRC",
+      "keyOutputPrfx": "_"
+    },
+    "rendered_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C55\\_ControlCenter.block",
+    "driver_script": "Scenarios/_default/__HailMary_resumable.s"
+  },
+  "scenario_folder": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C55",
+  "execution": {
+    "command": [
+      "cmd.exe",
+      "/c",
+      "M:\\GitHub\\WF-TDM-Calibration\\bin\\RunModel.bat",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C55\\_ControlCenter.block",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C55"
+    ],
+    "exit_code": 2,
+    "log_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C55\\logs\\orchestrator_invocation.log",
+    "status_source": "exit_code"
+  },
+  "outputs": {
+    "inventory_count": 8,
+    "inventory_total_bytes": 168127,
+    "curated": []
+  },
+  "error": "No resolved model completion report in M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C55\\_Log\\_RunTime.txt (see M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C55\\logs\\orchestrator_invocation.log). Voyager exit code: 2.\n\nVoyager errors (TPPL0001.PRN):\nF(102): Error opening M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C55\\_Log\\_RunTime.txt :\nF(102): OS reports: The system cannot find the path specified.\nF(641): Step 365, RUN MATRIX can not be run while ONRUNERRORGOTO processing.",
+  "general_parameters": {
+    "overrides": {
+      "calibFac_LT_BE": 1.15,
+      "calibFac_LT_WE": 1.15,
+      "calibFac_LT_DA": 1.06,
+      "calibFac_LT_SL": 1.0,
+      "calibFac_LT_UT": 1.0,
+      "calibFac_MD_BE": 0.75,
+      "calibFac_MD_WE": 0.67,
+      "calibFac_MD_DA": 0.9,
+      "calibFac_MD_SL": 0.87,
+      "calibFac_MD_UT": 1.06,
+      "calibFac_HV_BE": 2.93,
+      "calibFac_HV_WE": 2.27,
+      "calibFac_HV_DA": 2.5,
+      "calibFac_HV_SL": 4.05,
+      "calibFac_HV_UT": 0.89,
+      "DA_FwyTruckCostFac": 1.3,
+      "DA_NonFwyTruckCostFac": 0.75,
+      "DA_RampTruckPenAdd": 1.7,
+      "SL_FwyTruckCostFac": 1.1,
+      "SL_NonFwyTruckCostFac": 0.95,
+      "SL_RampTruckPenAdd": 0.45,
+      "calibFac_Ext_PL_3604": 1.25,
+      "calibFac_Ext_MD_3604": 1.0,
+      "calibFac_Ext_HV_3604": 1.1,
+      "calibFac_Ext_PL_3612": 1.1,
+      "calibFac_Ext_MD_3612": 1.1,
+      "calibFac_Ext_HV_3612": 1.1,
+      "calibFac_Ext_PL_3628": 1.15,
+      "calibFac_Ext_MD_3628": 1.15,
+      "calibFac_Ext_HV_3628": 1.15
+    }
+  }
+}
