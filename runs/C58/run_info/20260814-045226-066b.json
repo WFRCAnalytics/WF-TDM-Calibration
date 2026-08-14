@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "calib_run_id": "C58",
+  "run_id": "20260814-045226-066b",
+  "status": "failed",
+  "execution_mode": "cli",
+  "started_at": "2026-08-14T04:52:26.653589+00:00",
+  "finished_at": "2026-08-14T04:56:29.816961+00:00",
+  "framework_commit": "74eb8b112673c927af6f72a9941636b696681de9",
+  "tdm": {
+    "requested_ref": "calib/C58",
+    "resolved_commit": "24f1556e9adbec5032ba94799753f7637ff284b7",
+    "resolved_tag": "calib/C58",
+    "branch": null,
+    "detached_head": true,
+    "dirty": false
+  },
+  "control_center": {
+    "baseline_file": "_ControlCenter - BY_2023.block",
+    "overrides": {
+      "UserName": "Bill Hereth",
+      "UserCompany": "WFRC",
+      "keyOutputPrfx": "_"
+    },
+    "rendered_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C58\\_ControlCenter.block",
+    "driver_script": "Scenarios/_default/__HailMary_resumable.s"
+  },
+  "scenario_folder": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C58",
+  "execution": {
+    "command": [
+      "cmd.exe",
+      "/c",
+      "M:\\GitHub\\WF-TDM-Calibration\\bin\\RunModel.bat",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C58\\_ControlCenter.block",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C58"
+    ],
+    "exit_code": 255,
+    "log_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C58\\logs\\orchestrator_invocation.log",
+    "status_source": "exit_code"
+  },
+  "outputs": {
+    "inventory_count": 103,
+    "inventory_total_bytes": 72826143,
+    "curated": []
+  },
+  "error": "No resolved model completion report in M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C58\\_Log\\_RunTime.txt (see M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C58\\logs\\orchestrator_invocation.log). Voyager exit code: 255."
+}
