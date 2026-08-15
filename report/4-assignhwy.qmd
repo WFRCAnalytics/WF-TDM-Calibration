@@ -3141,9 +3141,10 @@ timeT = transpose(time).map(d => ({
 
 // 3. Filtered Data
 timeT_filtered = timeT.filter(function(dataTme) {
+    let matchRun = dataTme.calib_run === globalCalibRun;
     let matchPeriod = vPeriod == dataTme.Period;
     let matchGeo = vGeography == 'Region' || vGeography == dataTme.O_CO_NAME;
-    return matchPeriod && matchGeo;
+    return matchRun && matchPeriod && matchGeo;
 });
 
 // Dynamic Max Value
@@ -3166,7 +3167,7 @@ The chart below summarizes the whole region across all four periods at once (unf
 regionTimeSummary = {
   const periodLabels = new Map([['AM', 'AM Peak'], ['MD', 'Midday'], ['PM', 'PM Peak'], ['EV', 'Evening']]);
   return Array.from(periodLabels, ([code, label]) => {
-    const rows = timeT.filter(d => d.Period === code && Number.isFinite(d.spdObs) && Number.isFinite(d.spdMod));
+    const rows = timeT.filter(d => d.calib_run === globalCalibRun && d.Period === code && Number.isFinite(d.spdObs) && Number.isFinite(d.spdMod));
     const obsMean = d3.mean(rows, d => d.spdObs);
     const modMean = d3.mean(rows, d => d.spdMod);
     return {
