@@ -3237,14 +3237,11 @@ Plot.plot({
 })
 ```
 
-:::: {.columns}
-::: {.column width="50%"}
-
 ```{ojs}
 // CHART A: Model vs Observed Travel Times
 Plot.plot({
   grid: true,
-  width: 460,
+  width: width,
   height: 380,
   marginRight: 50,
   caption: html`<h4>Model vs Observed Times</h4>`,
@@ -3292,46 +3289,6 @@ Plot.plot({
   ]
 })
 ```
-
-:::
-
-::: {.column width="50%"}
-
-```{ojs}
-// CHART B: Percent Error Scatter
-Plot.plot({
-  grid: true,
-  width: 460,
-  height: 380,
-  caption: html`<h4>Percent Error Distribution</h4>`,
-  x: { label: "Observed Time (minutes)", domain: [0, chartMaxTime] },
-  y: { label: "Percent Error", domain: [-2.0, 2.0], tickFormat: d3.format(".0%") },
-  marks: [
-    Plot.ruleY([0], { stroke: "#000", strokeWidth: 1.5 }),
-    Plot.dot(timeT_filtered, {
-      x: "tmeObs", 
-      y: "tmeErrorPct", 
-      r: 3.5,
-      fill: themeModel, 
-      fillOpacity: 0.5,
-      stroke: "white",
-      strokeWidth: 0.5,
-      tip: true,
-      title: (d) => 
-        `O_TAZ: ${d.O_TAZID}\nD_TAZ: ${d.D_TAZID}\n` +
-        `Observed: ${d.tmeObs.toFixed(1)} min\n` +
-        `Error: ${d3.format("+.1%")(d.tmeErrorPct)}`
-    }),
-    Plot.line([[0, 2.0], [1, 2.0], [1, 1.0], [2.5, 1.0], [2.5, 0.5], [5, 0.5], [5, 0.25], [10, 0.25], [10, 0.20], [25, 0.20], [25, 0.15], [50, 0.15], [50, 0.10], [chartMaxTime, 0.10]], 
-      { stroke: "gray", strokeWidth: 1.5, strokeDasharray: "2 2", curve: "step-after" }),
-    Plot.line([[0, -2.0], [1, -2.0], [1, -1.0], [2.5, -1.0], [2.5, -0.5], [5, -0.5], [5, -0.25], [10, -0.25], [10, -0.20], [25, -0.20], [25, -0.15], [50, -0.15], [50, -0.10], [chartMaxTime, -0.10]], 
-      { stroke: "gray", strokeWidth: 1.5, strokeDasharray: "2 2", curve: "step-after" })
-  ]
-})
-```
-
-:::
-::::
 
 ```{ojs}
 // Display the total number of data points dynamically
