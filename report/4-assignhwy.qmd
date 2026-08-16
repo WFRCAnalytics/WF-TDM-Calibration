@@ -3128,7 +3128,8 @@ viewof vPeriod = Inputs.select(new Map([
         ["AM Peak", "AM"],
         ["Midday", "MD"],
         ["PM Peak", "PM"],
-        ["Evening", "EV"]
+        ["Evening", "EV"],
+        ["All Day", "ALL"]
 ]), {value: 'AM', label: 'Period:'})
 
 viewof vGeography = Inputs.select(county_opts, {value: 'Region', label: 'Geography:'})
@@ -3140,9 +3141,11 @@ timeT = transpose(time).map(d => ({
 })).filter(d => d.tmeObs > 0);
 
 // 3. Filtered Data
+// "All Day" pools every period's O-D pairs into one combined view instead
+// of filtering down to a single period.
 timeT_filtered = timeT.filter(function(dataTme) {
     let matchRun = dataTme.calib_run === globalCalibRun;
-    let matchPeriod = vPeriod == dataTme.Period;
+    let matchPeriod = vPeriod == 'ALL' || vPeriod == dataTme.Period;
     let matchGeo = vGeography == 'Region' || vGeography == dataTme.O_CO_NAME;
     return matchRun && matchPeriod && matchGeo;
 });
@@ -3165,9 +3168,10 @@ The chart below summarizes the whole region across all four periods at once (unf
 
 ```{ojs}
 regionTimeSummary = {
-  const periodLabels = new Map([['AM', 'AM Peak'], ['MD', 'Midday'], ['PM', 'PM Peak'], ['EV', 'Evening']]);
+  const periodLabels = new Map([['AM', 'AM Peak'], ['MD', 'Midday'], ['PM', 'PM Peak'], ['EV', 'Evening'], ['ALL', 'All Day']]);
   return Array.from(periodLabels, ([code, label]) => {
-    const rows = timeT.filter(d => d.calib_run === globalCalibRun && d.Period === code && Number.isFinite(d.spdObs) && Number.isFinite(d.spdMod));
+    // "All Day" pools rows across every period instead of filtering to one.
+    const rows = timeT.filter(d => d.calib_run === globalCalibRun && (code === 'ALL' || d.Period === code) && Number.isFinite(d.spdObs) && Number.isFinite(d.spdMod));
     const obsMean = d3.mean(rows, d => d.spdObs);
     const modMean = d3.mean(rows, d => d.spdMod);
     return {
@@ -3192,10 +3196,10 @@ timeXMax = d3.max(regionTimeSummary, d => Math.max(d.obsMean, d.modMean)) || 1
 
 Plot.plot({
   width: width,
-  height: 220,
+  height: 260,
   marginLeft: 100,
   marginRight: 60,
-  y: {domain: ["AM Peak", "Midday", "PM Peak", "Evening"], label: null},
+  y: {domain: ["AM Peak", "Midday", "PM Peak", "Evening", "All Day"], label: null},
   x: {label: "Average Speed (mph)", domain: [0, timeXMax], grid: true, nice: true},
   marks: [
     Plot.link(regionTimeSummary, {
