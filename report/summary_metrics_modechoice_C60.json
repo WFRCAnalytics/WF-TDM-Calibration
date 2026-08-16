@@ -1,0 +1,9 @@
+{
+  "calib_run": "C60",
+  "stage": "modechoice",
+  "metrics": {
+    "transit_mode_share_model": 0.21168761388590385,
+    "transit_mode_share_target": 0.23186616597182683,
+    "transit_trips_pct_diff": -0.029663454976461497
+  }
+}
