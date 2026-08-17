@@ -42,6 +42,16 @@ resolved driver script to actually contain a RESUME POINT marker (see
 _rewrite_resume_point) -- raises DriverScriptError otherwise, since a
 silently-ignored start_at_label would be worse than an explicit failure.
 
+The value staged here isn't always calib_run["start_at_label"] verbatim:
+`tdmcalib run --start-at <label>` (cli.py) overrides it for one attempt,
+passing stage() a shallow copy of calib_run with the override already
+substituted in rather than touching the loaded config or the committed
+YAML -- see execution.py's run(). That's the sanctioned way to resume a
+crashed attempt; calib_run["start_at_label"] itself is meant for a run
+that's deliberately partial by design (e.g. paired with run_seed.py's
+start_from_copy), since it's a committed value that would otherwise
+silently carry over to the next run copied from that YAML file.
+
 This is a distinct mechanism from Control Center overrides (controlcenter.py):
 it substitutes which code runs, not a parameter value, so it never touches
 the overrides dict or its baseline-key validation.

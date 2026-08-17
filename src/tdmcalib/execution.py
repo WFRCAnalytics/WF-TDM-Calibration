@@ -225,7 +225,9 @@ def _validate_overrides(
     return cc_local_layer
 
 
-def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
+def run(
+    repo_root: Path, calib_run_id: str, force: bool = False, start_at_label: str = None
+) -> dict:
     """
     Executes one full attempt of a calibration run: resolve version, render
     Control Center, invoke the TDM, curate outputs, write metadata. Returns
@@ -233,9 +235,23 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
     execution before anything happens (config errors, unknown override keys,
     unresolvable TDM ref); execution and output failures are instead
     recorded in a 'failed' run record.
+
+    start_at_label, if given, overrides calibration_runs/<id>.yaml's own
+    declared start_at_label for this attempt only -- the CLI's `--start-at`
+    (see cli.py). This is the sanctioned way to resume a crashed attempt
+    from its driver script's RESUME POINT (see driver_script.py): the
+    override is attempt-scoped and never written back to the committed
+    YAML, unlike editing start_at_label there directly, which would silently
+    carry over to the next run copied from that file (see calibration_run
+    .schema.json's start_at_label description for when a YAML-level value
+    is still the right call -- a deliberately partial run, e.g. paired with
+    start_from_copy, not an ad hoc resume).
     """
     framework = cfg.load_framework_config(repo_root)
     calib_run = cfg.load_calibration_run(repo_root, calib_run_id)
+    declared_start_at_label = calib_run["start_at_label"]
+    start_at_override = start_at_label is not None
+    effective_start_at_label = start_at_label if start_at_override else declared_start_at_label
 
     if not force:
         existing = md.latest_run(repo_root, calib_run_id)
@@ -307,12 +323,17 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
     if general_parameter_overrides:
         gp.write_override_file(general_parameter_overrides, folder / gp.OVERRIDE_FILENAME)
 
-    # --- stage the driver script: driver_script is required, no framework default ---
+    # --- stage the driver script: driver_script is required, no framework default.
+    # A copy with start_at_label swapped, not a mutation of calib_run itself, so a
+    # --start-at override never leaks into anything else read from calib_run below. ---
+    staged_calib_run = (
+        calib_run if not start_at_override else {**calib_run, "start_at_label": effective_start_at_label}
+    )
     driver_script_path = ds.stage(
         cr_dir,
         tdm_path,
         framework["control_center_defaults_dir"],
-        calib_run,
+        staged_calib_run,
         folder,
     )
 
@@ -344,6 +365,8 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
         general_parameter_overrides=general_parameter_overrides,
         seeded_from=seeded_from,
         scenario_folder=str(folder),
+        start_at_label=effective_start_at_label,
+        start_at_override=start_at_override,
     )
 
     exit_code = invoke(
@@ -393,6 +416,8 @@ def run(repo_root: Path, calib_run_id: str, force: bool = False) -> dict:
         general_parameter_overrides=general_parameter_overrides,
         rendered_path=str(control_center_path),
         driver_script=driver_script_path,
+        start_at_label=effective_start_at_label,
+        start_at_override=start_at_override,
         seeded_from=seeded_from,
         scenario_folder=str(folder),
         command=command,

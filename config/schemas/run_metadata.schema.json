@@ -50,6 +50,14 @@
         "driver_script": {
           "type": "string",
           "description": "Source path of the driver script staged into the working folder for this run -- relative to calibration_runs/ if a custom driver_script was declared, or relative to the TDM submodule root (e.g. 'Scenarios/_default/__HailMary_1Subfolder.s') if the framework default was used. Absent only for execution_mode 'manual'."
+        },
+        "start_at_label": {
+          "type": "string",
+          "description": "The driver script RESUME POINT label this attempt actually started from (see src/tdmcalib/driver_script.py) -- 'STEP0' for a normal full run. Reflects `tdmcalib run --start-at`'s override when given, which may differ from calibration_runs/<id>.yaml's own declared start_at_label -- see start_at_override. Absent only for execution_mode 'manual'."
+        },
+        "start_at_override": {
+          "type": "boolean",
+          "description": "True if this attempt's start_at_label came from the `tdmcalib run --start-at` CLI flag rather than calibration_runs/<id>.yaml's own declared start_at_label -- distinguishes an ad hoc crash-resume (attempt-scoped, never written back to the committed config) from the run's normal declared starting point. Present whenever start_at_label is."
         }
       }
     },

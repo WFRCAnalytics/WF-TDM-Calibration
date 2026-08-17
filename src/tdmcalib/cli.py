@@ -106,11 +106,22 @@ def sync_tdm_cmd(calib_run_id):
 @main.command("run")
 @click.option("--run", "calib_run_id", required=True)
 @click.option("--force", is_flag=True, help="Run even if a successful run already exists.")
-def run_cmd(calib_run_id, force):
+@click.option(
+    "--start-at",
+    "start_at_label",
+    default=None,
+    help=(
+        "Override calibration_runs/<id>.yaml's start_at_label for this attempt only "
+        "(e.g. STEP4_05), without editing the committed config. For resuming a crashed "
+        "attempt from its driver script's RESUME POINT -- for a deliberately partial run "
+        "(e.g. paired with start_from_copy), declare start_at_label in the YAML instead."
+    ),
+)
+def run_cmd(calib_run_id, force, start_at_label):
     """Run a single calibration run end to end."""
     repo_root = find_repo_root()
     try:
-        result = ex.run(repo_root, calib_run_id, force=force)
+        result = ex.run(repo_root, calib_run_id, force=force, start_at_label=start_at_label)
     except tdmcalibError as e:
         click.echo(f"[FAIL] {calib_run_id}: {e}", err=True)
         sys.exit(1)

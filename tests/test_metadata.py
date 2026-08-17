@@ -85,3 +85,47 @@ def test_latest_successful_run_skips_a_failed_latest_attempt(tmp_path):
     md.write(run_dir, _minimal("C50", "20260101-000000-aaaa", status="success"))
     md.write(run_dir, _minimal("C50", "20260102-000000-bbbb", status="failed"))
     assert md.latest_successful_run(repo_root, "C50") is None
+
+
+def test_build_omits_start_at_label_when_not_given():
+    # Matches driver_script/rendered_path/seeded_from's "leave out entirely"
+    # convention -- execution_mode "manual" never stages a driver script, so
+    # there's no start_at_label to report either.
+    result = _minimal("C50", "20260101-000000-aaaa")
+    assert "start_at_label" not in result["control_center"]
+    assert "start_at_override" not in result["control_center"]
+
+
+def test_build_records_a_resumed_attempts_start_at_label_and_override():
+    result = md.build(
+        schema_version=1,
+        calib_run_id="C50",
+        run_id="20260101-000000-aaaa",
+        status="success",
+        started_at="2026-01-01T00:00:00+00:00",
+        framework_commit_sha="abc123",
+        tdm_state={},
+        baseline_file="baseline.block",
+        overrides={},
+        start_at_label="STEP4_05",
+        start_at_override=True,
+    )
+    assert result["control_center"]["start_at_label"] == "STEP4_05"
+    assert result["control_center"]["start_at_override"] is True
+
+
+def test_build_records_a_normal_runs_start_at_label_without_override():
+    result = md.build(
+        schema_version=1,
+        calib_run_id="C50",
+        run_id="20260101-000000-aaaa",
+        status="success",
+        started_at="2026-01-01T00:00:00+00:00",
+        framework_commit_sha="abc123",
+        tdm_state={},
+        baseline_file="baseline.block",
+        overrides={},
+        start_at_label="STEP0",
+    )
+    assert result["control_center"]["start_at_label"] == "STEP0"
+    assert result["control_center"]["start_at_override"] is False
