@@ -60,3 +60,55 @@
     border-color: #3a3f44;
   }
 }
+
+/* Same control, moved next to the site title in the navbar header (inside
+   .navbar-brand-container) by report/_calib_run_selector.qmd's OJS cell --
+   styled as a compact pill that reads against the navbar's dark brand
+   background (see wfrc-brand's navbar-bg) rather than the page background. */
+/* The brand container's default flex-shrink lets bootstrap ellipsize the
+   title text down to nothing to make room for whatever else is in the row
+   -- wrap instead, so a tight viewport drops the control to its own line
+   under the logo/title rather than eating the site title. */
+#quarto-header .navbar-brand-container {
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+}
+
+#quarto-header .navbar-brand-container > .navbar-brand {
+  flex-shrink: 0;
+}
+
+.calib-run-navbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  margin-left: 1rem;
+  padding: 0.25rem 0.6rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+}
+
+.calib-run-navbar label {
+  margin-bottom: 0;
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.calib-run-navbar select {
+  min-width: 6rem;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 991.98px) {
+  .calib-run-navbar {
+    margin-left: 0.5rem;
+  }
+  .calib-run-navbar label {
+    display: none;
+  }
+}

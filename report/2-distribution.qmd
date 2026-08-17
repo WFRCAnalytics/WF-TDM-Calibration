@@ -385,7 +385,7 @@ viewof binSize = Inputs.range([1, 5], {value: 2, step: 1, label: "Bin Size:"})
 ```{ojs}
 freqT = transpose(freq)
 
-// reuses globalCalibRun (the shared sidebar-bar selector, _calib_run_selector.qmd)
+// reuses globalCalibRun (the shared header selector, _calib_run_selector.qmd)
 freqT_filtered_Tgt = freqT.filter(function(freqData) {
     return vTripPurp == freqData.TRIPPURP &&
     vTlfType == freqData.TLFTYPE &&
@@ -574,7 +574,7 @@ ojs_define(dataIntra = df_intra)
 
 
 ```{ojs}
-// reuses globalCalibRun (the shared sidebar-bar selector, _calib_run_selector.qmd)
+// reuses globalCalibRun (the shared header selector, _calib_run_selector.qmd)
 dataIntraT = transpose(dataIntra).filter(d => d.calib_run === globalCalibRun)
 ```
 

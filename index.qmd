@@ -20,9 +20,9 @@ calib_runs = vs.list_available_runs(repo_root)
 
 Calibration validation reports comparing modeled results against observed data
 (HTS, ACS, OBS, and count data). Each report covers every available calibration
-run — use the "Calibration Run" dropdown in the sidebar to pick which run's
-modeled results to view against observed data; your choice carries over as you
-move between pages.
+run — use the "Calibration Run" dropdown next to the title above to pick which
+run's modeled results to view against observed data; your choice carries over
+as you move between pages.
 
 - [Household Disaggregation & Auto Ownership](report/0-hhdisag-autoown.qmd)
 - [Trip Generation](report/1-tripgen.qmd)

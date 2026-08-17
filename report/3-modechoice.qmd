@@ -807,7 +807,7 @@ html`<br/><br/>`
 Each tab below is a dumbbell chart comparing Model to Target by mode for one category -- the connecting line's length is the gap, and the percent label is the model's difference from target. "All" is the system-wide total across every mode. Transfer Ratio (model boardings per model trip) isn't a count, so it keeps its own 2-decimal scale rather than sharing an axis with the trip/boarding counts.
 
 ```{ojs}
-// reuses globalCalibRun (the shared sidebar-bar selector, _calib_run_selector.qmd)
+// reuses globalCalibRun (the shared header selector, _calib_run_selector.qmd)
 dataBTT = transpose(boardTable)
 
 transitCategories = ["Trips by Hierarchical Mode", "Boardings by Hierarchical Mode", "Transfer Ratio", "Boardings by Mode Surveyed"]

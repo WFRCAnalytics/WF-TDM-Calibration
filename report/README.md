@@ -6,8 +6,9 @@ comparing modeled output against observed data (HTS survey, ACS/Census, transit
 on-board survey, traffic counts). There is **one set of reports, not one per
 calibration run** — each report loads every calibration run that has at least one
 successful `tdmcalib` run under `runs/`, and a single shared "Calibration Run" dropdown
-(`report/_calib_run_selector.qmd`, spliced into every page, sitting in the left sidebar)
-picks which run's modeled results to view against observed data, persisted across page
+(`report/_calib_run_selector.qmd`, spliced into every page, sitting in the navbar header
+next to the site title) picks which run's modeled results to view against observed data,
+persisted across page
 navigation via `localStorage`. `compare.qmd` shows headline metrics across runs side by
 side.
 

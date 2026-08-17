@@ -1144,7 +1144,7 @@ ojs_define(ccs_daily_data=df_final_export)
 //| echo: false
 
 // Define daily_data globally so the Input Panel above can see it. Reuses
-// globalCalibRun (the shared sidebar-bar selector, _calib_run_selector.qmd)
+// globalCalibRun (the shared header selector, _calib_run_selector.qmd)
 // so one control governs the whole site.
 daily_data = transpose(ccs_daily_data)
   .filter(d => d.calib_run === globalCalibRun)

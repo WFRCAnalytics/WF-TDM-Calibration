@@ -14,16 +14,17 @@ run selector. Persists the choice across page navigation via localStorage
 control feel global across the whole site rather than resetting on every
 page).
 
-The control is moved into Quarto's docked sidebar DOM (`#quarto-sidebar`,
-between its `.sidebar-header` and `.sidebar-menu-container`) after it
-renders, so it sits above the page-navigation links rather than in the main
-content flow -- see the `setTimeout` below. Falls back to staying inline
-(styled as a `.calib-run-bar`, a sticky bar under the page title) if that
-sidebar structure isn't found, e.g. a future Quarto version restructuring
-the sidebar, or `website.sidebar` not being docked. On narrow/mobile
-viewports, Quarto collapses the docked sidebar into an off-canvas menu, so
-the control is only reachable via the hamburger toggle there -- a real
-trade-off versus the always-visible inline placement, not a bug.
+The control is moved into the navbar header DOM (`#quarto-header
+.navbar-brand-container`, appended right after the site title link) after
+it renders, so it sits next to "WF-TDM Calibration" rather than in the main
+content flow -- see the `setTimeout` below. That container sits outside
+Quarto's collapsible navbar menu, so it stays visible on narrow/mobile
+viewports too, unlike the docked sidebar it used to live in. Falls back to
+the docked sidebar DOM (`#quarto-sidebar`, between its `.sidebar-header`
+and `.sidebar-menu-container`) if the navbar-brand container isn't found,
+and finally to staying inline (styled as a `.calib-run-bar`, a sticky bar
+under the page title) if neither is found -- e.g. a future Quarto version
+restructuring the navbar/sidebar, or `website.sidebar` not being docked.
 -->
 
 ```{python}
@@ -53,12 +54,7 @@ viewof globalCalibRun = {
   const stored = window.localStorage.getItem("tdmcalib:selectedRun");
   const initial = options.includes(stored) ? stored : latestRun;
   const input = Inputs.select(options, {label: "Calibration Run:", value: initial});
-  // Inputs.select renders the label text and <select> on the same line by
-  // default -- force them onto separate lines. Insert relative to the
-  // select's actual parent (not assumed to be the <label>, which varies by
-  // Inputs version) so this doesn't throw if they aren't nested.
   const selectEl = input.querySelector("select");
-  selectEl?.parentNode.insertBefore(document.createElement("br"), selectEl);
   input.classList.add("calib-run-bar");
   input.addEventListener("input", () => {
     window.localStorage.setItem("tdmcalib:selectedRun", input.value);
@@ -66,13 +62,27 @@ viewof globalCalibRun = {
 
   // Quarto's own OJS runtime places this cell's returned node into its
   // normal in-page output slot right after this function returns -- moving
-  // it into the sidebar synchronously, before that happens, would just get
-  // undone a moment later. Deferring to the next tick runs this after that
-  // placement, so the move actually sticks.
+  // it into the header/sidebar synchronously, before that happens, would
+  // just get undone a moment later. Deferring to the next tick runs this
+  // after that placement, so the move actually sticks.
   setTimeout(() => {
+    const navbarBrand = document.querySelector("#quarto-header .navbar-brand-container");
+    if (navbarBrand) {
+      input.classList.remove("calib-run-bar");
+      input.classList.add("calib-run-navbar");
+      navbarBrand.appendChild(input);
+      return;
+    }
+
     const sidebar = document.querySelector("#quarto-sidebar");
     const menu = sidebar?.querySelector(".sidebar-menu-container");
-    if (!sidebar || !menu) return; // no docked sidebar -- stays inline as a .calib-run-bar
+    if (!sidebar || !menu) return; // no navbar brand container or docked sidebar -- stays inline as a .calib-run-bar
+    // Inputs.select renders the label text and <select> on the same line by
+    // default -- force them onto separate lines to match the sidebar's
+    // stacked item style. Insert relative to the select's actual parent
+    // (not assumed to be the <label>, which varies by Inputs version) so
+    // this doesn't throw if they aren't nested.
+    selectEl?.parentNode.insertBefore(document.createElement("br"), selectEl);
     input.classList.remove("calib-run-bar");
     input.classList.add("calib-run-sidebar");
     sidebar.insertBefore(input, menu);
