@@ -120,7 +120,14 @@ def _build_bridge(repo_root: Path) -> pd.DataFrame:
             match_type = "3. Global Nearest (Fallback)"
 
         match_results.append(
-            {"SITE": site_id, "MATCHED_SEGID": matched_segid, "MATCH_TYPE": match_type}
+            {
+                "SITE": site_id,
+                "MATCHED_SEGID": matched_segid,
+                "MATCH_TYPE": match_type,
+                "SITE_DESCRIPTION": row["SITE_DESCRIPTION"],
+                "ROUTE_NAME": row["RT_TYP"],
+                "MILEPOST": mp,
+            }
         )
 
     df_bridge = pd.DataFrame(match_results)
@@ -194,7 +201,11 @@ def _build_merged_base(repo_root: Path) -> pd.DataFrame:
     df_2023["SITE"] = df_2023["SITE"].astype(str)
 
     df_merged_base = df_2023.merge(
-        df_bridge[["SITE", "MATCHED_SEGID", "COUNTY_NAME"]], on="SITE", how="inner"
+        df_bridge[
+            ["SITE", "MATCHED_SEGID", "COUNTY_NAME", "SITE_DESCRIPTION", "ROUTE_NAME", "MILEPOST"]
+        ],
+        on="SITE",
+        how="inner",
     )
     df_merged_base = df_merged_base.merge(
         seg_shp[["SEGID", "AADT2023"]], left_on="MATCHED_SEGID", right_on="SEGID", how="left"
@@ -221,18 +232,23 @@ def load_ccs_daily(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.Dat
     )
 
     df = df_merged[
-        ["SITE", "DATE_ONLY", "DAILY_VOL", "COUNTY_NAME", "FTCLASS", "ATYPENAME", "AADT2023", "DY_Vol"]
+        [
+            "SITE", "DATE_ONLY", "DAILY_VOL", "COUNTY_NAME", "FTCLASS", "ATYPENAME", "AADT2023",
+            "DY_Vol", "SITE_DESCRIPTION", "ROUTE_NAME", "MILEPOST",
+        ]
     ].copy()
     df.rename(columns={"AADT2023": "HPMS_AADT", "DY_Vol": "MODEL_VOL"}, inplace=True)
     df["DATE_STR"] = df["DATE_ONLY"].dt.strftime("%Y-%m-%d")
     df = df.fillna(0)
-    # FTCLASS/ATYPENAME are categorical strings, but unmatched rows get the
-    # same blanket fillna(0) as the numeric columns above (matching
-    # 4-assignhwy.qmd's own .fillna(0) exactly) -- cast to str so the column
-    # stays a single dtype (mixed str/int object columns aren't
+    # FTCLASS/ATYPENAME/SITE_DESCRIPTION/ROUTE_NAME are categorical strings, but
+    # unmatched rows get the same blanket fillna(0) as the numeric columns above
+    # (matching 4-assignhwy.qmd's own .fillna(0) exactly) -- cast to str so each
+    # column stays a single dtype (mixed str/int object columns aren't
     # parquet-writable, unlike the in-memory-only pre-cache version).
     df["FTCLASS"] = df["FTCLASS"].astype(str)
     df["ATYPENAME"] = df["ATYPENAME"].astype(str)
+    df["SITE_DESCRIPTION"] = df["SITE_DESCRIPTION"].astype(str)
+    df["ROUTE_NAME"] = df["ROUTE_NAME"].astype(str)
     return df
 
 

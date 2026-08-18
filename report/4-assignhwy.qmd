@@ -1149,6 +1149,11 @@ ojs_define(ccs_daily_data=df_final_export)
 daily_data = transpose(ccs_daily_data)
   .filter(d => d.calib_run === globalCalibRun)
   .map(d => ({...d, Date: new Date(d.DATE_STR) }))
+
+// One row of static site metadata (description/route/milepost/county) per
+// SITE, keyed for lookup by the "3. Select Station" widget below -- these
+// don't vary by date, so the first daily row for a site is representative.
+siteInfo = new Map(daily_data.map(d => [d.SITE, d]))
 ```
 
 ```{ojs}
@@ -1172,8 +1177,39 @@ viewof filterVal = Inputs.select(
 
 viewof selectedStation = Inputs.select(
   filteredStations,
-  {label: "3. Select Station:"}
+  {
+    label: "3. Select Station:",
+    format: d => {
+      const desc = siteInfo.get(d)?.SITE_DESCRIPTION;
+      return desc && desc !== "0" ? `${d} — ${desc}` : d;
+    }
+  }
 )
+```
+
+```{ojs}
+//| echo: false
+
+// Location detail card for the currently selected station -- expands on the
+// dropdown label above with route/milepost/county so a reader unfamiliar
+// with CCS site codes can place the station without leaving the page.
+{
+  const info = siteInfo.get(selectedStation);
+  const hasDetail = info && info.SITE_DESCRIPTION && info.SITE_DESCRIPTION !== "0";
+
+  if (!hasDetail) {
+    return html`<div style="margin: -8px 0 12px 0; padding: 8px 12px; background: #f4f4f6; border-left: 3px solid ${themeNeutral}; border-radius: 4px; font-size: 13px; color: #666;">No location details available for station ${selectedStation}.</div>`;
+  }
+
+  const route = info.ROUTE_NAME && info.ROUTE_NAME !== "0" ? info.ROUTE_NAME : null;
+  const mp = info.MILEPOST ? `MP ${Number(info.MILEPOST).toFixed(2)}` : null;
+  const county = info.COUNTY_NAME && info.COUNTY_NAME !== "0" ? `${info.COUNTY_NAME} County` : null;
+  const meta = [route, mp, county].filter(Boolean).join("  ·  ");
+
+  return html`<div style="margin: -8px 0 12px 0; padding: 8px 12px; background: #f4f4f6; border-left: 3px solid ${themeAccent}; border-radius: 4px; font-size: 13px;">
+    <strong>${info.SITE_DESCRIPTION}</strong>${meta ? html`<br><span style="color: #555;">${meta}</span>` : ""}
+  </div>`;
+}
 ```
 
 ```{ojs}
@@ -1222,16 +1258,28 @@ filteredStations = daily_data
   const refs = stationData.length > 0 ? stationData[0] : {HPMS_AADT: 0, MODEL_VOL: 0};
   const stationHasData = stationData.length > 0;
 
+  // Tue/Wed/Thu average within the calibration period -- the subset of days
+  // typically used as the "representative weekday" ground truth for
+  // calibration, since it excludes weekend and Mon/Fri shoulder effects.
+  const calStart = new Date("2023-09-01");
+  const calEnd = new Date("2023-11-15");
+  const calTueThuRows = stationData.filter(d => {
+    const dow = d.Date.getDay();
+    return d.Date >= calStart && d.Date <= calEnd && dow >= 2 && dow <= 4;
+  });
+  const calTueThuAvg = calTueThuRows.length > 0 ? d3.mean(calTueThuRows, d => d.DAILY_VOL) : 0;
+
   // ─── Configuration ───────────────────────────────────────────────────────────
   const palette = {
-    ccs:   themeNeutral, // Slate
-    hpms:  themeTarget, // Amber
-    model: themeModel, // Indigo
-    cal:   themeAccent  // Violet
+    ccs:       themeNeutral, // Slate
+    hpms:      themeTarget, // Amber
+    model:     themeModel, // Indigo
+    cal:       themeAccent, // Violet
+    calTueThu: themeTargetAlt // Green
   };
 
   const yMaxVol = stationHasData
-    ? Math.max(d3.max(stationData, d => d.DAILY_VOL), refs.HPMS_AADT, refs.MODEL_VOL) * 1.1
+    ? Math.max(d3.max(stationData, d => d.DAILY_VOL), refs.HPMS_AADT, refs.MODEL_VOL, calTueThuAvg) * 1.1
     : 1000;
 
   // ─── The Plot ────────────────────────────────────────────────────────────────
@@ -1247,8 +1295,8 @@ filteredStations = daily_data
     },
 
     color: {
-      domain: ["Daily CCS Volume", "HPMS AADT", "Modeled Volume"],
-      range: [palette.ccs, palette.hpms, palette.model],
+      domain: ["Daily CCS Volume", "HPMS AADT", "Modeled Volume", "Cal. Period Tue-Thu Avg"],
+      range: [palette.ccs, palette.hpms, palette.model, palette.calTueThu],
       legend: true
     },
 
@@ -1293,6 +1341,11 @@ filteredStations = daily_data
         strokeWidth: 2,
         strokeDasharray: "6 4"
       }),
+      Plot.ruleY([calTueThuAvg], {
+        stroke: () => "Cal. Period Tue-Thu Avg",
+        strokeWidth: 2,
+        strokeDasharray: "2 2"
+      }),
 
       // 3. Main Data Line
       Plot.line(stationData, {
@@ -1306,7 +1359,7 @@ filteredStations = daily_data
       Plot.tip(stationData, Plot.pointerX({
         x: "Date",
         y: "DAILY_VOL",
-        title: d => `📅 ${d.Date.toLocaleDateString()}\n🚗 CCS: ${d.DAILY_VOL.toLocaleString()}\n📏 HPMS: ${Math.round(refs.HPMS_AADT).toLocaleString()}\n🔵 Model: ${Math.round(refs.MODEL_VOL).toLocaleString()}`
+        title: d => `📅 ${d.Date.toLocaleDateString()}\n🚗 CCS: ${d.DAILY_VOL.toLocaleString()}\n📏 HPMS: ${Math.round(refs.HPMS_AADT).toLocaleString()}\n🔵 Model: ${Math.round(refs.MODEL_VOL).toLocaleString()}\n🟢 Cal. Tue-Thu Avg: ${Math.round(calTueThuAvg).toLocaleString()}`
       }))
     ]
   });
