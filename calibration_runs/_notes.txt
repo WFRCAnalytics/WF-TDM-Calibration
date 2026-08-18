@@ -1,0 +1,86 @@
+
+C50
+model: tdm_ref calib/C50, TDM commit 24f1556e "feature: Updates for run automation" (same as calib/C50-start)
+yaml: no general_parameter_overrides yet -- just baseline control_center_overrides (UserName/UserCompany/keyOutputPrfx); start_at_label STEP6
+
+C51
+model: tdm_ref calib/C51, TDM moved 24f1556e -> 97d5ac7d ("Add county calibration factors for LT,MD,HV commercial vehicles")
+       calibration factors added here, but would have been better to put at 1.0 in model and then put as overrides in yaml
+yaml: start_at_label STEP6 -> STEP0; still no general_parameter_overrides set even though the new calibFac_* keys are now available in TDM
+
+C52
+model: tdm_ref calib/C52, same TDM commit as C51 (97d5ac7d) - no model change
+yaml: first use of general_parameter_overrides -- initial calibFac_LT/MD/HV_* by county plus DA_/SL_ truck cost and ramp penalty factors
+
+C53
+model: tdm_ref calib/C53, same TDM commit as C52 (97d5ac7d) - no model change
+yaml: retuned calibFac_LT/MD/HV_* (e.g. LT_BE 1.20->1.49, MD_DA 7.50->5.08, HV_DA 6.85->6.02, HV_SL 3.88->4.05); no truck cost/ramp penalty changes
+
+C54
+model: tdm_ref calib/C54, TDM moved 97d5ac7d -> 74c2be11 ("feature: Add calibration factors for external volumes")
+yaml: start_at_label STEP0 -> STEP3; added first calibFac_Ext_* factors (3604 Box Elder, 3612 Tooele) enabled by the new external-volume calib feature
+
+C55
+model: tdm_ref calib/C55, same TDM commit as C54 (74c2be11) - no model change
+yaml: start_at_label STEP3 -> STEP0; retuned per inline comments -- LT_BE 1.49->1.15, LT_WE 1.22->1.15 ("will leave some to external adjustment instead"); LT_UT 0.89->1.00 ("already high, but don't believe HPMS VMT target; CCS too low"); MD_DA 5.08->0.90 and HV_DA 6.02->2.50 ("reduce freeway factor to reduce over-prediction ... in C54"); Ext_PL_3604 1.10->1.25 ("under-predicted in C54"), Ext_MD_3604 1.10->1.00 ("revert to maintain Box Elder/Weber balance"); added new Ext_*_3628 (I-15 Juab) factors
+
+C56
+model: tdm_ref calib/C56, TDM moved 74c2be11 -> e8c933f9 ("fix: Apply county truck cost calibration factors in assignment")
+yaml: MD_DA 0.90->3.00, MD_UT 1.06->1.20, HV_DA 2.50->1.50, HV_SL 4.05->3.00 (re-tuned now that truck cost calib factors actually apply in assignment per the TDM fix); DA_FwyTruckCostFac reverted to C51 values per that same fix; added new Ext_* stations 3609 (I-84 Morgan/Summit) and 3620 (Provo Canyon); Ext_3604/3612/3628 retuned
+
+C57
+model: tdm_ref calib/C57, same TDM commit as C56 (e8c933f9) - no model change
+yaml: DA_RampTruckPenAdd 1.70->1.25, SL_RampTruckPenAdd 0.45->0.25; Ext_3612 (Tooele) PL/MD/HV 1.10->1.05; added new Ext_3614 (I-80 Summit) factors; Ext_3628 (I-15 Juab) MD/HV retuned 1.25/1.15 -> 1.15/1.10
+
+C58
+test: With fixed assignment code (uses truck calib facs now), use original CVM adjustments
+model: tdm_ref calib/C58, same TDM commit as C57 (e8c933f9 fix: Apply county truck cost calibration factors in assignment) - no model change
+yaml: reset all calibFac_LT/MD/HV_* to 1.00 (was C57's tuned values); dropped DA_/SL_ truck cost + ramp penalty factors and all calibFac_Ext_* (external station) factors entirely
+results: not a better change
+
+C59
+skip changes in C58 and start with base C57
+condition to remedy: low calibration speeds across all time periods with a cluster on the shortest trips being faster in model than observed
+model: tdm_ref calib/C59, TDM moved e8c933f9 -> 554f01ce (2 commits: "Add freeflow speed calibration factor for arterials/collectors/locals", "fix: Replace hard-coded CO_FIPS with variable")
+yaml: restored C57's calibFac_LT/MD/HV_*, truck cost/ramp penalty, and calibFac_Ext_* values (undoing C58's reset)
+add 90% reduction factor to arterial and collector streets FT 2-7
+yaml: new calibFac_ff_spd_ArtColLoc: 0.9 (enabled by the freeflow speed calib factor TDM change above)
+result: now freeflow speeds are under 5% high in AM, PM, and EV. MD speeds are 7+ high. 
+
+C60:
+condition to remedy: freeway volumes 10% high and non-freeways 7% low, also local bus boardings are low
+yaml: adjusted RampPenWeight: 2.50 from 2.00 to get traffic from freeways onto arterials
+weight for mode choice calibrations, since this may run in under 5 hours without mode choice
+
+C61:
+  Calibration iteration C61, base year 2023. Tests calibFac_ff_spd_ExpwyFwy
+  (new TDM factor covering FT 12-15 expressways and FT 20-42
+  freeways/managed-motorways/ramps) at 0.95 -- a 5% freeflow speed reduction
+  -- to see whether freeway/expressway free-flow speed being too high is
+  contributing to freeway volumes running high (per C60's "freeway volumes
+  10% high, non-freeways 7% low" finding).
+
+C62:
+    6% high on freeway, 6% low on arterial
+    4% low on Mocd choice
+    10% reduction in freefow speed on freeways
+    5% increase in mode choice trip calibration factor
+
+C63:
+    Want to test some capacity adjustments rather than just freeflow speed adjustments
+    Testing a 5% reduction in capacity of FT 2-7
+
+
+C64
+start with C61 
+calibFac_Ext_PL_3604: 1.50->1.60 # I-15 Box Elder - Still low on FWY for PC/LT trucks
+WE_NonFwyTruckCostFac: 1.00->1.25 # try to avoid heavy truck cut through Weber urban areas
+SL_RampTruckPenAdd: 0.25->0.55 # to get trucks off freeways (fixing previous wrong direction adjustment)
+calibFac_MD_SL: 0.97 # to get more medium trucks in Salt Lake County
+
+
+
+C65
+
+
+
