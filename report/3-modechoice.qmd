@@ -849,9 +849,17 @@ function transitDumbbellChart(category, data) {
   const fmtVal = isRatio ? d3.format(",.2f") : d3.format(",.0f");
   const xLabel = isRatio ? "Transfer Ratio" : (category.startsWith("Trips") ? "Daily Trips" : "Daily Boardings");
   const xMax = d3.max(data, d => Math.max(d.Model, d.Target)) || 1;
+  // Chart now shares its row with the summary table (transitSummaryTable) in
+  // a second column below transitLayoutBreakpoint px wide -- account for that
+  // column (plus its gap) so the plotted width matches what CSS actually
+  // gives this chart, instead of overflowing it. Below the breakpoint the
+  // layout collapses to one column, so the chart gets the full width back.
+  const transitLayoutBreakpoint = 900;
+  const transitSummaryTableWidth = 320;
+  const chartWidth = width < transitLayoutBreakpoint ? width : width - transitSummaryTableWidth - 24;
 
   const chart = Plot.plot({
-    width: width,
+    width: chartWidth,
     height: 260,
     marginLeft: 110,
     marginRight: 60,
@@ -906,6 +914,43 @@ transitTabId = cat => `transit-tabset-${cat.replace(/\s+/g, "-").toLowerCase()}`
 // discarding whatever tab the user had clicked to.
 mutable transitActiveTab = transitCategories[0]
 
+// Side table listing every category/mode's Model vs Target at once (plus
+// each category's "All" row as its Total) -- the tabbed chart only shows
+// one category at a time, this is the at-a-glance reference for all four.
+function transitSummaryTable() {
+  const fmt = category => category === "Transfer Ratio" ? d3.format(",.2f") : d3.format(",.0f");
+
+  const bodyRows = transitCategories.flatMap(cat => {
+    const f = fmt(cat);
+    const modeRows = [...transitModeOrder, "All"]
+      .map(m => dataBTT.find(d => d.Title === cat && d.calib_run === globalCalibRun && d.Mode === m))
+      .filter(d => d);
+    return [
+      html`<tr><td colspan="3" style="padding: 10px 6px 3px; font-weight:600; border-bottom: 1px solid #ddd;">${transitCategoryLabels.get(cat)}</td></tr>`,
+      ...modeRows.map(d => {
+        const isTotal = d.Mode === "All";
+        const cellStyle = isTotal ? "padding: 3px 6px; border-top: 1px solid #ccc; font-weight:600;" : "padding: 3px 6px;";
+        return html`<tr>
+          <td style="${cellStyle} padding-left: 16px;">${isTotal ? "Total" : d.Mode}</td>
+          <td style="${cellStyle} text-align:right;">${f(d.Model)}</td>
+          <td style="${cellStyle} text-align:right;">${f(d.Target)}</td>
+        </tr>`;
+      })
+    ];
+  });
+
+  return html`<table style="width:100%; border-collapse:collapse; font-size: 12.5px;">
+    <thead>
+      <tr>
+        <th style="text-align:left; padding:4px 6px; border-bottom:2px solid #999;">Category / Mode</th>
+        <th style="text-align:right; padding:4px 6px; border-bottom:2px solid #999;">Model</th>
+        <th style="text-align:right; padding:4px 6px; border-bottom:2px solid #999;">Target</th>
+      </tr>
+    </thead>
+    <tbody>${bodyRows}</tbody>
+  </table>`;
+}
+
 {
   const root = html`<div>
   <ul class="nav nav-tabs" role="tablist">
@@ -928,7 +973,28 @@ mutable transitActiveTab = transitCategories[0]
     });
   });
 
-  return root;
+  // Chart on the left, all-categories summary table on the right -- 320px
+  // and 900px here must match transitSummaryTableWidth/transitLayoutBreakpoint
+  // in transitDumbbellChart above, which sizes the chart to fit this column.
+  return html`<div>
+    <style>
+      .transit-dumbbell-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 0 24px;
+        align-items: start;
+      }
+      @media (max-width: 900px) {
+        .transit-dumbbell-layout {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+    <div class="transit-dumbbell-layout">
+      <div>${root}</div>
+      <div>${transitSummaryTable()}</div>
+    </div>
+  </div>`;
 }
 ```
 

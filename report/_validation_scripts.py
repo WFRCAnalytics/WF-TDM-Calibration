@@ -189,6 +189,9 @@ def plot_volume_diff(dfFiltered, varVehType, segShp):
     elif varVehType == "HV":
         bin = bin2
         titleName = "Heavy CV"
+    elif varVehType == "MDHV":
+        bin = bin2
+        titleName = "Medium + Heavy CV"
     else:
         bin = bin2
         titleName = varVehType

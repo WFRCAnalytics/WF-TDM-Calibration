@@ -542,7 +542,8 @@ viewof dashboard_ctrls = {
         ["All Vehicles", "All"],
         ["Autos", "Auto"],
         ["Single Unit Truck (SUT)", "SUT"],
-        ["Combination Unit Truck (CUT)", "CUT"]
+        ["Combination Unit Truck (CUT)", "CUT"],
+        ["Medium + Heavy CV (SUT+CUT)", "SUTCUT"]
       ]),
       {label: "Vehicle:", value: "All"}
     )
@@ -577,7 +578,7 @@ dash_data = {
     .filter((d, $) => $.ff === "All" || d.FTCLASS === $.ff)
     .filter((d, $) => $.fa === "All" || d.ATYPENAME === $.fa)
     .filter((d, $) => $.fp === "All" || d.PERIOD === $.fp)
-    .filter((d, $) => $.fv === "All" || d.VEHICLE_TYPE === $.fv)
+    .filter((d, $) => $.fv === "All" || d.VEHICLE_TYPE === $.fv || ($.fv === "SUTCUT" && (d.VEHICLE_TYPE === "SUT" || d.VEHICLE_TYPE === "CUT")))
 
   // A. Scatter Data (Station Level)
   // Aggregating by MATCHED_SEGID ensures one point per segment per grouping
@@ -1390,7 +1391,7 @@ filteredStations = daily_data
       Plot.ruleY([refs.HPMS_AADT], {
         stroke: () => "HPMS AADT",
         strokeWidth: 2,
-        strokeDasharray: "6 4"
+        strokeDasharray: "2 2"
       }),
       // Omit the Modeled Volume line entirely (rather than draw it at 0)
       // when this station's segment has no model output -- see the
@@ -1403,7 +1404,7 @@ filteredStations = daily_data
       Plot.ruleY([calTueThuAvg], {
         stroke: () => "Cal. Period Tue-Thu Avg",
         strokeWidth: 2,
-        strokeDasharray: "2 2"
+        strokeDasharray: "6 4"
       }),
 
       // 3. Main Data Line
@@ -1492,14 +1493,18 @@ tgt_df['HV'] = round(tgt_df['All'] * (tgt_df['CUTRUCKS'] * tgt_df['HV Ratio (202
 # the trucks that were adjusted out, keeping your 'All' category mathematically sound.
 tgt_df['PCLT'] = tgt_df['All'] - tgt_df['MD'] - tgt_df['HV']
 
+# Combined Medium + Heavy CV category, alongside (not replacing) the
+# individual MD/HV categories.
+tgt_df['MDHV'] = tgt_df['MD'] + tgt_df['HV']
+
 # Clean up temporary columns before melting
 tgt_df.drop(columns=list(ratio_df.columns) + ['FTCLASS'], inplace=True, errors='ignore')
 
 # Melt the dataframe
 tgt_df = tgt_df.melt(
-    id_vars=['SEGID','CO_FIPS','DISTANCE'], 
-    value_vars=['All','PCLT','MD','HV'], 
-    var_name='vehType', 
+    id_vars=['SEGID','CO_FIPS','DISTANCE'],
+    value_vars=['All','PCLT','MD','HV','MDHV'],
+    var_name='vehType',
     value_name='AWDT'
 )
 
@@ -1514,12 +1519,13 @@ mod_df = mod_df_wide.copy()
 mod_df["PCLT"] = mod_df["DY_Vol_PC"] + mod_df["DY_Vol_LT"]
 mod_df["MD"] = mod_df["DY_Vol_MD"]
 mod_df["HV"] = mod_df["DY_Vol_HV"]
+mod_df["MDHV"] = mod_df["MD"] + mod_df["HV"]
 mod_df["All"] = mod_df["DY_Vol"]
 
 # Melt the model dataframe to match the format of tgt_df
 mod_df = mod_df.melt(
     id_vars=["SEGID", "calib_run"],
-    value_vars=["All", "PCLT", "MD", "HV"],
+    value_vars=["All", "PCLT", "MD", "HV", "MDHV"],
     var_name="vehType",
     value_name="AWDT",
 )
@@ -1539,7 +1545,7 @@ mod_tgt_df['FTGROUP'] = np.where(mod_tgt_df['FTCLASS'] == 'Freeway', 'Freeway', 
 ```
 
 ```{python}
-veh_types = ['All', 'PCLT', 'MD', 'HV']
+veh_types = ['All', 'PCLT', 'MD', 'HV', 'MDHV']
 
 base_df = mod_tgt_df[['SEGID','FTCLASS','vehType','AWDT_Mod','AWDT_Tgt']]
 
@@ -1583,12 +1589,14 @@ df_wide["Diff_Total"] = df_wide["AWDT_Mod_All"] - df_wide["AWDT_Tgt_All"]
 df_wide["Diff_PCLT"] = df_wide["AWDT_Mod_PCLT"] - df_wide["AWDT_Tgt_PCLT"]
 df_wide["Diff_MD"] = df_wide["AWDT_Mod_MD"] - df_wide["AWDT_Tgt_MD"]
 df_wide["Diff_HV"] = df_wide["AWDT_Mod_HV"] - df_wide["AWDT_Tgt_HV"]
+df_wide["Diff_MDHV"] = df_wide["AWDT_Mod_MDHV"] - df_wide["AWDT_Tgt_MDHV"]
 
 # Percent
 df_wide["PctDiff_Total"] = calc_pct(df_wide["Diff_Total"], df_wide["AWDT_Tgt_All"])
 df_wide["PctDiff_PCLT"] = calc_pct(df_wide["Diff_PCLT"], df_wide["AWDT_Tgt_PCLT"])
 df_wide["PctDiff_MD"] = calc_pct(df_wide["Diff_MD"], df_wide["AWDT_Tgt_MD"])
 df_wide["PctDiff_HV"] = calc_pct(df_wide["Diff_HV"], df_wide["AWDT_Tgt_HV"])
+df_wide["PctDiff_MDHV"] = calc_pct(df_wide["Diff_MDHV"], df_wide["AWDT_Tgt_MDHV"])
 
 # 3. Add FTCLASS back
 #    We can get unique FTCLASS for each SEGID from the existing mod_tgt_df
@@ -1610,10 +1618,12 @@ gdf_vol_diff = segShp[["SEGID", "CO_FIPS", "geometry"]].merge(
             "Diff_PCLT",
             "Diff_MD",
             "Diff_HV",
+            "Diff_MDHV",
             "PctDiff_Total",
             "PctDiff_PCLT",
             "PctDiff_MD",
             "PctDiff_HV",
+            "PctDiff_MDHV",
         ]
     ],
     on="SEGID",
@@ -1649,13 +1659,14 @@ mod_vmt_df = mod_df_wide.copy()
 mod_vmt_df['PCLT'] = mod_vmt_df['DY_VMT_PC'] + mod_vmt_df['DY_VMT_LT']
 mod_vmt_df['MD'] = mod_vmt_df['DY_VMT_MD']
 mod_vmt_df['HV'] = mod_vmt_df['DY_VMT_HV']
+mod_vmt_df['MDHV'] = mod_vmt_df['MD'] + mod_vmt_df['HV']
 mod_vmt_df['All'] = mod_vmt_df['DY_VMT']
 mod_vmt_df['FTGROUP'] = np.where(mod_vmt_df['FTCLASS'] == 'Freeway', 'Freeway', 'NonFreeway')
 mod_vmt_df['County'] = mod_vmt_df['CO_FIPS'].map(fips_map)
 
 mod_vmt_long = mod_vmt_df.melt(
     id_vars=['SEGID', 'CO_FIPS', 'County', 'FTCLASS', 'FTGROUP', 'calib_run'],
-    value_vars=['All', 'PCLT', 'MD', 'HV'],
+    value_vars=['All', 'PCLT', 'MD', 'HV', 'MDHV'],
     var_name='vehType',
     value_name='VMT_Mod',
 )
@@ -1695,11 +1706,12 @@ vmt_targets_df = pd.read_csv(config_paths['path_in_vmt_targets']).rename(
 )
 vmt_targets_df['All'] = vmt_targets_df['PC/LT VMT'] + vmt_targets_df['MD VMT'] + vmt_targets_df['HV VMT']
 vmt_targets_df = vmt_targets_df.rename(columns={'PC/LT VMT': 'PCLT', 'MD VMT': 'MD', 'HV VMT': 'HV'})
+vmt_targets_df['MDHV'] = vmt_targets_df['MD'] + vmt_targets_df['HV']
 vmt_targets_df['FTGROUP'] = np.where(vmt_targets_df['FTCLASS'] == 'Freeway', 'Freeway', 'NonFreeway')
 
 targets_long = vmt_targets_df.melt(
     id_vars=['County', 'FTCLASS', 'FTGROUP'],
-    value_vars=['All', 'PCLT', 'MD', 'HV'],
+    value_vars=['All', 'PCLT', 'MD', 'HV', 'MDHV'],
     var_name='vehType',
     value_name='VMT_Target',
 )
@@ -1960,7 +1972,7 @@ html`<h4>Total Daily VMT by County and Roadway Class</h4>`
 
 ```{ojs}
 html`<br/>`
-viewof bVehType = Inputs.select(new Map([['All Vehicles', 'All'], ['Cars + Light CV', 'PCLT'], ['Medium CV', 'MD'], ['Heavy CV', 'HV']]), {value: 'All', label: "Vehicle Type:"})
+viewof bVehType = Inputs.select(new Map([['All Vehicles', 'All'], ['Cars + Light CV', 'PCLT'], ['Medium CV', 'MD'], ['Heavy CV', 'HV'], ['Medium + Heavy CV', 'MDHV']]), {value: 'All', label: "Vehicle Type:"})
 ```
 
 :::: {.columns style="display:flex; flex-wrap:nowrap; align-items:flex-start;"}
@@ -2042,7 +2054,7 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
 // 2. MAP RENDERING -- the only view in this section still driven by
 // controls (Vehicle Type / Display / Focus Roadway Class, just above)
 {
-  const vehSuffix = new Map([["All", "Total"], ["PCLT", "PCLT"], ["MD", "MD"], ["HV", "HV"]]).get(bVehType);
+  const vehSuffix = new Map([["All", "Total"], ["PCLT", "PCLT"], ["MD", "MD"], ["HV", "HV"], ["MDHV", "MDHV"]]).get(bVehType);
   const prefix = bDiffType === "Pct" ? "PctDiff_" : "Diff_";
   const activeCol = prefix + vehSuffix;
   const isPct = bDiffType === "Pct";
@@ -2261,13 +2273,14 @@ for period in screenline_periods:
     for veh in ["MD", "HV"]:
         part[veh] = screenline_model_df[f"{period}_Vol_{veh}"]
     part["All"] = part[screenline_veh_types].sum(axis=1)
+    part["MDHV"] = part["MD"] + part["HV"]
     part["PERIOD"] = period
     screenline_model_long_parts.append(part)
 
 screenline_model_long = pd.concat(screenline_model_long_parts, ignore_index=True)
 screenline_model_long = screenline_model_long.melt(
     id_vars=["ScreenlineID", "calib_run", "PERIOD"],
-    value_vars=["All", "PCLT", "MD", "HV"],
+    value_vars=["All", "PCLT", "MD", "HV", "MDHV"],
     var_name="vehType",
     value_name="Modeled",
 )
@@ -2372,7 +2385,7 @@ viewof screenlinePeriod = Inputs.select(
 )
 
 viewof screenlineVehicle = Inputs.select(
-  new Map([["All Vehicles", "All"], ["Cars + Light CV", "PCLT"], ["Medium CV", "MD"], ["Heavy CV", "HV"]]),
+  new Map([["All Vehicles", "All"], ["Cars + Light CV", "PCLT"], ["Medium CV", "MD"], ["Heavy CV", "HV"], ["Medium + Heavy CV", "MDHV"]]),
   {label: "Vehicle:", value: "All"}
 )
 
