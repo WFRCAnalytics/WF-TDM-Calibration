@@ -36,11 +36,16 @@ config_paths = {
     "path_in_region": r"data/4-assignhwy/RegionalBoundary.gpkg",
     "path_in_segments": r"data/4-assignhwy/seg_shp/WFv1000_Segments.shp",
     "path_in_ccs_counts": r"data/4-assignhwy/UDOT_VehicleClassificationCounts/JKLP_Length_WFRC_2023_Sept_Nov.csv",
+    # Counts for CCS stations added after the base JKLP extract above -- see
+    # the ccs-process-observed cell for how these get merged in.
+    "path_in_ccs_counts_supplement": r"data/4-assignhwy/UDOT_VehicleClassificationCounts/JKLP_Length_WFRC_2023_Sept_Nov_supplement.csv",
     "path_in_ccs_split_factors": r"data/4-assignhwy/UDOT_VehicleClassificationCounts/LT_MD_HV_Split_Factors_2025.csv",
     "path_in_ccs_reclass_ratio": r"data/4-assignhwy/UDOT_VehicleClassificationCounts/CCS_Reclass_Ratio_2025_2003.csv",
     "path_in_vmt_targets": r"data/4-assignhwy/VMT_Targets_by_SuperDistrict_FacilityType.csv",
     "path_in_ccs_daily": r"../inputs/CCS_Observed_Counts_Raw.csv",
     "path_in_ccs_locations": r"data/4-assignhwy/UDOT_VehicleClassificationCounts/SiteData.csv",
+    # Site metadata for the same newly-added stations, matching path_in_ccs_counts_supplement.
+    "path_in_ccs_locations_supplement": r"data/4-assignhwy/UDOT_VehicleClassificationCounts/SiteData_supplement.csv",
     "google_speeds_mag": r"data/4-assignhwy/google-api-speeds/MAG/both_time_*_2023.csv",
     "google_speeds_wfrc": r"data/4-assignhwy/google-api-speeds/WFRC/both_time_*_2023.csv",
     "ccs_lanes1": r"../inputs/2023 Station 301-431.xlsx",
@@ -146,6 +151,15 @@ gdf_network_clean["MODEL_ROUTE"] = gdf_network_clean["MODEL_ROUTE"].astype(int)
 
 # Read Count Site data and convert it to geodataframe using Lat/Long
 df_sites = pd.read_csv(config_paths["path_in_ccs_locations"])
+
+# Add newly-added CCS stations from the supplemental site-metadata extract.
+# A few sites (e.g. -0677) are carried in both files with identical rows --
+# keep="first" so the base file stays authoritative if the two ever disagree.
+df_sites_supplement = pd.read_csv(config_paths["path_in_ccs_locations_supplement"])
+df_sites = pd.concat([df_sites, df_sites_supplement], ignore_index=True).drop_duplicates(
+    subset="SITE", keep="first"
+)
+
 gdf_ccs_locations = (
     gpd.GeoDataFrame(
         df_sites,
@@ -227,6 +241,14 @@ for idx, row in gdf_ccs_locations.iterrows():
 # Create Bridge DataFrame
 df_bridge = pd.DataFrame(match_results)
 
+# Manual Override: -307 (Mountain Green, Morgan County) auto-matches to
+# 0084_092.3 via Route+MP, but that segment sits outside the model's
+# core-county reporting area and carries no Summary_SEGID output -- force it
+# to 0084_087.8 (Davis County side of the same I-84 corridor, BMP 87.8-90.9),
+# which does have modeled volume. See report/preprocess/assignhwy.py's
+# _build_bridge() for the duplicate of this override.
+df_bridge.loc[df_bridge["SITE"] == "-307", "MATCHED_SEGID"] = "0084_087.8"
+
 # Append Context (County Name) directly from Network
 fips_map = {3: "Box Elder", 11: "Davis", 35: "Salt Lake", 49: "Utah", 57: "Weber"}
 df_bridge = df_bridge.merge(
@@ -237,6 +259,11 @@ df_bridge = df_bridge.merge(
     right_on="SEGID",
     how="left",
 ).drop(columns=["SEGID", "CO_FIPS"])
+
+# Manual Override: 0084_087.8 (BMP 87.8-90.9) is attributed to Davis in the
+# segment shapefile's own CO_NAME, but is actually Weber County (Weber
+# Canyon) -- correct -307's county for reporting/grouping.
+df_bridge.loc[df_bridge["SITE"] == "-307", "COUNTY_NAME"] = "Weber"
 ```
 
 ```{python}
@@ -256,8 +283,25 @@ df_bridge = df_bridge[~df_bridge["SITE"].isin(["-664"])]
 # | label: ccs-process-observed
 
 # --- 1. Load & Clean Raw Data ---
+
+# The supplement file adds hourly classification counts for newly-added CCS
+# stations. It carries a trailing "N rows selected." footer line (a
+# database-export artifact, not data) that pandas silently mis-parses into a
+# bogus row (SITE=32, every other column NaN) rather than raising -- drop it
+# by requiring a real (negative) SITE code, then restore the int dtypes that
+# row's NaNs upcast to float. A few sites (e.g. -0677) are re-exported in
+# both files with identical rows, so dedupe on the full key before
+# aggregating to avoid double-counting them.
+df_obs_supplement = pd.read_csv(config_paths["path_in_ccs_counts_supplement"])
+df_obs_supplement = df_obs_supplement[df_obs_supplement["SITE"] < 0].astype(
+    {"HOUR": "int64", "LENGTH_BIN": "int64", "COUNT": "int64"}
+)
+df_obs_raw = pd.concat(
+    [pd.read_csv(config_paths["path_in_ccs_counts"]), df_obs_supplement], ignore_index=True
+).drop_duplicates(subset=["SITE", "DATE_ONLY", "HOUR", "LENGTH_BIN"])
+
 df_obs_clean = (
-    pd.read_csv(config_paths["path_in_ccs_counts"])
+    df_obs_raw
     .assign(
         SITE=lambda x: x["SITE"].astype(str),
         DATE_ONLY=lambda x: pd.to_datetime(x["DATE_ONLY"]),
@@ -1210,8 +1254,16 @@ viewof selectedStation = Inputs.select(
   const county = info.COUNTY_NAME && info.COUNTY_NAME !== "0" ? `${info.COUNTY_NAME} County` : null;
   const meta = [route, mp, county].filter(Boolean).join("  ·  ");
 
+  // HAS_MODEL_DATA is false for a station whose matched segment has no
+  // model output (e.g. just outside the model's core-county reporting
+  // area) -- flag it here since the chart below silently omits the
+  // Modeled Volume line/legend entry for these stations.
+  const noModelNote = info.HAS_MODEL_DATA === false
+    ? html`<br><span style="color:${themeDanger}; font-size:11px;">⚠ No modeled volume for this station's segment (outside the model's core reporting area) -- chart below omits the Modeled Volume line.</span>`
+    : "";
+
   return html`<div style="margin: -8px 0 12px 0; padding: 8px 12px; background: #f4f4f6; border-left: 3px solid ${themeAccent}; border-radius: 4px; font-size: 13px;">
-    <strong>${info.SITE_DESCRIPTION}</strong>${meta ? html`<br><span style="color: #555;">${meta}</span>` : ""}
+    <strong>${info.SITE_DESCRIPTION}</strong>${meta ? html`<br><span style="color: #555;">${meta}</span>` : ""}${noModelNote}
   </div>`;
 }
 ```
@@ -1259,7 +1311,7 @@ filteredStations = daily_data
   // ─── Local Processing ────────────────────────────────────────────────────────
   // We use 'const' here so these variables don't conflict with other parts of the report
   const stationData = daily_data.filter(d => d.SITE === selectedStation);
-  const refs = stationData.length > 0 ? stationData[0] : {HPMS_AADT: 0, MODEL_VOL: 0};
+  const refs = stationData.length > 0 ? stationData[0] : {HPMS_AADT: 0, MODEL_VOL: 0, HAS_MODEL_DATA: false};
   const stationHasData = stationData.length > 0;
 
   // Tue/Wed/Thu average within the calibration period -- the subset of days
@@ -1276,10 +1328,10 @@ filteredStations = daily_data
   // ─── Configuration ───────────────────────────────────────────────────────────
   const palette = {
     ccs:       themeNeutral, // Slate
-    hpms:      themeTarget, // Amber
-    model:     themeModel, // Indigo
-    cal:       themeAccent, // Violet
-    calTueThu: themeTargetAlt // Green
+    hpms:      "#3d3a37",    // Dark grey -- deliberately not themeTarget, so it doesn't compete with Cal. Tue-Thu Avg below for the "target" blue
+    model:     themeModel,   // Orange
+    cal:       themeAccent,  // Violet (calibration period shading/label only)
+    calTueThu: themeTarget   // Blue -- this is the actual target line now, in place of HPMS AADT
   };
 
   const yMaxVol = stationHasData
@@ -1340,11 +1392,14 @@ filteredStations = daily_data
         strokeWidth: 2,
         strokeDasharray: "6 4"
       }),
-      Plot.ruleY([refs.MODEL_VOL], {
+      // Omit the Modeled Volume line entirely (rather than draw it at 0)
+      // when this station's segment has no model output -- see the
+      // location-detail card above for the explanatory note.
+      ...(refs.HAS_MODEL_DATA ? [Plot.ruleY([refs.MODEL_VOL], {
         stroke: () => "Modeled Volume",
         strokeWidth: 2,
         strokeDasharray: "6 4"
-      }),
+      })] : []),
       Plot.ruleY([calTueThuAvg], {
         stroke: () => "Cal. Period Tue-Thu Avg",
         strokeWidth: 2,
@@ -1363,7 +1418,7 @@ filteredStations = daily_data
       Plot.tip(stationData, Plot.pointerX({
         x: "Date",
         y: "DAILY_VOL",
-        title: d => `📅 ${d.Date.toLocaleDateString()}\n🚗 CCS: ${d.DAILY_VOL.toLocaleString()}\n📏 HPMS: ${Math.round(refs.HPMS_AADT).toLocaleString()}\n🔵 Model: ${Math.round(refs.MODEL_VOL).toLocaleString()}\n🟢 Cal. Tue-Thu Avg: ${Math.round(calTueThuAvg).toLocaleString()}`
+        title: d => `📅 ${d.Date.toLocaleDateString()}\n🚗 CCS: ${d.DAILY_VOL.toLocaleString()}\n📏 HPMS: ${Math.round(refs.HPMS_AADT).toLocaleString()}\n🔵 Model: ${refs.HAS_MODEL_DATA ? Math.round(refs.MODEL_VOL).toLocaleString() : "N/A (not modeled)"}\n🟢 Cal. Tue-Thu Avg: ${Math.round(calTueThuAvg).toLocaleString()}`
       }))
     ]
   });

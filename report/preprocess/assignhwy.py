@@ -31,6 +31,11 @@ PATH_IN_SEGMENTS = Path("data/4-assignhwy/seg_shp/WFv1000_Segments.shp")
 PATH_IN_CCS_COUNTS = Path("data/4-assignhwy/UDOT_VehicleClassificationCounts/JKLP_Length_WFRC_2023_Sept_Nov.csv")
 PATH_IN_CCS_SPLIT_FACTORS = Path("data/4-assignhwy/UDOT_VehicleClassificationCounts/LT_MD_HV_Split_Factors_2025.csv")
 PATH_IN_CCS_LOCATIONS = Path("data/4-assignhwy/UDOT_VehicleClassificationCounts/SiteData.csv")
+# Site metadata for CCS stations added after the base extract above -- see
+# _build_bridge()'s merge for how these get folded in.
+PATH_IN_CCS_LOCATIONS_SUPPLEMENT = Path(
+    "data/4-assignhwy/UDOT_VehicleClassificationCounts/SiteData_supplement.csv"
+)
 GOOGLE_SPEEDS_MAG = Path("data/4-assignhwy/google-api-speeds/MAG/both_time_*_2023.csv")
 GOOGLE_SPEEDS_WFRC = Path("data/4-assignhwy/google-api-speeds/WFRC/both_time_*_2023.csv")
 PATH_IN_CCS_DAILY = Path("inputs/CCS_Observed_Counts_Raw.csv")
@@ -68,6 +73,13 @@ def _build_bridge(repo_root: Path) -> pd.DataFrame:
     gdf_network_clean["MODEL_ROUTE"] = gdf_network_clean["MODEL_ROUTE"].astype(int)
 
     df_sites = pd.read_csv(report_dir / PATH_IN_CCS_LOCATIONS)
+    # Add newly-added CCS stations from the supplemental site-metadata
+    # extract -- keep="first" so the base file stays authoritative if a SITE
+    # ever appears in both (as -0677 currently does, with identical data).
+    df_sites_supplement = pd.read_csv(report_dir / PATH_IN_CCS_LOCATIONS_SUPPLEMENT)
+    df_sites = pd.concat([df_sites, df_sites_supplement], ignore_index=True).drop_duplicates(
+        subset="SITE", keep="first"
+    )
     gdf_ccs_locations = (
         gpd.GeoDataFrame(
             df_sites,
@@ -131,6 +143,14 @@ def _build_bridge(repo_root: Path) -> pd.DataFrame:
         )
 
     df_bridge = pd.DataFrame(match_results)
+
+    # Manual Override: -307 (Mountain Green, Morgan County) auto-matches to
+    # 0084_092.3 via Route+MP, but that segment sits outside the model's
+    # core-county reporting area and carries no Summary_SEGID output --
+    # force it to 0084_087.8 (Davis County side of the same I-84 corridor,
+    # BMP 87.8-90.9), which does have modeled volume.
+    df_bridge.loc[df_bridge["SITE"] == "-307", "MATCHED_SEGID"] = "0084_087.8"
+
     df_bridge = df_bridge.merge(
         gdf_network_clean[["SEGID", "CO_FIPS"]].assign(
             COUNTY_NAME=lambda x: x["CO_FIPS"].map(FIPS_MAP).fillna("Other")
@@ -139,6 +159,11 @@ def _build_bridge(repo_root: Path) -> pd.DataFrame:
         right_on="SEGID",
         how="left",
     ).drop(columns=["SEGID", "CO_FIPS"])
+
+    # Manual Override: 0084_087.8 (BMP 87.8-90.9) is attributed to Davis in
+    # the segment shapefile's own CO_NAME, but is actually Weber County
+    # (Weber Canyon) -- correct -307's county for reporting/grouping.
+    df_bridge.loc[df_bridge["SITE"] == "-307", "COUNTY_NAME"] = "Weber"
 
     df_bridge = df_bridge[~df_bridge["SITE"].isin(["-680"])]
     df_bridge = df_bridge[~df_bridge["SITE"].isin(["-816", "-302"])]
@@ -239,6 +264,13 @@ def load_ccs_daily(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.Dat
     ].copy()
     df.rename(columns={"AADT2023": "HPMS_AADT", "DY_Vol": "MODEL_VOL"}, inplace=True)
     df["DATE_STR"] = df["DATE_ONLY"].dt.strftime("%Y-%m-%d")
+    # Record whether this station's matched segment actually has model
+    # output *before* the blanket fillna(0) below turns a genuinely missing
+    # MODEL_VOL into a real-looking 0 -- e.g. a station just outside the
+    # model's core-county reporting area (see report/4-assignhwy.qmd's
+    # ccs-daily-viz chart, which uses this to skip the Modeled Volume line
+    # rather than show a misleading "model predicts zero").
+    df["HAS_MODEL_DATA"] = df["MODEL_VOL"].notna()
     df = df.fillna(0)
     # FTCLASS/ATYPENAME/SITE_DESCRIPTION/ROUTE_NAME are categorical strings, but
     # unmatched rows get the same blanket fillna(0) as the numeric columns above
