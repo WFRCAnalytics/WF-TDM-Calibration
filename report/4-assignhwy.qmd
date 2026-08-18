@@ -959,6 +959,10 @@ map_display = {
       layer.on('mouseover', () => {
          resetAll();
          if (segid) highlightSegment(segid);
+         // highlightSegment() just brought the line to front, which would
+         // otherwise sit on top of this dot and eat its clicks -- reassert
+         // the dot on top so it stays hoverable/clickable without zooming in.
+         layer.bringToFront();
       });
       layer.on('mouseout', () => resetAll());
 
@@ -3017,6 +3021,10 @@ map_display2 = {
       layer.on('mouseover', function() {
          this.setStyle({ color: "#00e5ff", weight: 9, opacity: 1.0 });
          this.bringToFront();
+         // Without this, the highlighted line stays on top of the DOM stack
+         // even after mouseout (resetStyle only resets color/weight, not
+         // z-order), permanently burying any station dot along that line.
+         stationLayer.bringToFront();
       });
       layer.on('mouseout', function() {
          segmentLayer.resetStyle(this);
