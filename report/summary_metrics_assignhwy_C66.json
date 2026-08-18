@@ -1,0 +1,10 @@
+{
+  "calib_run": "C66",
+  "stage": "assignhwy",
+  "metrics": {
+    "total_target_volume": 5950308.146747676,
+    "total_modeled_volume": 5582399.9,
+    "total_pct_diff": -0.06183011663837392,
+    "segment_rmse": 2050.4866656606614
+  }
+}

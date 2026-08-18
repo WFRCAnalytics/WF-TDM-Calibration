@@ -1224,16 +1224,33 @@ viewof filterVal = Inputs.select(
   {label: "2. Filter Group:", value: "All"}
 )
 
-viewof selectedStation = Inputs.select(
-  filteredStations,
-  {
-    label: "3. Select Station:",
-    format: d => {
-      const desc = siteInfo.get(d)?.SITE_DESCRIPTION;
-      return desc && desc !== "0" ? `${d} — ${desc}` : d;
+// Remembers the picked station across recomputation of filteredStations
+// (e.g. switching globalCalibRun) so the dropdown doesn't silently reset to
+// its first option -- same mutable-plus-resync pattern as vmtActiveTab
+// further down. Initialized to null so the very first render falls through
+// to filteredStations[0] below, matching the prior no-value default.
+mutable lastSelectedStation = null
+
+viewof selectedStation = {
+  const select = Inputs.select(
+    filteredStations,
+    {
+      label: "3. Select Station:",
+      value: filteredStations.includes(lastSelectedStation) ? lastSelectedStation : filteredStations[0],
+      format: d => {
+        const desc = siteInfo.get(d)?.SITE_DESCRIPTION;
+        return desc && desc !== "0" ? `${d} — ${desc}` : d;
+      }
     }
-  }
-)
+  );
+  // Sync every user pick back into the mutable so it survives the next
+  // time this cell reruns (e.g. a calib run switch rebuilds filteredStations
+  // and, with it, this select from scratch).
+  select.addEventListener("input", () => {
+    mutable lastSelectedStation = select.value;
+  });
+  return select;
+}
 ```
 
 ```{ojs}
@@ -1352,7 +1369,7 @@ filteredStations = daily_data
     },
 
     color: {
-      domain: ["Daily CCS Volume", "HPMS AADT", "Modeled Volume", "Cal. Period Tue-Thu Avg"],
+      domain: ["Daily CCS Volume", "HPMS AADT", "Modeled Volume", "Target (Cal. Period Tue-Thu Avg)"],
       range: [palette.ccs, palette.hpms, palette.model, palette.calTueThu],
       legend: true
     },
@@ -1393,19 +1410,21 @@ filteredStations = daily_data
         strokeWidth: 2,
         strokeDasharray: "2 2"
       }),
+      // Target drawn first, wider (6px) and solid; Modeled Volume second,
+      // thinner (4px) and solid -- when the two coincide, the Target line's
+      // extra width still shows as a visible edge around the Model line on
+      // top, so both stay distinguishable.
+      Plot.ruleY([calTueThuAvg], {
+        stroke: () => "Target (Cal. Period Tue-Thu Avg)",
+        strokeWidth: 6
+      }),
       // Omit the Modeled Volume line entirely (rather than draw it at 0)
       // when this station's segment has no model output -- see the
       // location-detail card above for the explanatory note.
       ...(refs.HAS_MODEL_DATA ? [Plot.ruleY([refs.MODEL_VOL], {
         stroke: () => "Modeled Volume",
-        strokeWidth: 2,
-        strokeDasharray: "6 4"
+        strokeWidth: 4
       })] : []),
-      Plot.ruleY([calTueThuAvg], {
-        stroke: () => "Cal. Period Tue-Thu Avg",
-        strokeWidth: 2,
-        strokeDasharray: "6 4"
-      }),
 
       // 3. Main Data Line
       Plot.line(stationData, {
