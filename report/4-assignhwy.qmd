@@ -1778,9 +1778,9 @@ countyOrder = ['Region', 'Box Elder County - WFRC', 'Weber County - WFRC', 'Davi
 chartCountyOrder = countyOrder.filter(c => c !== 'Region')
 countyNames = new Map([[99, 'Region'], [3, 'Box Elder County - WFRC'], [57, 'Weber County - WFRC'], [11, 'Davis County'], [35, 'Salt Lake County'], [49, 'Utah County']])
 classLabels = new Map([['Freeway', 'Freeway'], ['NonFreeway', 'Non-Freeway']])
-// The chart facets on just these 3 vehicle types (Cars + Light CV omitted --
-// still selectable via the Vehicle Type control below, near the map/table).
-chartVehLabels = new Map([['All', 'All Vehicles'], ['MD', 'Medium CV'], ['HV', 'Heavy CV']])
+// Labels match the Vehicle Type control below (near the map/table) so the
+// same vehType codes read the same way in both places.
+chartVehLabels = new Map([['All', 'All Vehicles'], ['PCLT', 'Cars + Light CV'], ['MD', 'Medium CV'], ['HV', 'Heavy CV'], ['MDHV', 'Medium + Heavy CV']])
 
 vmtT = transpose(vmt)
 
@@ -1909,12 +1909,26 @@ function vmtDumbbellChart(vehLabel, data) {
 // the whole chart rather than splitting across separate cells.
 vmtClassTabId = cls => `vmt-tabset-${cls.replace(/\s+/g, "-").toLowerCase()}`
 
-// Which roadway-class tab is active, kept in a `mutable` so it survives this
-// cell re-running -- without it, every re-render (e.g. switching
-// globalCalibRun, which dumbbellData depends on) would rebuild the tab
-// markup from scratch and fall back to hardcoding "All Roadways" active,
-// discarding whatever tab the user had clicked to.
+// Each Roadway Class pane gets its own inner Summary/Breakdown tab section
+// (2 charts vs. 3) instead of always stacking all 3 vehicle-type charts --
+// id is keyed on both cls and the inner tab name since the two nav-tabs
+// levels are nested.
+vmtVehTabId = (cls, tab) => `vmt-vehtab-${cls.replace(/\s+/g, "-").toLowerCase()}-${tab.replace(/\s+/g, "-").toLowerCase()}`
+vmtVehTabs = ({
+  "Summary": ["All Vehicles", "Medium + Heavy CV"],
+  "Breakdown": ["Cars + Light CV", "Medium CV", "Heavy CV"]
+})
+vmtVehTabNames = Object.keys(vmtVehTabs)
+
+// Which roadway-class tab / inner vehicle-grouping tab is active, kept in
+// `mutable`s so they survive this cell re-running -- without them, every
+// re-render (e.g. switching globalCalibRun, which dumbbellData depends on)
+// would rebuild the tab markup from scratch and fall back to hardcoding the
+// first tab active, discarding whatever tab the user had clicked to. Both
+// mutables are shared across all 3 Roadway Class panes, mirroring how a
+// single vmtActiveTab already applies to all of them.
 mutable vmtActiveTab = "All Roadways"
+mutable vmtActiveVehTab = "Summary"
 
 {
   const classes = ["All Roadways", "Freeway", "Non-Freeway"];
@@ -1926,18 +1940,42 @@ mutable vmtActiveTab = "All Roadways"
   </ul>
   <div class="tab-content">
     ${classes.map(cls => html`<div id="${vmtClassTabId(cls)}" class="tab-pane${cls === vmtActiveTab ? " active" : ""}" role="tabpanel" aria-labelledby="${vmtClassTabId(cls)}-tab" style="padding-top: 16px;">
-      <div style="display:flex; flex-direction:column; row-gap: 2px;">
-        ${["All Vehicles", "Medium CV", "Heavy CV"].map(veh => vmtDumbbellChart(veh, dumbbellData.filter(d => d.VehLabel === veh && d.ClassLabel === cls)))}
+      <ul class="nav nav-tabs" role="tablist">
+        ${vmtVehTabNames.map(vt => html`<li class="nav-item" role="presentation">
+          <a class="nav-link${vt === vmtActiveVehTab ? " active" : ""}" id="${vmtVehTabId(cls, vt)}-tab" data-bs-toggle="tab" data-bs-target="#${vmtVehTabId(cls, vt)}" role="tab" aria-controls="${vmtVehTabId(cls, vt)}" aria-selected="${vt === vmtActiveVehTab}" href="">${vt}</a>
+        </li>`)}
+      </ul>
+      <div class="tab-content">
+        ${vmtVehTabNames.map(vt => html`<div id="${vmtVehTabId(cls, vt)}" class="tab-pane${vt === vmtActiveVehTab ? " active" : ""}" role="tabpanel" aria-labelledby="${vmtVehTabId(cls, vt)}-tab" style="padding-top: 16px;">
+          <div style="display:flex; flex-direction:column; row-gap: 2px;">
+            ${vmtVehTabs[vt].map(veh => vmtDumbbellChart(veh, dumbbellData.filter(d => d.VehLabel === veh && d.ClassLabel === cls)))}
+          </div>
+        </div>`)}
       </div>
     </div>`)}
   </div>
 </div>`;
 
   // Bootstrap's own tab.js toggles the active classes on click; this just
-  // mirrors that choice into vmtActiveTab so the next re-render remembers it.
-  root.querySelectorAll('a[data-bs-toggle="tab"]').forEach((tabLink, i) => {
+  // mirrors that choice into the mutables so the next re-render remembers
+  // it. One listener covers both tab levels -- it matches the clicked
+  // link's id against every possible class/vehTab id pair rather than
+  // relying on DOM order (which differs between the two levels).
+  root.querySelectorAll('a[data-bs-toggle="tab"]').forEach(tabLink => {
     tabLink.addEventListener("shown.bs.tab", () => {
-      mutable vmtActiveTab = classes[i];
+      const cls = classes.find(c => tabLink.id === `${vmtClassTabId(c)}-tab`);
+      if (cls !== undefined) {
+        mutable vmtActiveTab = cls;
+        return;
+      }
+      for (const c of classes) {
+        for (const vt of vmtVehTabNames) {
+          if (tabLink.id === `${vmtVehTabId(c, vt)}-tab`) {
+            mutable vmtActiveVehTab = vt;
+            return;
+          }
+        }
+      }
     });
   });
 
