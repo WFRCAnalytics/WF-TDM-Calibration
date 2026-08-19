@@ -804,7 +804,7 @@ html`<br/><br/>`
 
 ## Transit Trips and Boardings
 
-Each tab below is a dumbbell chart comparing Model to Target by mode for one category -- the connecting line's length is the gap, and the percent label is the model's difference from target. "All" is the system-wide total across every mode. Transfer Ratio (model boardings per model trip) isn't a count, so it keeps its own 2-decimal scale rather than sharing an axis with the trip/boarding counts.
+Each chart below is a dumbbell chart comparing Model to Target by mode for one category, with its data table directly beneath it -- the connecting line's length is the gap, and the percent label is the model's difference from target. "All" is the system-wide total across every mode. Transfer Ratio (model boardings per model trip) isn't a count, so it keeps its own 2-decimal scale rather than sharing an axis with the trip/boarding counts.
 
 ```{ojs}
 // reuses globalCalibRun (the shared header selector, _calib_run_selector.qmd)
@@ -844,19 +844,21 @@ keyTransitDumbbell = Legend(transitColorScale, {title: "Data Source"})
 //| label: fig-mc-transit-dumbbell
 //| fig-cap: Trips and Boardings by Mode -- Model vs Target Comparison
 
+// Shared with the transit-dumbbell-grid layout below, which also sizes its
+// columns off these -- keep both in sync.
+transitGridBreakpoint = 700
+transitGridGap = 24
+
 function transitDumbbellChart(category, data) {
   const isRatio = category === "Transfer Ratio";
   const fmtVal = isRatio ? d3.format(",.2f") : d3.format(",.0f");
   const xLabel = isRatio ? "Transfer Ratio" : (category.startsWith("Trips") ? "Daily Trips" : "Daily Boardings");
   const xMax = d3.max(data, d => Math.max(d.Model, d.Target)) || 1;
-  // Chart now shares its row with the summary table (transitSummaryTable) in
-  // a second column below transitLayoutBreakpoint px wide -- account for that
-  // column (plus its gap) so the plotted width matches what CSS actually
-  // gives this chart, instead of overflowing it. Below the breakpoint the
-  // layout collapses to one column, so the chart gets the full width back.
-  const transitLayoutBreakpoint = 900;
-  const transitSummaryTableWidth = 320;
-  const chartWidth = width < transitLayoutBreakpoint ? width : width - transitSummaryTableWidth - 24;
+  // Chart sits in one cell of the 2x2 grid (transit-dumbbell-grid below) --
+  // account for the cell being half the container width above the grid's
+  // breakpoint, and full width once the grid collapses to one column, so the
+  // plotted width matches what CSS actually gives this chart.
+  const chartWidth = width < transitGridBreakpoint ? width : (width - transitGridGap) / 2;
 
   const chart = Plot.plot({
     width: chartWidth,
@@ -900,99 +902,61 @@ function transitDumbbellChart(category, data) {
   return html`<div>${chart}</div>`;
 }
 
-// Bootstrap nav-tabs markup (same classes/data attributes Quarto's own
-// .panel-tabset divs render to) so switching categories reuses the site's
-// existing tab JS instead of a bespoke widget -- and stays inside this one
-// OJS cell so the fig-mc-transit-dumbbell label/crossref still applies to
-// the whole chart rather than splitting across separate cells.
-transitTabId = cat => `transit-tabset-${cat.replace(/\s+/g, "-").toLowerCase()}`
+// Per-category table (Mode, Model, Target, Difference, plus an "All" total
+// row) shown directly beneath its own chart, rather than one shared
+// all-categories table off to the side.
+function transitCategoryTable(category, data) {
+  const fmt = category === "Transfer Ratio" ? d3.format(",.2f") : d3.format(",.0f");
+  const totalRow = dataBTT.find(d => d.Title === category && d.calib_run === globalCalibRun && d.Mode === "All");
+  const rows = [...data, totalRow].filter(d => d);
 
-// Which category tab is active, kept in a `mutable` so it survives this
-// cell re-running -- without it, every re-render (e.g. switching
-// globalCalibRun, which transitDataByCategory depends on) would rebuild the
-// tab markup from scratch and fall back to hardcoding the first tab active,
-// discarding whatever tab the user had clicked to.
-mutable transitActiveTab = transitCategories[0]
-
-// Side table listing every category/mode's Model vs Target at once (plus
-// each category's "All" row as its Total) -- the tabbed chart only shows
-// one category at a time, this is the at-a-glance reference for all four.
-function transitSummaryTable() {
-  const fmt = category => category === "Transfer Ratio" ? d3.format(",.2f") : d3.format(",.0f");
-
-  const bodyRows = transitCategories.flatMap(cat => {
-    const f = fmt(cat);
-    const modeRows = [...transitModeOrder, "All"]
-      .map(m => dataBTT.find(d => d.Title === cat && d.calib_run === globalCalibRun && d.Mode === m))
-      .filter(d => d);
-    return [
-      html`<tr><td colspan="3" style="padding: 10px 6px 3px; font-weight:600; border-bottom: 1px solid #ddd;">${transitCategoryLabels.get(cat)}</td></tr>`,
-      ...modeRows.map(d => {
+  return html`<table style="width:100%; border-collapse:collapse; font-size: 12.5px; margin-top: 6px;">
+    <thead>
+      <tr>
+        <th style="text-align:left; padding:4px 6px; border-bottom:2px solid #999;">Mode</th>
+        <th style="text-align:right; padding:4px 6px; border-bottom:2px solid #999;">Model</th>
+        <th style="text-align:right; padding:4px 6px; border-bottom:2px solid #999;">Target</th>
+        <th style="text-align:right; padding:4px 6px; border-bottom:2px solid #999;">Difference</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map(d => {
         const isTotal = d.Mode === "All";
         const cellStyle = isTotal ? "padding: 3px 6px; border-top: 1px solid #ccc; font-weight:600;" : "padding: 3px 6px;";
         return html`<tr>
-          <td style="${cellStyle} padding-left: 16px;">${isTotal ? "Total" : d.Mode}</td>
-          <td style="${cellStyle} text-align:right;">${f(d.Model)}</td>
-          <td style="${cellStyle} text-align:right;">${f(d.Target)}</td>
+          <td style="${cellStyle}">${isTotal ? "Total" : d.Mode}</td>
+          <td style="${cellStyle} text-align:right;">${fmt(d.Model)}</td>
+          <td style="${cellStyle} text-align:right;">${fmt(d.Target)}</td>
+          <td style="${cellStyle} text-align:right;">${d3.format("+.1%")(d["% Difference"])}</td>
         </tr>`;
-      })
-    ];
-  });
-
-  return html`<table style="width:100%; border-collapse:collapse; font-size: 12.5px;">
-    <thead>
-      <tr>
-        <th style="text-align:left; padding:4px 6px; border-bottom:2px solid #999;">Category / Mode</th>
-        <th style="text-align:right; padding:4px 6px; border-bottom:2px solid #999;">Model</th>
-        <th style="text-align:right; padding:4px 6px; border-bottom:2px solid #999;">Target</th>
-      </tr>
-    </thead>
-    <tbody>${bodyRows}</tbody>
+      })}
+    </tbody>
   </table>`;
 }
 
 {
-  const root = html`<div>
-  <ul class="nav nav-tabs" role="tablist">
-    ${transitCategories.map(cat => html`<li class="nav-item" role="presentation">
-      <a class="nav-link${cat === transitActiveTab ? " active" : ""}" id="${transitTabId(cat)}-tab" data-bs-toggle="tab" data-bs-target="#${transitTabId(cat)}" role="tab" aria-controls="${transitTabId(cat)}" aria-selected="${cat === transitActiveTab}" href="">${transitCategoryLabels.get(cat)}</a>
-    </li>`)}
-  </ul>
-  <div class="tab-content">
-    ${transitCategories.map(cat => html`<div id="${transitTabId(cat)}" class="tab-pane${cat === transitActiveTab ? " active" : ""}" role="tabpanel" aria-labelledby="${transitTabId(cat)}-tab" style="padding-top: 16px;">
-      ${transitDumbbellChart(cat, transitDataByCategory.get(cat))}
-    </div>`)}
-  </div>
-</div>`;
-
-  // Bootstrap's own tab.js toggles the active classes on click; this just
-  // mirrors that choice into transitActiveTab so the next re-render remembers it.
-  root.querySelectorAll('a[data-bs-toggle="tab"]').forEach((tabLink, i) => {
-    tabLink.addEventListener("shown.bs.tab", () => {
-      mutable transitActiveTab = transitCategories[i];
-    });
-  });
-
-  // Chart on the left, all-categories summary table on the right -- 320px
-  // and 900px here must match transitSummaryTableWidth/transitLayoutBreakpoint
-  // in transitDumbbellChart above, which sizes the chart to fit this column.
+  // 2x2 grid: one cell per category, chart on top and its table directly
+  // below it -- transitGridBreakpoint/transitGridGap (defined above) also
+  // size transitDumbbellChart's plotted width, so both stay in sync.
   return html`<div>
     <style>
-      .transit-dumbbell-layout {
+      .transit-dumbbell-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 320px;
-        gap: 0 24px;
-        align-items: start;
+        grid-template-columns: 1fr 1fr;
+        gap: 28px ${transitGridGap}px;
       }
-      @media (max-width: 900px) {
-        .transit-dumbbell-layout {
+      @media (max-width: ${transitGridBreakpoint}px) {
+        .transit-dumbbell-grid {
           grid-template-columns: 1fr;
         }
       }
     </style>
-    <div class="transit-dumbbell-layout">
-      <div>${root}</div>
-      <div>${transitSummaryTable()}</div>
+    <div class="transit-dumbbell-grid">
+      ${transitCategories.map(cat => html`<div>
+        <h4>${transitCategoryLabels.get(cat)}</h4>
+        ${transitDumbbellChart(cat, transitDataByCategory.get(cat))}
+        ${transitCategoryTable(cat, transitDataByCategory.get(cat))}
+      </div>`)}
     </div>
   </div>`;
 }
