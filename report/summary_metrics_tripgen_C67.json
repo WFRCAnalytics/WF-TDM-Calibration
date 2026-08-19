@@ -1,0 +1,18 @@
+{
+  "calib_run": "C67",
+  "stage": "tripgen",
+  "metrics": {
+    "HTS 2012": {
+      "trips_per_household": 10.892162277597885,
+      "trips_per_person": 3.52369136466653
+    },
+    "HTS 2023": {
+      "trips_per_household": 12.442667242806616,
+      "trips_per_person": 4.250206881708255
+    },
+    "Model": {
+      "trips_per_household": 12.306264638788425,
+      "trips_per_person": 4.225258050700834
+    }
+  }
+}

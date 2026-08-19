@@ -1,0 +1,87 @@
+#========================================================================================
+# calibration_runs/C67.yaml
+#
+# This run declares no outputs section of its own -- it uses
+# config/framework.yaml's default outputs.include/max_file_size_mb, which is
+# built from tdm/2_ModelScripts/_Python/pp_ValidationDocumentation.py's own
+# copy_files list (the TDM's existing, working post-processing step, which
+# normally copies these same raw files into WF-TDM-Documentation -- this
+# repo's own pipeline never runs that script itself, see
+# config/framework.yaml's scenario_folder_template comment, but its
+# copy_files list is still the best record of where the TDM actually writes
+# each file within a run's working folder).
+#========================================================================================
+calib_run_id: C67
+author: ""
+description: >
+  Calibration iteration C67, base year 2023.
+
+tdm_ref: "calib/C67"
+baseline_control_center: "_ControlCenter - BY_2023.block"
+
+driver_script: "__HailMary_resumable.s"
+
+start_at_label: "STEP0"
+
+control_center_overrides:
+  UserName: "Bill Hereth"
+  UserCompany: "WFRC"
+  keyOutputPrfx: "_"
+  Run_vizTool: 0 # speed it up a bit
+
+# calibFac_LT_*/calibFac_MD_*/calibFac_HV_* and the truck-cost/ramp-penalty
+# factors below are GeneralParameters.block keys (tdm/1_Inputs/0_GlobalData/),
+# not Control Center keys -- a separate override mechanism, since
+# GeneralParameters.block is shared across every calibration run's working
+# folder rather than templated per run (see src/tdmcalib/general_parameters.py).
+
+general_parameter_overrides:
+  calibFac_LT_BE: 1.15
+  calibFac_LT_WE: 1.75 # Weber needs more volume
+  calibFac_LT_DA: 1.06
+  calibFac_LT_SL: 1.00
+  calibFac_LT_UT: 1.00
+  calibFac_MD_BE: 0.73
+  calibFac_MD_WE: 0.75 # Weber needs a little less MD volume
+  calibFac_MD_DA: 2.50
+  calibFac_MD_SL: 0.87 # a little less MD
+  calibFac_MD_UT: 1.15 # a little less MD
+  calibFac_HV_BE: 3.00
+  calibFac_HV_WE: 2.20
+  calibFac_HV_DA: 1.10 # Davis needs less HV
+  calibFac_HV_SL: 2.90
+  calibFac_HV_UT: 0.85
+  WE_NonFwyTruckCostFac: 1.25 # NEW -- to avoid heavy truck cut-through in Weber urban areas
+  DA_FwyTruckCostFac   : 1.30
+  DA_NonFwyTruckCostFac: 0.75
+  DA_RampTruckPenAdd   : 1.42 
+  SL_FwyTruckCostFac   : 1.15 # went too far move down
+  SL_NonFwyTruckCostFac: 0.95
+  SL_RampTruckPenAdd   : 0.65 # to get trucks off freeways, fixing previous wrong-direction adjustment
+  calibFac_Ext_PL_3604: 1.82 # I-15 Box Elder -- still low on FWY for PC/LT trucks  CCS #613 is south of Brigham City, so have to add desired difference to external
+  calibFac_Ext_MD_3604: 1.05
+  calibFac_Ext_HV_3604: 1.15
+  calibFac_Ext_PL_3606: 1.20 # US-91 Logan - LOCKED IN. LINES UP WELL. CCS #682
+  calibFac_Ext_MD_3606: 1.05 # already have good MD truck volumes
+  calibFac_Ext_HV_3606: 1.10 # need a little bump in heavy truck volumes
+  calibFac_Ext_PL_3609: 1.00 # I-84 Morgan - LOCKED IN. LENGTH DATA SAYS 18000 daily but model is around 28
+  calibFac_Ext_MD_3609: 1.20
+  calibFac_Ext_HV_3609: 1.20
+  calibFac_Ext_PL_3612: 1.05 # I-80 Tooele - LOCKED IN. LINES UP WELL WITH CCS.
+  calibFac_Ext_MD_3612: 1.05
+  calibFac_Ext_HV_3612: 1.05
+  calibFac_Ext_PL_3614: 1.05 # I-80 Summit - LOCKED IN. GOOD FOR SEPT WEEKDAY VOLUMES
+  calibFac_Ext_MD_3614: 1.05
+  calibFac_Ext_HV_3614: 1.05
+  calibFac_Ext_PL_3620: 1.23 # Provo Canyon - CCS #319. LOCKED IN.
+  calibFac_Ext_MD_3620: 1.23
+  calibFac_Ext_HV_3620: 1.23
+  calibFac_Ext_PL_3628: 1.11 # I-15 Juab - CCS #638. REDUCE!!
+  calibFac_Ext_MD_3628: 1.11
+  calibFac_Ext_HV_3628: 1.10
+  calibFac_ff_spd_ArtColLoc: 0.9 # 10% reduction in speed on arterial collector local roads to see if better match observed speeds for short trips
+  calibFac_ff_spd_ExpwyFwy: 0.95 # 5% reduction in freeflow speed on expressways/freeways (FT 12-15, 20-42)
+
+# No outputs section: this run's raw output matches the raw TDM Scenario
+# folder layout, so it uses config/framework.yaml's default outputs.include
+# (and default max_file_size_mb) as-is.
