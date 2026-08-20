@@ -18,7 +18,6 @@ import contextily as ctx
 import _validation_scripts as vs
 import math
 import os
-import json
 import openpyxl
 ```
 
@@ -423,31 +422,6 @@ df_final["DIFF"] = df_final["MODELED"] - df_final["TARGET"]
 df_final["PCT_DIFF"] = np.where(
     df_final["TARGET"] > 0, df_final["DIFF"] / df_final["TARGET"], 0
 ).round(3)
-```
-
-```{python}
-# ======================================================================
-# CROSS-RUN COMPARISON: emit headline metrics for report/compare.qmd
-# one file per calibration run
-# ======================================================================
-for _calib_run in calib_runs:
-    _df_run = df_final[df_final["calib_run"] == _calib_run]
-    _tgt_total = _df_run["TARGET"].sum()
-    _mod_total = _df_run["MODELED"].sum()
-    _rmse = ((_df_run["MODELED"] - _df_run["TARGET"]) ** 2).mean() ** 0.5
-
-    _summary_metrics = {
-        "calib_run": _calib_run,
-        "stage": "assignhwy",
-        "metrics": {
-            "total_target_volume": float(_tgt_total),
-            "total_modeled_volume": float(_mod_total),
-            "total_pct_diff": float((_mod_total - _tgt_total) / _tgt_total) if _tgt_total else None,
-            "segment_rmse": float(_rmse),
-        },
-    }
-    with open(f"summary_metrics_assignhwy_{_calib_run}.json", "w") as f:
-        json.dump(_summary_metrics, f, indent=2)
 ```
 
 ```{python}

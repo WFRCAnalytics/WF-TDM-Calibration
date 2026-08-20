@@ -39,7 +39,7 @@ website:
           - report/2-distribution.qmd
           - report/3-modechoice.qmd
           - report/4-assignhwy.qmd
-      - report/compare.qmd
+      - report/cvm-update.qmd
   navbar:
     logo-alt: "Wasatch Front Regional Council"
     right:

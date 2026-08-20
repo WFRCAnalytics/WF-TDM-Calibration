@@ -1,9 +1,0 @@
-{
-  "calib_run": "C68",
-  "stage": "modechoice",
-  "metrics": {
-    "transit_mode_share_model": 0.2268752451489352,
-    "transit_mode_share_target": 0.23186616597182683,
-    "transit_trips_pct_diff": 0.008668844568917606
-  }
-}

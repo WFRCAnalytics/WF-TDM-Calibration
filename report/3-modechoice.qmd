@@ -15,7 +15,6 @@ import numpy as np
 import os
 import re
 import requests
-import json
 import sys
 from pathlib import Path
 
@@ -530,37 +529,6 @@ for key, val in config_hierarchy.items():
 
 ojs_define(namePeriod="Period")
 ojs_define(nameGroup="ModeGroup")
-```
-
-```{python}
-# ======================================================================
-# CROSS-RUN COMPARISON: emit headline metrics for report/compare.qmd
-# one file per calibration run
-# ======================================================================
-for _calib_run in calib_runs:
-    _at_daily = df_final[
-        (df_final["ModeGroup"] == "Auto / Transit")
-        & (df_final["Period"] == "DY")
-        & (df_final["calib_run"] == _calib_run)
-    ]
-    _transit_row = _at_daily[_at_daily["Mode"] == "Transit"]
-    _system_row = df_boardings_long[
-        (df_boardings_long["Mode"] == "All")
-        & (df_boardings_long["Title"] == "Trips by Hierarchical Mode")
-        & (df_boardings_long["calib_run"] == _calib_run)
-    ]
-
-    _summary_metrics = {
-        "calib_run": _calib_run,
-        "stage": "modechoice",
-        "metrics": {
-            "transit_mode_share_model": float(_transit_row["Model"].iloc[0]) if len(_transit_row) else None,
-            "transit_mode_share_target": float(_transit_row["Target"].iloc[0]) if len(_transit_row) else None,
-            "transit_trips_pct_diff": float(_system_row["% Difference"].iloc[0]) if len(_system_row) else None,
-        },
-    }
-    with open(f"summary_metrics_modechoice_{_calib_run}.json", "w") as f:
-        json.dump(_summary_metrics, f, indent=2)
 ```
 
 ## Mode Share

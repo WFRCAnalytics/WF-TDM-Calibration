@@ -63,7 +63,7 @@ cp "F:\SHARED\Chris\large_files_calibration\v1000\UT_HTS_2023_Linked_Trips.csv" 
 | `bin/`              | `RunModel.bat` — the Cube Voyager entry point `tdmcalib` invokes |
 | `tests/`            | `pytest` suite for `src/tdmcalib/` |
 | `inputs/`           | Calibration targets, counts, survey data                 |
-| `report/`           | Quarto calibration reports (one file per stage, each covering every calibration run via an in-page selector) + `compare.qmd` (headline metrics across runs), published to GitHub Pages — see `report/README.md` |
+| `report/`           | Quarto calibration reports (one file per stage, each covering every calibration run via an in-page selector), published to GitHub Pages — see `report/README.md` |
 
 `scripts/` (calibration scripts) and `configs/` (their parameter/target configs) don't
 exist yet — create them when actually needed, not speculatively.

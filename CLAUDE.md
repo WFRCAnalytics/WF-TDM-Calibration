@@ -75,7 +75,7 @@ Installed at `.venv/Scripts/tdmcalib.exe`. Full definitions in `src/tdmcalib/cli
 | `bin/`              | `RunModel.bat` — TDM-version-independent Cube Voyager entry point `tdmcalib` invokes |
 | `tests/`            | `pytest` suite for `src/tdmcalib/` |
 | `inputs/`           | Calibration targets, counts, survey data                     |
-| `report/`           | Quarto calibration reports (one file per stage, each covering every calibration run via an in-page selector) + `compare.qmd` (cross-run comparison), published to GitHub Pages — see `report/README.md` |
+| `report/`           | Quarto calibration reports (one file per stage, each covering every calibration run via an in-page selector), published to GitHub Pages — see `report/README.md` |
 
 `scripts/` (calibration scripts — matrix estimation, target matching) and `configs/`
 (their parameter/target configs, distinct from `calibration_runs/`'s TDM-execution

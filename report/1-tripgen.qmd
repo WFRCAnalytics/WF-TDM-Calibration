@@ -14,7 +14,6 @@ import numpy as np
 import plotly.express as px
 from tabulate import tabulate
 from IPython.display import Markdown
-import json
 import sys
 from pathlib import Path
 
@@ -664,33 +663,6 @@ tripRates = (
 )
 ojs_define(tripRates=tripRates)
 
-```
-
-```{python}
-# ======================================================================
-# CROSS-RUN COMPARISON: emit headline metrics for report/compare.qmd
-# one file per calibration run (HTS reference rows repeated in each, so
-# compare.qmd can show Model vs. HTS for whichever run it's looking at)
-# ======================================================================
-for _calib_run in calib_runs:
-    _region_all = trip_rates_county_purp_df[
-        (trip_rates_county_purp_df["County"] == "Region")
-        & (trip_rates_county_purp_df["Purpose"] == "All")
-        & (trip_rates_county_purp_df["calib_run"].isna() | (trip_rates_county_purp_df["calib_run"] == _calib_run))
-    ]
-    _summary_metrics = {
-        "calib_run": _calib_run,
-        "stage": "tripgen",
-        "metrics": {
-            row["Data Source"]: {
-                "trips_per_household": row["Trips per Household"],
-                "trips_per_person": row["Trips per Person"],
-            }
-            for _, row in _region_all.iterrows()
-        },
-    }
-    with open(f"summary_metrics_tripgen_{_calib_run}.json", "w") as f:
-        json.dump(_summary_metrics, f, indent=2)
 ```
 
 ```{ojs}

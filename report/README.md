@@ -9,8 +9,7 @@ successful `tdmcalib` run under `runs/`, and a single shared "Calibration Run" d
 (`report/_calib_run_selector.qmd`, spliced into every page, sitting in the navbar header
 next to the site title) picks which run's modeled results to view against observed data,
 persisted across page
-navigation via `localStorage`. `compare.qmd` shows headline metrics across runs side by
-side.
+navigation via `localStorage`.
 
 This mirrors the pattern used in [WF-TDM-Documentation](https://github.com/WFRCAnalytics/WF-TDM-Documentation)
 for TDM version validation, adapted to point at this repo's `runs/` and `inputs/`
@@ -129,23 +128,6 @@ executable path and a timeout). A rendering failure is logged into the attempt's
 `run_info/{run_id}.json` under `postprocess` but does **not** fail the run itself — the
 curated outputs are already safely on disk regardless of whether the report
 re-rendered cleanly. Commit the resulting `docs/` to publish.
-
-## Cross-run comparison (`compare.qmd`)
-
-Any stage `.qmd` can write `summary_metrics_<stage>_<calib_run>.json` (a small
-`{"calib_run": ..., "stage": ..., "metrics": {name: value, ...}}` document) at the end
-of its data-prep cells, once per calibration run it processes — `compare.qmd` globs
-`summary_metrics_*.json` at render time and lets you pick any subset of calibration
-runs to chart side by side, per metric. This is deliberately a *summary* mechanism (a
-handful of scalars per stage per run), not a way to compare full distributions across
-runs — keeps `compare.qmd` fast regardless of how many calibration runs accumulate.
-
-Currently wired up: `1-tripgen.qmd` (trips per household/person by data source),
-`3-modechoice.qmd` (transit mode share, system-wide transit trips % diff),
-`4-assignhwy.qmd` (total volume % diff, segment RMSE). The other stages
-(`0-hhdisag-autoown`, `2-distribution`, `7-modelresults`) don't emit one yet — follow
-the same pattern (a `json.dump()` cell, looped over `calib_runs`, after the stage's
-main comparison DataFrame is built) if they need to show up in `compare.qmd`.
 
 ## Known gaps carried over from this scaffold
 
