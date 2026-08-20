@@ -1,0 +1,72 @@
+;----------------------------------------------------------------------------------------
+;                          PT FACTORS FILE - Walk to CRT Mode 8
+;----------------------------------------------------------------------------------------
+
+;global setting
+    BESTPATHONLY = T
+    RECOSTMAX    = 240                            ;max perceived time (240 min = 4 hr)
+    MAXFERS      = 3
+    
+;fare data
+    FARESYSTEM=1,  MODE=4,5,7,9                   ;regular service fare for local bus, BRT and LRT
+    FARESYSTEM=2,  MODE=6                         ;premium service fare for express bus
+    FARESYSTEM=3,  MODE=8                         ;count-based fare for CRT
+    
+;intial and transfer wait times
+    IWAITCURVE=1,  NODES=20000-49999,60000-89999  ;all but rail nodes WFRC:20000-49999, MAG:60000-89999
+    IWAITCURVE=2,  NODES=10000-19999,50000-59999  ;rail nodes         WFRC:10000-19999, MAG:50000-59999
+    
+    XWAITCURVE=3,  NODES=10000-89999              ;all nodes
+    XWAITCURVE=4,  NODES=15127,10046,10019,50024  ;seamless transfer nodes
+    
+;select modes used in skim (use: DELMODE, DELACCESSMODE, DELEGRESSMODE)
+    ;DELMODE       = 6
+    DELACCESSMODE = 30-90
+    
+;weight factors to obtain perceived times
+    ;weight initial and transfer wait times
+    WAITFACTOR    = 2.0,  NODES=10000-89999       ;all nodes
+    
+    ;mode-specific weight applied to transit in-vehicle times and nontransit leg times
+    RUNFACTOR[4]  = 3.50                          ;local bus
+    RUNFACTOR[5]  = 1.75                          ;core bus
+    RUNFACTOR[6]  = 3.50                          ;express bus
+    RUNFACTOR[7]  = 1.75                          ;LRT
+    RUNFACTOR[8]  = 1                             ;CRT
+    RUNFACTOR[9]  = 1.75                          ;BRT
+    
+    RUNFACTOR[11] = 2.0                           ;walk access link - auto-genreated
+    RUNFACTOR[12] = 2.0                           ;walk access link - hand-coded
+    RUNFACTOR[21] = 2.0                           ;transfer access link (walk) - auto-generated
+    RUNFACTOR[22] = 2.0                           ;transfer access link (walk) - hand-coded
+    
+    RUNFACTOR[30] = 2.5                           ;drive access link - kiss-n-ride
+    RUNFACTOR[40] = 2.5                           ;drive access link - local bus
+    RUNFACTOR[50] = 2.5                           ;drive access link - core bus
+    RUNFACTOR[60] = 2.5                           ;drive access link - express bus
+    RUNFACTOR[70] = 2.5                           ;drive access link - LRT
+    RUNFACTOR[80] = 2.5                           ;drive access link - CRT
+    RUNFACTOR[90] = 2.5                           ;drive access link - BRT
+    
+    ;initial boarding penalty, in minutes (applies only to transit modes)
+    BRDPEN[4] = 0
+    BRDPEN[5] = 0
+    BRDPEN[6] = 0
+    BRDPEN[7] = 0
+    BRDPEN[8] = 0
+    BRDPEN[9] = 0
+    
+    ;transfer boarding penalty, in minutes (applies only to transit modes)
+    xferpen=12, FROM=4-9, TO=4-9
+    
+    ;transfer penalty weight factor (applies only to XFERPEN)
+    ; local (4)
+    XFERFACTOR=1, FROM=4-9, TO=4-9
+    
+    ;transit-mode to transit-mode constant used to restrict transfers between modes (added to product of XFERPEN*XFERFACTOR)
+    XFERCONST=999, FROM=4, TO=4-7,9               ;transfer not allowed between modes 4 and 4-7 and 9
+    XFERCONST=999, FROM=5, TO=4-7,9               ;transfer not allowed between modes 5 and 4-7 and 9
+    XFERCONST=999, FROM=9, TO=4-7,9               ;transfer not allowed between modes 9 and 4-7 and 9
+    XFERCONST=999, FROM=7, TO=4-7,9               ;transfer not allowed between modes 7 and 4-6 and 9
+    XFERCONST=999, FROM=6, TO=4-7,9               ;transfer not allowed between modes 9 and 4-7 and 9
+    XFERCONST=999, FROM=11,12,21,22 TO=11,12,21,22;transfer not allowed between access links

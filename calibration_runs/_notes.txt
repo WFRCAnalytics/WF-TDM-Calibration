@@ -81,6 +81,24 @@ calibFac_MD_SL: 0.97 # to get more medium trucks in Salt Lake County
 
 
 C65
+model: tdm_ref calib/C65, TDM moved 554f01ce -> 9327763b ("chore: Prep mode choice constants for calibration") -- new TDM commit enabling mode-choice calibration keys
+yaml: LT_WE 1.15->1.30 ("Weber needs more volume"); SL_RampTruckPenAdd 0.55->0.75 (further step in fixing previous wrong-direction adjustment); added Ext_PL_3606 (US-91 Logan) at 1.20 ("Model showing 25,000 and CCS showing 30,000"); Ext_PL_3609 (I-84 Morgan) reduced to 1.00 ("Reduce to 1.0 and LOCK IN. LENGTH DATA SAYS 18000 daily but model is around 28"); Ext_3612 (Tooele) "LOCKED IN. LINES UP WELL WITH CCS"; added Ext_3614 (I-80 Summit) "LOCKED IN. GOOD FOR SEPT WEEKDAY VOLUMES"; Ext_3620 (Provo Canyon) and Ext_3628 (I-15 Juab) both bumped up a bit; first use of mode-choice calibration -- new calibFac_mc_transit_share: 1.23 ("need about 4% increase in transit trips") plus CALIB_MC: 1 and CALIB_MC_BREAK_ITER_* (all set to 20) to actually turn on the TDM's new MC calibration loop
+note: first run attempt crashed mid-model; second attempt succeeded
 
+C66
+model: tdm_ref calib/C66, TDM moved 9327763b -> 1ed76c0a ("chore: Copy over calibrated mode choice constants") -- bakes C65's calibrated MC constants directly into the model
+yaml: dropped calibFac_mc_transit_share/CALIB_MC/CALIB_MC_BREAK_ITER_* now that the MC constants are baked into TDM (no more MC calibration loop needed); LT_WE 1.30->1.50 (still "Weber needs more volume"); DA_RampTruckPenAdd 1.50->1.35; SL_FwyTruckCostFac 1.25->1.15 ("went too far move down"); SL_RampTruckPenAdd 0.75->0.65; Ext_PL_3604 1.60->1.82 ("still low on FWY for PC/LT trucks CCS #613 is south of Brigham City, so have to add desired difference to external"); Ext_3606/3609/3612/3614/3620 all marked "LOCKED IN" at their C65 values; Ext_PL_3628 1.25->1.11, Ext_MD_3628 1.15->1.11 ("CCS #638. REDUCE!!")
 
+C67
+model: tdm_ref calib/C67, same TDM commit as C66 (1ed76c0a) - no model change
+yaml: LT_WE 1.50->1.75 ("Weber needs more volume", third straight bump); MD_BE 0.75->0.73, MD_WE 0.90->0.75 (direction reversed: "Weber needs a little less MD volume"), MD_DA 3.00->2.50, MD_SL 0.97->0.87, MD_UT 1.20->1.15 (all "a little less MD"); HV_BE 2.93->3.00, HV_WE 2.27->2.20, HV_DA 1.25->1.10 ("Davis needs less HV"), HV_SL 3.00->2.90, HV_UT 0.89->0.85; DA_RampTruckPenAdd 1.35->1.42; all Ext_* factors unchanged (still locked in)
+
+C68
+model: tdm_ref calib/C68, same TDM commit as C67 (1ed76c0a) - no model change
+yaml: MD_WE 0.75->0.72 ("a little less"), MD_SL 0.87->0.92 ("a little more"); HV_WE 2.20->2.10 ("a little less"), HV_DA 1.10->0.85 ("way less HV"), HV_SL 2.90->3.10 ("a little more"), HV_UT 0.85->0.82 ("a little less"); Ext_PL_3609 (I-84 Morgan) un-locked, 1.00->1.10 ("Low VMT in Weber suggest need more externals")
+note: first run attempt crashed (no resolved model completion report in _RunTime.txt); second attempt was still running as of this writing
+
+C69
+model: tdm_ref calib/C69 -- tag not fetched from the TDM remote yet, so resolved commit/model change unknown as of this writing
+yaml: general_parameter_overrides commented "# same as C68" -- LT/MD/HV/truck-cost/ramp-penalty/Ext factors all unchanged from C68 -- plus a new MC_CALIB: 1. CAUTION: likely a typo -- GeneralParameters.block's real key is CALIB_MC (as used in C65), not MC_CALIB, so this override will fail tdmcalib's key validation as currently written. Also declares start_from_copy: C69 (self-referential -- seeds this run's own working folder from C69's own most recent successful run) + start_at_label STEP4_05, to redo mode-choice-onward without rerunning steps 1-4.05 -- but no runs/C69 folder or successful C69 attempt exists yet, so start_from_copy has no source to copy from as currently configured
 
