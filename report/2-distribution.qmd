@@ -237,6 +237,13 @@ atlGroupBoundaries = atlRows
 // Headroom for the +/-% labels past the rightmost dot.
 atlXMax = (d3.max(atlRows, d => Math.max(d.Model ?? 0, d.Target ?? 0)) || 1) * 1.15
 
+// A "-X%" label to the left of a dot sitting near x=0 would spill into the
+// y-axis label column (marginLeft) -- force those onto the right instead,
+// same as a row where Model already reads to the right of Target.
+atlNearZero = atlXMax * 0.18
+atlLabelsRight = atlRows.filter(d => d.pctDiff != null && (d.Model >= d.Target || d.Model < atlNearZero))
+atlLabelsLeft = atlRows.filter(d => d.pctDiff != null && d.Model < d.Target && d.Model >= atlNearZero)
+
 Plot.plot({
   y: {domain: atlPurposes, label: null, tickFormat: p => atlRows.find(d => d.Purpose === p)?.PurposeLabel ?? p},
   x: {domain: [0, atlXMax], tickFormat: "s", grid: true, label: varSelect === "GC" ? "Generalized Cost" : "Distance"},
@@ -249,7 +256,7 @@ Plot.plot({
   marginTop: 10,
   marginBottom: 40,
   marginRight: 55,
-  marginLeft: 105,
+  marginLeft: 125,
   height: Math.max(atlPurposes.length * 28, 80),
   marks: [
     Plot.ruleY(atlGroupBoundaries, {y: p => p, dy: -14, stroke: themeNeutral, strokeOpacity: 0.4}),
@@ -265,12 +272,12 @@ Plot.plot({
       x: "Model", y: "Purpose", fill: themeModel, r: 5.5,
       title: d => `${d.PurposeLabel}\nModel: ${d3.format(",.1f")(d.Model)}`
     }),
-    Plot.text(atlRows.filter(d => d.pctDiff != null && d.Model >= d.Target), {
+    Plot.text(atlLabelsRight, {
       x: "Model", y: "Purpose", text: d => d3.format("+.1%")(d.pctDiff),
       dx: 9, textAnchor: "start", fontSize: 11, fontWeight: 600,
       fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral
     }),
-    Plot.text(atlRows.filter(d => d.pctDiff != null && d.Model < d.Target), {
+    Plot.text(atlLabelsLeft, {
       x: "Model", y: "Purpose", text: d => d3.format("+.1%")(d.pctDiff),
       dx: -9, textAnchor: "end", fontSize: 11, fontWeight: 600,
       fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral
@@ -726,6 +733,13 @@ intraLinkRows = intraRows.filter(d => d.Model != null && d.Target != null);
 // Headroom for the +/-% labels past the rightmost dot.
 intraXMax = (d3.max(intraRows, d => Math.max(d.Model ?? 0, d.Target ?? 0)) || 1) * 1.15
 
+// A "-X%" label to the left of a dot sitting near x=0 would spill into the
+// y-axis label column (marginLeft) -- force those onto the right instead,
+// same as a row where Model already reads to the right of Target.
+intraNearZero = intraXMax * 0.18
+intraLabelsRight = intraRows.filter(d => d.pctDiff != null && (d.Model >= d.Target || d.Model < intraNearZero))
+intraLabelsLeft = intraRows.filter(d => d.pctDiff != null && d.Model < d.Target && d.Model >= intraNearZero)
+
 Plot.plot({
   y: {domain: intraPurposes, label: null, tickFormat: p => intraRows.find(d => d.PURP === p)?.PurposeLabel ?? p},
   x: {domain: [0, intraXMax], tickFormat: "s", grid: true, label: "% Intrazonal"},
@@ -738,7 +752,7 @@ Plot.plot({
   marginTop: 10,
   marginBottom: 40,
   marginRight: 55,
-  marginLeft: 95,
+  marginLeft: 115,
   height: Math.max(intraPurposes.length * 28, 80),
   marks: [
     Plot.link(intraLinkRows, {x1: "Model", x2: "Target", y: "PURP", stroke: themeLinkGrey, strokeWidth: 3}),
@@ -753,12 +767,12 @@ Plot.plot({
       x: "Model", y: "PURP", fill: themeModel, r: 5.5,
       title: d => `${d.PurposeLabel}\nModel: ${d3.format(",.1f")(d.Model)}%`
     }),
-    Plot.text(intraRows.filter(d => d.pctDiff != null && d.Model >= d.Target), {
+    Plot.text(intraLabelsRight, {
       x: "Model", y: "PURP", text: d => d3.format("+.1%")(d.pctDiff),
       dx: 9, textAnchor: "start", fontSize: 11, fontWeight: 600,
       fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral
     }),
-    Plot.text(intraRows.filter(d => d.pctDiff != null && d.Model < d.Target), {
+    Plot.text(intraLabelsLeft, {
       x: "Model", y: "PURP", text: d => d3.format("+.1%")(d.pctDiff),
       dx: -9, textAnchor: "end", fontSize: 11, fontWeight: 600,
       fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral

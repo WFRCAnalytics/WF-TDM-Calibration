@@ -748,10 +748,17 @@ function tripDumbbellChart(county) {
   // column, so the plotted width matches what CSS actually gives this chart.
   const chartWidth = width < tripGridBreakpoint ? width : (width - tripGridGap * 2) / 3;
 
+  // A "-X%" label to the left of a dot sitting near x=0 would spill into
+  // the y-axis label column (marginLeft) -- force those onto the right
+  // instead, same as a dot where Model already reads to the right of HTS.
+  const nearZero = xMax * 0.18;
+  const labelsRight = rows.filter(d => d.Model >= d.HTS || d.Model < nearZero);
+  const labelsLeft = rows.filter(d => d.Model < d.HTS && d.Model >= nearZero);
+
   const chart = Plot.plot({
     width: chartWidth,
     height: 260,
-    marginLeft: 70,
+    marginLeft: 85,
     marginRight: 45,
     marginTop: 10,
     y: {domain: purposes, label: null},
@@ -772,12 +779,12 @@ function tripDumbbellChart(county) {
         x: "Model", y: "Purpose", fill: themeModel, r: 6.5,
         title: d => `${d.Purpose}\nModel (${globalCalibRun}): ${d3.format(",.2f")(d.Model)}`
       }),
-      Plot.text(rows.filter(d => d.Model >= d.HTS), {
+      Plot.text(labelsRight, {
         x: "Model", y: "Purpose", text: d => d3.format("+.1%")(d.pctDiff),
         dx: 10, textAnchor: "start", fontSize: 11, fontWeight: 600,
         fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral
       }),
-      Plot.text(rows.filter(d => d.Model < d.HTS), {
+      Plot.text(labelsLeft, {
         x: "Model", y: "Purpose", text: d => d3.format("+.1%")(d.pctDiff),
         dx: -10, textAnchor: "end", fontSize: 11, fontWeight: 600,
         fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral
@@ -802,7 +809,12 @@ function tripTotalsRow(county) {
     .map(d => ({ ...d, "Data Source": String(d["Data Source"]).trim() }));
   const hts = filtered.find(d => d["Data Source"] === htsSource);
   const mod = filtered.find(d => d["Data Source"] === "Model");
-  return { County: county, HTS: hts?.[metricSelect], Model: mod?.[metricSelect] };
+  const htsVal = hts?.[metricSelect];
+  const modVal = mod?.[metricSelect];
+  return {
+    County: county, HTS: htsVal, Model: modVal,
+    pctDiff: (htsVal != null && modVal != null && htsVal !== 0) ? (modVal - htsVal) / htsVal : null
+  };
 }
 
 {
@@ -837,6 +849,7 @@ function tripTotalsRow(county) {
           <th style="text-align:left; padding:4px 6px; border-bottom:2px solid #999;">County</th>
           <th style="text-align:right; padding:4px 6px; border-bottom:2px solid #999;">${"HTS " + htsYearSelect}</th>
           <th style="text-align:right; padding:4px 6px; border-bottom:2px solid #999;">Model (${globalCalibRun})</th>
+          <th style="text-align:right; padding:4px 6px; border-bottom:2px solid #999;">% Difference</th>
         </tr>
       </thead>
       <tbody>
@@ -844,6 +857,7 @@ function tripTotalsRow(county) {
           <td style="padding:4px 6px;">${r.County}</td>
           <td style="padding:4px 6px; text-align:right;">${r.HTS != null ? fmt(r.HTS) : "--"}</td>
           <td style="padding:4px 6px; text-align:right;">${r.Model != null ? fmt(r.Model) : "--"}</td>
+          <td style="padding:4px 6px; text-align:right; color:${r.pctDiff != null && Math.abs(r.pctDiff) > 0.1 ? themeDanger : themeNeutral}; font-weight:600;">${r.pctDiff != null ? d3.format("+.1%")(r.pctDiff) : "--"}</td>
         </tr>`)}
       </tbody>
     </table>
