@@ -631,43 +631,61 @@ xDomain = {
 ###### Chart
 
 ```{ojs}
+// Legend is its own independent cell (not referenced from inside the chart
+// cell below) so that if it fails to evaluate -- e.g. Observable's CDN
+// (@d3/color-legend) being unreachable -- only this swatch is affected, not
+// the chart itself. Same decoupling this report's other dumbbells use.
+modeShareColorScale = d3.scaleOrdinal(["Model", "Target"], [themeModel, themeTarget])
+keyModeShare = Legend(modeShareColorScale, {title: "Data Source"})
+```
+
+```{ojs}
 //| label: fig-mode-share
 //| fig-cap: "Mode Share Calibration Results by Trip Purpose"
 
 {
-  // One point per Mode, per Purpose x Period facet cell -- Target on x,
-  // Model on y, against a 1:1 equality line (same convention as the Trip
-  // Distribution page's Model-vs-Target scatter, report/2-distribution.qmd's
-  // CHART 4a). Replaces the previous grouped-bar-per-mode chart, which got
-  // crowded once faceted 3x5 -- reuses xDomain (already the per-Mode-Group
-  // mode list) rather than a color-coded Model/Target bar pair.
-  const scatterModes = xDomain.filter(d => d.endsWith("||Model")).map(d => d.split("||")[0])
+  // One dumbbell row per Mode, per Purpose x Period facet cell -- Target
+  // and Model dots on a shared Share% axis, connected by a link, same
+  // convention as this report's other dumbbells (Trip Production Rates,
+  // Average Trip Length, Intrazonal Trip Percentage -- see
+  // report/1-tripgen.qmd and report/2-distribution.qmd). Replaces the
+  // previous grouped-bar-per-mode chart, which got crowded once faceted
+  // 3x5 -- reuses xDomain (already the per-Mode-Group mode list, in order)
+  // as the shared y-domain across every facet cell.
+  const dumbbellModes = xDomain.filter(d => d.endsWith("||Model")).map(d => d.split("||")[0])
 
-  const scatterRows = facetPurposes.flatMap(purp => {
+  const rows = facetPurposes.flatMap(purp => {
     const purposeLabel = facetLabels.get(purp)
     return facetPeriods.flatMap(per => {
       const periodLabel = periodLabels.get(per)
-      return scatterModes.map(mode => {
+      return dumbbellModes.map(mode => {
         const model = filtered_data.find(d => d.PurposeLabel === purposeLabel && d.PeriodLabel === periodLabel && d.Mode === mode && d.DataSource === "Model")
         const target = filtered_data.find(d => d.PurposeLabel === purposeLabel && d.PeriodLabel === periodLabel && d.Mode === mode && d.DataSource === "Target")
-        return { PurposeLabel: purposeLabel, PeriodLabel: periodLabel, Mode: mode, Model: model?.Percent, Target: target?.Percent }
+        const modelVal = model?.Percent
+        const targetVal = target?.Percent
+        return {
+          PurposeLabel: purposeLabel, PeriodLabel: periodLabel, Mode: mode,
+          Model: modelVal, Target: targetVal,
+          pctDiff: (modelVal != null && targetVal != null && targetVal !== 0) ? (modelVal - targetVal) / targetVal : null
+        }
       }).filter(d => d.Model != null && d.Target != null)
     })
   })
 
-  // One row per facet cell (not per scatterRows datum) so the equality line
-  // draws once per cell, not once per mode.
-  const facetCells = facetPurposes.flatMap(purp =>
-    facetPeriods.map(per => ({ PurposeLabel: facetLabels.get(purp), PeriodLabel: periodLabels.get(per) }))
-  )
+  const chartMax = (d3.max(rows, d => Math.max(d.Model, d.Target)) || 0.1) * 1.3
 
-  const chartMax = (d3.max(scatterRows, d => Math.max(d.Model, d.Target)) || 0.1) * 1.25
+  // A "-X%" label to the left of a dot sitting near x=0 would spill into
+  // the y-axis label column -- force those onto the right instead, same as
+  // this report's other dumbbells.
+  const nearZero = chartMax * 0.18
+  const labelsRight = rows.filter(d => d.pctDiff != null && (d.Model >= d.Target || d.Model < nearZero))
+  const labelsLeft = rows.filter(d => d.pctDiff != null && d.Model < d.Target && d.Model >= nearZero)
 
   const chart = Plot.plot({
     height : 620,
     width  : 950,
-    marginLeft  : 55,
-    marginBottom: 40,
+    marginLeft  : 120,
+    marginBottom: 30,
     marginTop : 40,
     facetMarginTop: 30,
     facetMarginRight: 60,
@@ -692,25 +710,39 @@ xDomain = {
       padding: 0.4,
     },
 
-    x: { label: "Target Share", domain: [0, chartMax], tickFormat: ".0%", grid: true },
-    y: { label: "Model Share", domain: [0, chartMax], tickFormat: ".0%", grid: true },
+    y: { domain: dumbbellModes, label: null },
+    x: { label: "Share", domain: [0, chartMax], tickFormat: ".0%", grid: true },
 
     marks: [
-      Plot.link(facetCells, {
+      Plot.link(rows, {
         fx: "PurposeLabel", fy: "PeriodLabel",
-        x1: 0, y1: 0, x2: chartMax, y2: chartMax,
-        stroke: "gray", strokeOpacity: 0.5, strokeDasharray: "4 4"
+        x1: "Target", x2: "Model", y: "Mode",
+        stroke: themeLinkGrey, strokeWidth: 2.5
       }),
-      Plot.dot(scatterRows, {
+      // Target drawn first, Model second, so the Model dot's ring always
+      // sits on top where the two overlap -- same convention as this
+      // report's other dumbbells.
+      Plot.dot(rows, {
         fx: "PurposeLabel", fy: "PeriodLabel",
-        x: "Target", y: "Model", r: 4,
-        fill: themeModel, fillOpacity: 0.85,
-        title: d => `${d.Mode}\nTarget: ${fmtShare(d.Target)}\nModel: ${fmtShare(d.Model)}`
+        x: "Target", y: "Mode", fill: themeTarget, r: 4.5,
+        title: d => `${d.Mode}\nTarget: ${fmtShare(d.Target)}`
       }),
-      Plot.text(scatterRows, {
+      Plot.dot(rows, {
         fx: "PurposeLabel", fy: "PeriodLabel",
-        x: "Target", y: "Model", text: "Mode",
-        dy: -8, fontSize: 8.5, fill: themeNeutral
+        x: "Model", y: "Mode", fill: themeModel, r: 3.5,
+        title: d => `${d.Mode}\nModel: ${fmtShare(d.Model)}`
+      }),
+      Plot.text(labelsRight, {
+        fx: "PurposeLabel", fy: "PeriodLabel",
+        x: "Model", y: "Mode", text: d => d3.format("+.1%")(d.pctDiff),
+        dx: 7, textAnchor: "start", fontSize: 8, fontWeight: 600,
+        fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral
+      }),
+      Plot.text(labelsLeft, {
+        fx: "PurposeLabel", fy: "PeriodLabel",
+        x: "Model", y: "Mode", text: d => d3.format("+.1%")(d.pctDiff),
+        dx: -7, textAnchor: "end", fontSize: 8, fontWeight: 600,
+        fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral
       }),
     ],
   })
