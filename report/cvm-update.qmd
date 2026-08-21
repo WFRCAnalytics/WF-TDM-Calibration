@@ -25,23 +25,31 @@ external (X) end of any trip that crosses the region boundary.
 # raw Cube .mtx matrices via Voyager (see scripts/cv_purpose_factoring.py's
 # module docstring), which is too slow to do on every `quarto render`. Instead
 # that script is run manually per calibration run and its output committed
-# here as a small static CSV, same as any other report/data/ input. Only runs
-# that have had the script run against them appear in this page's own
-# calibration-run selector below (a subset of every run in runs/, not the
-# full list every other report page offers).
+# here as a small static CSV, same as any other report/data/ input. Not every
+# run in runs/ has had the script run against it yet, so `calib_runs` (below)
+# stays the same full site-wide list every other report page offers -- the
+# shared calibration-run selector (_calib_run_selector.qmd) always shows every
+# available run, greying out this page's own sidebar entry when the selected
+# run has no CVM data rather than shrinking the dropdown itself. The
+# CVM-specific subset lives in `cvm_available_runs` instead, used only to
+# decide what this page itself can render.
 import sys
 from pathlib import Path
 
 import pandas as pd
 
 sys.path.insert(0, ".")
+import _validation_scripts as vs
+
+repo_root = Path("..")
+calib_runs = vs.list_available_runs(repo_root)
 
 data_dir = Path("data/cvm-update")
 files = sorted(data_dir.glob("purpose_factoring_*.csv"))
 cvm_df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True) if files else pd.DataFrame()
-calib_runs = sorted(cvm_df["calib_run"].unique().tolist(), key=lambda s: int("".join(c for c in s if c.isdigit()) or 0)) if not cvm_df.empty else []
+cvm_available_runs = sorted(cvm_df["calib_run"].unique().tolist(), key=lambda s: int("".join(c for c in s if c.isdigit()) or 0)) if not cvm_df.empty else []
 
-ojs_define(cvm_data=cvm_df)
+ojs_define(cvm_data=cvm_df, cvm_available_runs=cvm_available_runs)
 ```
 
 {{< include _calib_run_selector.qmd >}}
@@ -55,9 +63,19 @@ vehicleOrder = ["LT", "MD", "HV"]
 vehicleLabel = new Map([["LT", "Light Trucks"], ["MD", "Medium Trucks"], ["HV", "Heavy Trucks"]])
 
 rows = allRows.filter(d => d.calib_run === globalCalibRun)
+hasCvmData = cvm_available_runs.includes(globalCalibRun)
 fmtInt = d3.format(",.0f")
 fmtPct = d3.format(",.1f")
 fmtFactor = d3.format(",.2f")
+```
+
+```{ojs}
+//| echo: false
+hasCvmData ? html`` : html`<div class="callout-warning" style="padding:0.75rem 1rem; margin-bottom:1rem; border:1px solid #f0c36d; border-radius:6px; background:rgba(240,195,109,0.15);">
+  <strong>No CVM factoring data yet for ${globalCalibRun}.</strong> ${"scripts/cv_purpose_factoring.py"} hasn't been
+  run against this calibration run -- the sections below will be empty until it has (see the Methodology note at
+  the bottom of this page). Pick a different run from the "Calibration Run" selector to see this page's charts.
+</div>`
 ```
 
 ## Total Commercial Vehicle Activity
@@ -79,7 +97,7 @@ function headlineCard(veh) {
     const m = vehRows.filter(d => d.metric === metric);
     const factored = d3.sum(m, d => d.factored);
     const unfactored = d3.sum(m, d => d.unfactored);
-    return { factored, unfactored, modelPct: unfactored / factored * 100, adjPct: (factored - unfactored) / factored * 100 };
+    return { factored, unfactored, modelPct: factored ? unfactored / factored * 100 : 0, adjPct: factored ? (factored - unfactored) / factored * 100 : 0 };
   }
   const trips = totals("trips");
   const vmt = totals("vmt");

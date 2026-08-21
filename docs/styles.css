@@ -112,3 +112,18 @@
     display: none;
   }
 }
+
+/* Sidebar link for a page without data for the currently-selected
+   calibration run (toggled by report/_calib_run_selector.qmd's OJS cell).
+   Stays clickable -- the page itself shows a "no data for this run"
+   state -- just visually muted, with an added marker so it doesn't read
+   as identical to an available page. */
+.sidebar-item-no-run-data .sidebar-link {
+  opacity: 0.55;
+}
+
+.sidebar-item-no-run-data .sidebar-link::after {
+  content: " (no data for this run)";
+  font-size: 0.75em;
+  font-style: italic;
+}

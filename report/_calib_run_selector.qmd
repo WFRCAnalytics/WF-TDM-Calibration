@@ -29,7 +29,21 @@ restructuring the navbar/sidebar, or `website.sidebar` not being docked.
 
 ```{python}
 #| echo: false
-ojs_define(calib_runs_ojs=calib_runs)
+# cvm_update_available_runs: which runs report/cvm-update.qmd actually has
+# data for (see that page's own module docstring) -- computed here, not
+# there, so every page's sidebar can grey out that page's link for a run
+# it can't render, not just the cvm-update page itself. A plain relative
+# glob (not routed through repo_root) since every report/*.qmd's cwd at
+# render time is report/ itself -- see that page's own data_dir for the
+# same pattern. If a second page ever needs this same treatment, promote
+# this into a small shared helper instead of copy-pasting the glob.
+from pathlib import Path as _Path
+_cvm_dir = _Path("data/cvm-update")
+cvm_update_available_runs = sorted(
+    f.stem.replace("purpose_factoring_", "") for f in _cvm_dir.glob("purpose_factoring_*.csv")
+) if _cvm_dir.exists() else []
+
+ojs_define(calib_runs_ojs=calib_runs, cvm_update_available_runs_ojs=cvm_update_available_runs)
 ```
 
 ```{ojs}
@@ -56,8 +70,25 @@ viewof globalCalibRun = {
   const input = Inputs.select(options, {label: "Calibration Run:", value: initial});
   const selectEl = input.querySelector("select");
   input.classList.add("calib-run-bar");
+
+  // Sidebar links for pages that don't have data for every run (currently
+  // just report/cvm-update.qmd) get greyed out -- rather than the run
+  // dropdown itself shrinking to that page's subset -- so the dropdown's
+  // options stay identical everywhere on the site. The link stays clickable;
+  // the page itself is responsible for showing a "no data for this run" state.
+  function updateSidebarAvailability(run) {
+    const link = document.querySelector('#quarto-sidebar a[href$="cvm-update.html"]');
+    if (!link) return;
+    const available = cvm_update_available_runs_ojs.includes(run);
+    const item = link.closest(".sidebar-item") ?? link;
+    item.classList.toggle("sidebar-item-no-run-data", !available);
+    link.title = available ? "" : `No commercial-vehicle factoring data yet for ${run}`;
+  }
+  updateSidebarAvailability(initial);
+
   input.addEventListener("input", () => {
     window.localStorage.setItem("tdmcalib:selectedRun", input.value);
+    updateSidebarAvailability(input.value);
   });
 
   // Quarto's own OJS runtime places this cell's returned node into its
