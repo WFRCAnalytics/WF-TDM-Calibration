@@ -631,61 +631,25 @@ xDomain = {
 ###### Chart
 
 ```{ojs}
-// Legend is its own independent cell (not referenced from inside the chart
-// cell below) so that if it fails to evaluate -- e.g. Observable's CDN
-// (@d3/color-legend) being unreachable -- only this swatch is affected, not
-// the chart itself. Same decoupling this report's other dumbbells use.
-modeShareColorScale = d3.scaleOrdinal(["Model", "Target"], [themeModel, themeTarget])
-keyModeShare = Legend(modeShareColorScale, {title: "Data Source"})
-```
-
-```{ojs}
 //| label: fig-mode-share
 //| fig-cap: "Mode Share Calibration Results by Trip Purpose"
 
 {
-  // One dumbbell row per Mode, per Purpose x Period facet cell -- Target
-  // and Model dots on a shared Share% axis, connected by a link, same
-  // convention as this report's other dumbbells (Trip Production Rates,
-  // Average Trip Length, Intrazonal Trip Percentage -- see
-  // report/1-tripgen.qmd and report/2-distribution.qmd). Replaces the
-  // previous grouped-bar-per-mode chart, which got crowded once faceted
-  // 3x5 -- reuses xDomain (already the per-Mode-Group mode list, in order)
-  // as the shared y-domain across every facet cell.
-  const dumbbellModes = xDomain.filter(d => d.endsWith("||Model")).map(d => d.split("||")[0])
-
-  const rows = facetPurposes.flatMap(purp => {
-    const purposeLabel = facetLabels.get(purp)
-    return facetPeriods.flatMap(per => {
-      const periodLabel = periodLabels.get(per)
-      return dumbbellModes.map(mode => {
-        const model = filtered_data.find(d => d.PurposeLabel === purposeLabel && d.PeriodLabel === periodLabel && d.Mode === mode && d.DataSource === "Model")
-        const target = filtered_data.find(d => d.PurposeLabel === purposeLabel && d.PeriodLabel === periodLabel && d.Mode === mode && d.DataSource === "Target")
-        const modelVal = model?.Percent
-        const targetVal = target?.Percent
-        return {
-          PurposeLabel: purposeLabel, PeriodLabel: periodLabel, Mode: mode,
-          Model: modelVal, Target: targetVal,
-          pctDiff: (modelVal != null && targetVal != null && targetVal !== 0) ? (modelVal - targetVal) / targetVal : null
-        }
-      }).filter(d => d.Model != null && d.Target != null)
-    })
-  })
-
-  const chartMax = (d3.max(rows, d => Math.max(d.Model, d.Target)) || 0.1) * 1.3
-
-  // A "-X%" label to the left of a dot sitting near x=0 would spill into
-  // the y-axis label column -- force those onto the right instead, same as
-  // this report's other dumbbells.
-  const nearZero = chartMax * 0.22
-  const labelsRight = rows.filter(d => d.pctDiff != null && (d.Model >= d.Target || d.Model < nearZero))
-  const labelsLeft = rows.filter(d => d.pctDiff != null && d.Model < d.Target && d.Model >= nearZero)
+  const legend = Legend(
+    d3.scaleOrdinal(["Model", "Target"], [themeModel, themeTarget]),
+    {title: "Data Source"}
+  )
 
   const chart = Plot.plot({
-    height : 620,
+    // marginTop/marginBottom/facetMarginTop (150px) are paid once for the
+    // whole 3-row facet grid, not per row, so shrinking each row means
+    // shrinking the shared content band, not the total height: fixed
+    // margins (150) + 80% of the prior content band (473 * 0.8 = 378.4),
+    // i.e. 20% off the 623px version.
+    height : 528,
     width  : 950,
-    marginLeft  : 120,
-    marginBottom: 30,
+    marginLeft  : 55,
+    marginBottom: 80,
     marginTop : 40,
     facetMarginTop: 30,
     facetMarginRight: 60,
@@ -710,48 +674,69 @@ keyModeShare = Legend(modeShareColorScale, {title: "Data Source"})
       padding: 0.4,
     },
 
-    y: { domain: dumbbellModes, label: null },
-    x: { label: "Share", domain: [0, chartMax], tickFormat: ".0%", grid: true },
+    x: {
+      domain: xDomain,
+      axis: null,
+      padding: 0.2,
+      label: null,
+    },
+
+    y: {
+      grid: true,
+      label: "Share",
+      tickFormat: ".0%",
+      domain: [0, 1],
+    },
+
+    color: {
+      domain: ["Model", "Target"],
+      range:  [themeModel, themeTarget],
+    },
 
     marks: [
-      // Border around every facet cell -- otherwise the column breaks
-      // (Purpose) are only marked by the header labels, easy to lose track
-      // of when scanning down a column.
-      Plot.frame({ stroke: themeNeutral, strokeOpacity: 0.3 }),
-      Plot.link(rows, {
-        fx: "PurposeLabel", fy: "PeriodLabel",
-        x1: "Target", x2: "Model", y: "Mode",
-        stroke: themeLinkGrey, strokeWidth: 3
+      Plot.barY(filtered_data, {
+        fx   : "PurposeLabel",
+        fy   : "PeriodLabel",
+        x    : d => `${d.Mode}||${d.DataSource}`,
+        y    : "Percent",
+        fill : "DataSource",
+        sort : { x: null },
+        tip  : {
+          format: {
+            x    : d => d.split("||")[0],
+            y    : d => fmtShare(d),
+            fill : true,
+          }
+        }
       }),
-      // Target drawn first, Model second, so the Model dot's ring always
-      // sits on top where the two overlap -- same convention as this
-      // report's other dumbbells.
-      Plot.dot(rows, {
-        fx: "PurposeLabel", fy: "PeriodLabel",
-        x: "Target", y: "Mode", fill: themeTarget, r: 7,
-        title: d => `${d.Mode}\nTarget: ${fmtShare(d.Target)}`
+      Plot.text(filtered_data, {
+        fx         : "PurposeLabel",
+        fy         : "PeriodLabel",
+        x          : d => `${d.Mode}||${d.DataSource}`,
+        y          : "Percent",
+        text       : d => fmtShare(d.Percent),
+        textAnchor : "middle",
+        lineAnchor : "bottom",
+        dy         : -4,
+        fontSize   : 9,
       }),
-      Plot.dot(rows, {
-        fx: "PurposeLabel", fy: "PeriodLabel",
-        x: "Model", y: "Mode", fill: themeModel, r: 5.5,
-        title: d => `${d.Mode}\nModel: ${fmtShare(d.Model)}`
-      }),
-      Plot.text(labelsRight, {
-        fx: "PurposeLabel", fy: "PeriodLabel",
-        x: "Model", y: "Mode", text: d => d3.format("+.1%")(d.pctDiff),
-        dx: 10, textAnchor: "start", fontSize: 9, fontWeight: 600,
-        fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral
-      }),
-      Plot.text(labelsLeft, {
-        fx: "PurposeLabel", fy: "PeriodLabel",
-        x: "Model", y: "Mode", text: d => d3.format("+.1%")(d.pctDiff),
-        dx: -10, textAnchor: "end", fontSize: 9, fontWeight: 600,
-        fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral
-      }),
+      Plot.text(
+        xDomain.filter(d => d.endsWith("||Model")),
+        {
+          x          : d => d,
+          text       : d => d.split("||")[0].replace(/ /g, "\n"),
+          frameAnchor: "bottom",
+          lineAnchor : "top",
+          dy         : 6,
+          fontSize   : 11,
+          lineHeight : 1.2,
+        }
+      ),
+      Plot.ruleY([0]),
     ],
   })
 
-  return chart
+  return html`${legend}${chart}`
 }
 ```
 
