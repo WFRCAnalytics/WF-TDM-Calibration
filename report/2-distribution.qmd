@@ -112,6 +112,12 @@ dfObsModelMerge = pd.concat(tlf_records, ignore_index=True)
 
 ```{python}
 internalTripPurposes = ['HBW','HBShp','HBOth','HBSch_Pr','HBSch_Sc','NHBW','NHBNW','LT','MD','HV']
+# II_MD_Adj/II_HV_Adj excluded -- no longer modeled (the raw model output
+# has never had these tabs; only the static observed/target comparison file
+# does -- see config/framework.yaml's PA_AllPurp_GRAVITY.MTX tabs comment).
+# Left out of `order` below, their rows' Purpose/PurpType stay unmapped
+# (NaN), which the Average Trip Length dumbbell's own PurpType != null
+# filter already drops.
 internalTruckPurposes = [
     'II_LT_D2D',
     'II_LT_HnS',
@@ -125,14 +131,12 @@ internalTruckPurposes = [
     'II_MD_Reg',
     'II_MD_LHl',
     'II_MD_Unk',
-    'II_MD_Adj',
     'II_HV_D2D',
     'II_HV_HnS',
     'II_HV_Lcl',
     'II_HV_Reg',
     'II_HV_LHl',
-    'II_HV_Unk',
-    'II_HV_Adj'
+    'II_HV_Unk'
 ]
 externals = ['IX','XI','IX_MD','IX_HV','XI_MD','XI_HV']
 
@@ -421,14 +425,16 @@ optionsTripPurpBySet = ({
     ['Medium CV - Regional'               , 'II_MD_Reg'],
     ['Medium CV - Long Haul'              , 'II_MD_LHl'],
     ['Medium CV - Unknown'                , 'II_MD_Unk'],
-    ['Medium CV - Adjusted'               , 'II_MD_Adj'],
     ['Heavy CV - Door-to-Door'            , 'II_HV_D2D'],
     ['Heavy CV - Hub-and-Spoke'           , 'II_HV_HnS'],
     ['Heavy CV - Local'                   , 'II_HV_Lcl'],
     ['Heavy CV - Regional'                , 'II_HV_Reg'],
     ['Heavy CV - Long Haul'               , 'II_HV_LHl'],
-    ['Heavy CV - Unknown'                 , 'II_HV_Unk'],
-    ['Heavy CV - Adjusted'                , 'II_HV_Adj']
+    ['Heavy CV - Unknown'                 , 'II_HV_Unk']
+    // Medium/Heavy CV - Adjusted (II_MD_Adj/II_HV_Adj) removed -- no longer
+    // modeled (the raw model output has never had these tabs; only the
+    // static observed/target comparison file does -- see config/
+    // framework.yaml's PA_AllPurp_GRAVITY.MTX tabs comment).
   ],
   "Externals": [
     ['Internal-to-External'              , 'IX'      ],
@@ -548,6 +554,12 @@ at the native bin resolution (not the Frequency tab's adjustable Bin Size,
 which is a histogram-smoothing control a monotonic cumulative curve doesn't
 need).
 
+Curves start above 0% at the left edge (the intrazonal cutoff) rather than at
+0% -- some purposes (e.g. Light CV - Door-to-Door) have a large intrazonal
+share, excluded from this chart same as the Frequency tab; the starting
+height is that excluded share, so the curve still reaches 100% without
+rescaling the shape of the retained (non-intrazonal) distribution.
+
 ```{ojs}
 //|label: fig-trip-length-cdf
 //|fig-cap: Cumulative Trip Length Frequency
@@ -557,11 +569,19 @@ need).
 
 function toCdf(rows) {
   const sorted = [...rows].sort((a, b) => a.BIN - b.BIN);
-  let cum = 0;
-  return sorted.map(d => {
+  // freq was normalized against this purpose's full total before intrazonal
+  // trips were filtered out of `rows` (see dfObsModelMerge4p) -- so the
+  // retained bins' freq no longer sums to 1. The gap is exactly the
+  // intrazonal share, already "complete" before this chart's own left edge
+  // (minXValue, the intrazonal cutoff), so start the curve there instead of
+  // at 0.
+  const offset = 1 - d3.sum(sorted, d => d.freq);
+  let cum = offset;
+  const points = sorted.map(d => {
     cum += d.freq;
     return { BIN: d.BIN, cumFreq: cum };
   });
+  return [{ BIN: minXValue, cumFreq: offset }, ...points];
 }
 
 cdfMod = toCdf(freqT_filtered_Mod)
