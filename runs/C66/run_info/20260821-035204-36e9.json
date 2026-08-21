@@ -1,0 +1,830 @@
+{
+  "schema_version": 1,
+  "calib_run_id": "C66",
+  "run_id": "20260821-035204-36e9",
+  "status": "success",
+  "execution_mode": "manual",
+  "started_at": "2026-08-21T03:52:04.762708+00:00",
+  "finished_at": "2026-08-21T04:00:10.102915+00:00",
+  "framework_commit": "81812e809927a52c502398622d236c3f7bc30b79",
+  "tdm": {
+    "requested_ref": "calib/C66",
+    "resolved_commit": "dcce520f595a97bce6ef7209e52b776208b78011",
+    "resolved_tag": "calib/C70",
+    "branch": null,
+    "detached_head": true,
+    "dirty": false
+  },
+  "control_center": {
+    "baseline_file": "_ControlCenter - BY_2023.block",
+    "overrides": {
+      "UserName": "Bill Hereth",
+      "UserCompany": "WFRC",
+      "keyOutputPrfx": "_",
+      "Run_vizTool": 0
+    }
+  },
+  "scenario_folder": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C66",
+  "execution": {},
+  "outputs": {
+    "inventory_count": 948,
+    "inventory_total_bytes": 36129873553,
+    "curated": [
+      {
+        "relative_path": "0_InputProcessing/SE_File.dbf",
+        "size_bytes": 1693167,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "96b50aef9215812a166f40096e82682a231cb58993475ccad7f3675934bcc3bd",
+        "repo_path": "runs/C66/SE_File.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/Joint_HHSize_Income_Worker.dbf",
+        "size_bytes": 3639523,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "1ac12d052ad323cbd680d3dc06c2221450d6b6d99e38a7b40da6f6529248b588",
+        "repo_path": "runs/C66/Joint_HHSize_Income_Worker.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/VO_HH1_IncLoHi_Worker_VehOwn.dbf",
+        "size_bytes": 1068015,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "514f85470bd64d1d4e46889fd206f6a17ae2ab7b07b4165c2a4b2c0709be13e0",
+        "repo_path": "runs/C66/VO_HH1_IncLoHi_Worker_VehOwn.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/VO_HH2_IncLoHi_Worker_VehOwn.dbf",
+        "size_bytes": 1068015,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "34756c5f02b9c75ac2666ade06ba1cafb606480c76381c404687eadbe85ba1b4",
+        "repo_path": "runs/C66/VO_HH2_IncLoHi_Worker_VehOwn.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/VO_HH3_IncLoHi_Worker_VehOwn.dbf",
+        "size_bytes": 1068015,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "fd666d8d8bfda303f40b93f6a3b61b0070b118809e952fd43876a2e0ea9f2dbd",
+        "repo_path": "runs/C66/VO_HH3_IncLoHi_Worker_VehOwn.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/VO_HH4_IncLoHi_Worker_VehOwn.dbf",
+        "size_bytes": 1068015,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "8741e666885eab4572485f440d93df8d3486702b0a372e7ce8933c5e8973ae23",
+        "repo_path": "runs/C66/VO_HH4_IncLoHi_Worker_VehOwn.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/VO_HH5_IncLoHi_Worker_VehOwn.dbf",
+        "size_bytes": 1068015,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "73a9762a03be6b31760202f53e26fe9feff6b3c3bb2c54ba3ee34eb077716c59",
+        "repo_path": "runs/C66/VO_HH5_IncLoHi_Worker_VehOwn.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/VO_HH6_IncLoHi_Worker_VehOwn.dbf",
+        "size_bytes": 1068015,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "1b72ebd4433344f12800adde5c1ef764af75ea35d197d9057884ca7ebef43f66",
+        "repo_path": "runs/C66/VO_HH6_IncLoHi_Worker_VehOwn.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "1_HHDisag_AutoOwn/VO_HHSize_VehOwn.dbf",
+        "size_bytes": 995435,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "c72524ec75f6372ca30edb56b79d8abfd8925ef8440ed384524cc0ab66e340cd",
+        "repo_path": "runs/C66/VO_HHSize_VehOwn.dbf",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/PA_AllPurp_GRAVITY.mtx",
+        "size_bytes": 99507573,
+        "entry_type": "matrix",
+        "tabs": [
+          "HBW",
+          "HBShp",
+          "HBOth",
+          "HBSch_Pr",
+          "HBSch_Sc",
+          "HBC",
+          "NHBW",
+          "NHBNW",
+          "II_LT",
+          "II_MD",
+          "II_HV",
+          "II_LT_D2D",
+          "II_LT_HnS",
+          "II_LT_Lcl",
+          "II_LT_Reg",
+          "II_LT_LHl",
+          "II_LT_Unk",
+          "II_MD_D2D",
+          "II_MD_HnS",
+          "II_MD_Lcl",
+          "II_MD_Reg",
+          "II_MD_LHl",
+          "II_MD_Unk",
+          "II_HV_D2D",
+          "II_HV_HnS",
+          "II_HV_Lcl",
+          "II_HV_Reg",
+          "II_HV_LHl",
+          "II_HV_Unk",
+          "IX",
+          "XI",
+          "IX_MD",
+          "XI_MD",
+          "IX_HV",
+          "XI_HV"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "0afad7e341eb6af98cb88680ec8c35cd8f3c2ca10220de35f34f867f5f3e0f0b",
+        "repo_path": "runs/C66/PA_AllPurp_GRAVITY.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/pa_final.csv",
+        "size_bytes": 590292,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "3677675866f2cb1af529bd08174ed71da042db22b25a540eb356650b4eeeceee",
+        "repo_path": "runs/C66/pa_final.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_Dist.mtx",
+        "size_bytes": 37298330,
+        "entry_type": "matrix",
+        "tabs": [
+          "HBW"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "2dc2dbf03ec98bb5f27273214a4c3456098ff2021ce79c0da2aafb72048e7e0b",
+        "repo_path": "runs/C66/skm_DY_Dist__HBW.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_Dist.mtx",
+        "size_bytes": 36685095,
+        "entry_type": "matrix",
+        "tabs": [
+          "HBShp"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "0ae8220e703e8ba163dae1134da2d173cc1017647d056c5afbd33ca7be529c84",
+        "repo_path": "runs/C66/skm_DY_Dist__HBShp.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_Dist.mtx",
+        "size_bytes": 36660787,
+        "entry_type": "matrix",
+        "tabs": [
+          "HBOth"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "d07cd76e70e2326e7df4e31c9fab9d8e63942c29213e0e00c503ee5f0a61ba92",
+        "repo_path": "runs/C66/skm_DY_Dist__HBOth.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_Dist.mtx",
+        "size_bytes": 36649181,
+        "entry_type": "matrix",
+        "tabs": [
+          "NHBW"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "257c9d110dfe96e3678c820d0f8b145f0cc660fdf4df92734a8669cba98e38d5",
+        "repo_path": "runs/C66/skm_DY_Dist__NHBW.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_Dist.mtx",
+        "size_bytes": 36650550,
+        "entry_type": "matrix",
+        "tabs": [
+          "NHBNW"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "f9e7526c3c3ffef13c80987f21aa0b98763b44ea7b684f0fb8377ffad8472f47",
+        "repo_path": "runs/C66/skm_DY_Dist__NHBNW.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_Dist.mtx",
+        "size_bytes": 37288654,
+        "entry_type": "matrix",
+        "tabs": [
+          "HBS"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "ce408ea32c034096124d1b1817324f9ee8c6ac709eb8e6441067b4997b43545f",
+        "repo_path": "runs/C66/skm_DY_Dist__HBS.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_Dist.mtx",
+        "size_bytes": 37319380,
+        "entry_type": "matrix",
+        "tabs": [
+          "LT"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "fb65d8247eb35186046892ee71ac94f3099d4906178c0b6ece09d9fc7bbac25f",
+        "repo_path": "runs/C66/skm_DY_Dist__LT.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_Dist.mtx",
+        "size_bytes": 37301913,
+        "entry_type": "matrix",
+        "tabs": [
+          "MD"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "e92df1481d72f7cd0358adaacebfddf2ca0f8c22e0e1045f5a7de2b5705bc4e9",
+        "repo_path": "runs/C66/skm_DY_Dist__MD.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_Dist.mtx",
+        "size_bytes": 37305117,
+        "entry_type": "matrix",
+        "tabs": [
+          "HV"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "9ec1ecef78fcf8beede77df7fe5ebb2129ca097f2596fa2853f6bc7c279b8324",
+        "repo_path": "runs/C66/skm_DY_Dist__HV.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_Dist.mtx",
+        "size_bytes": 1311916,
+        "entry_type": "matrix",
+        "tabs": [
+          "Ext"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "7d39b229bdf51cf8730437798ae1bebc0686500b15ae2d94aebddac16e552d93",
+        "repo_path": "runs/C66/skm_DY_Dist__Ext.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_GC.mtx",
+        "size_bytes": 40551860,
+        "entry_type": "matrix",
+        "tabs": [
+          "HBW"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "d35872568a7a0113b1accac7de2cf7c543bd55906b4e386cd035aba2bd91ada8",
+        "repo_path": "runs/C66/skm_DY_GC__HBW.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_GC.mtx",
+        "size_bytes": 40275145,
+        "entry_type": "matrix",
+        "tabs": [
+          "HBShp"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "b8e112bae6a1be187747a5c65d0fcd7d130d7049b3d126db7539eb3b9d9a28bf",
+        "repo_path": "runs/C66/skm_DY_GC__HBShp.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_GC.mtx",
+        "size_bytes": 40265441,
+        "entry_type": "matrix",
+        "tabs": [
+          "HBOth"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "f508382a378a4a4c8cd18ecd3142c1c440416457d0a5f74e747074f24ef9c117",
+        "repo_path": "runs/C66/skm_DY_GC__HBOth.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_GC.mtx",
+        "size_bytes": 40239225,
+        "entry_type": "matrix",
+        "tabs": [
+          "NHBW"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "e5e59202a1fd523b25b7a78dba9a1a52c7513e1e14b0e83da007df0191032294",
+        "repo_path": "runs/C66/skm_DY_GC__NHBW.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_GC.mtx",
+        "size_bytes": 40237265,
+        "entry_type": "matrix",
+        "tabs": [
+          "NHBNW"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "49ba9b2bd66472c242251b602cbea19e67e5080ef8f14c695c73bfdeb9038ebb",
+        "repo_path": "runs/C66/skm_DY_GC__NHBNW.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_GC.mtx",
+        "size_bytes": 40905798,
+        "entry_type": "matrix",
+        "tabs": [
+          "HBS"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "c8b2fa75e47ba2748b83e878979add43f5f837594395414aa87116fff38f4d36",
+        "repo_path": "runs/C66/skm_DY_GC__HBS.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_GC.mtx",
+        "size_bytes": 40273365,
+        "entry_type": "matrix",
+        "tabs": [
+          "LT"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "3ae2619f277e61424293615555933d332a33c9edcd10cad5a994e64779d9be46",
+        "repo_path": "runs/C66/skm_DY_GC__LT.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_GC.mtx",
+        "size_bytes": 40939247,
+        "entry_type": "matrix",
+        "tabs": [
+          "MD"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "f6b5ceb6c3b7e1309223c3a5ba713ffc7b4aad8af2b629493998f2e9da381d2a",
+        "repo_path": "runs/C66/skm_DY_GC__MD.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_GC.mtx",
+        "size_bytes": 41022186,
+        "entry_type": "matrix",
+        "tabs": [
+          "HV"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "5e3940330616844e6604aaa1daa11beb36af04818d60b5e07c456755718713bc",
+        "repo_path": "runs/C66/skm_DY_GC__HV.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/skm_DY_GC.mtx",
+        "size_bytes": 1339877,
+        "entry_type": "matrix",
+        "tabs": [
+          "Ext"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "13769be3e8b227e7d7efcdeb05525355d224827d81d11a149605c7d4abbbc159",
+        "repo_path": "runs/C66/skm_DY_GC__Ext.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/SumToDistricts/DISTLRG_PA_Gravity_AllPurp.csv",
+        "size_bytes": 490998,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "3e0de83b3eefc90e5299e15ad9c96b0fcef895a7d6619bd4bccec1059a99b710",
+        "repo_path": "runs/C66/DISTLRG_PA_Gravity_AllPurp.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/TLF/TLF_Cost.csv",
+        "size_bytes": 216812,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "cf4fa92975d98643064892ce38abaa6a7a76eb22b919ef2afb9fc6cc84ebd909",
+        "repo_path": "runs/C66/TLF_Cost.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/TLF/TLF_Dist.csv",
+        "size_bytes": 108812,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "65abe452cabfafdd3cee8364141aba7d96c9572fac9b2256ca2334b73dd12fee",
+        "repo_path": "runs/C66/TLF_Dist.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "3_Distribute/TLF/TLF_Time.csv",
+        "size_bytes": 108812,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "2260cd7ed1d7c527135266ddf8a85f8886f147d2e76b879da57208a02e86765c",
+        "repo_path": "runs/C66/TLF_Time.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/1a_Skims/skm_d8_Ok.mtx",
+        "size_bytes": 2713841,
+        "entry_type": "matrix",
+        "tabs": [
+          "D8"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "beb46a68413141ad41bd37ab608f2d6c673f83587677dcbbb4848066b9874b56",
+        "repo_path": "runs/C66/skm_d8_Ok.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/1a_Skims/skm_d8_Pk.mtx",
+        "size_bytes": 2917507,
+        "entry_type": "matrix",
+        "tabs": [
+          "D8"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "b1d3d4bcf84594ff3c73c4cbf787162f2b6d0b789f75d8686bd145a0562e3201",
+        "repo_path": "runs/C66/skm_d8_Pk.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/1a_Skims/skm_w8_Ok.mtx",
+        "size_bytes": 1114537,
+        "entry_type": "matrix",
+        "tabs": [
+          "D8"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "0bce40d5eca3e5e0405c5231bafcd7be5363c2feae5fbd700d10dea998881d26",
+        "repo_path": "runs/C66/skm_w8_Ok.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/1a_Skims/skm_w8_Pk.mtx",
+        "size_bytes": 1304959,
+        "entry_type": "matrix",
+        "tabs": [
+          "D8"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "70c9779018e34c72a48f40b50e81023bd39da45f567796112e1c7302b4596c35",
+        "repo_path": "runs/C66/skm_w8_Pk.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/2_DetailedTripMatrices/AllTrips_Ok.mtx",
+        "size_bytes": 3750481,
+        "entry_type": "matrix",
+        "tabs": [
+          "wCRT",
+          "dCRT"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "f74941e6c10fb977f2bd77a8e588d4ed86cd08de9b175ebf36248908e4cb3f0a",
+        "repo_path": "runs/C66/AllTrips_Ok.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/2_DetailedTripMatrices/AllTrips_Pk.mtx",
+        "size_bytes": 4415380,
+        "entry_type": "matrix",
+        "tabs": [
+          "wCRT",
+          "dCRT"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "32c16d300d528cf2a1145439d943e14052fc77ac0ac78151d517be5daa86f6bd",
+        "repo_path": "runs/C66/AllTrips_Pk.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/2_DetailedTripMatrices/IMZ_TripTotals.csv",
+        "size_bytes": 139,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "767ac161a707d3347a759b4b404f3a1f3121e7b537e5c601e1ab3b95e5ff7cde",
+        "repo_path": "runs/C66/IMZ_TripTotals.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/3_TransitAssign/_transit_brding_summary_node.csv",
+        "size_bytes": 12258158,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "9722e01a51c77dcbbecf0cc22d3d26d469374e4151222c4c1be0b40c001e344b",
+        "repo_path": "runs/C66/_transit_brding_summary_node.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/3_TransitAssign/_transit_rider_summary_link.csv",
+        "size_bytes": 20979519,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "52934560fdaaa455a34077e50abb1006dc9762775f5621c828455545f0702af3",
+        "repo_path": "runs/C66/_transit_rider_summary_link.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/4_Shares/_RegionShares_Ok.csv",
+        "size_bytes": 8510,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "b7e845b5679b8efa8518c3c4fabc70d7077e04f1113c3331518f5b2828574fbd",
+        "repo_path": "runs/C66/_RegionShares_Ok.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/4_Shares/_RegionShares_Pk.csv",
+        "size_bytes": 8506,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "76aea46d5e5ecd5f3f3b550ebe7b23eaa6a503707274f0b8927ce6856d2023a2",
+        "repo_path": "runs/C66/_RegionShares_Pk.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "4_ModeChoice/5_DistrictSummary/DISTLRG_PA_AllPurp.csv",
+        "size_bytes": 121815,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "0345d1f9160a2cd397f12a991a7dd66ebbe5b998e4c042eb5d472182f617a8ed",
+        "repo_path": "runs/C66/DISTLRG_PA_AllPurp.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "5_AssignHwy/4_Summaries/_Summary_Screenline.csv",
+        "size_bytes": 6838,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "62556d4d6ade7fe55229b7d095ef33ef86e71c55b44f4d4ad9b3e3feb5c16595",
+        "repo_path": "runs/C66/_Summary_Screenline.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "5_AssignHwy/4_Summaries/_Summary_SEGID.csv",
+        "size_bytes": 7386288,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "40f9fc9c9473486bb79b327adff0ebfa76478e3d81301e5845bcd823c4202ecb",
+        "repo_path": "runs/C66/_Summary_SEGID.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "5_AssignHwy/4_Summaries/_Summary_SEGID_Detailed.csv",
+        "size_bytes": 46134141,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "8371ab91629342fb03004956fe9820c1614fd8bcd4428bb58b7a8d33ebf53d66",
+        "repo_path": "runs/C66/_Summary_SEGID_Detailed.csv",
+        "committed": true
+      },
+      {
+        "relative_path": "5_AssignHwy/5_FinalNetSkims/Skm_AM.mtx",
+        "size_bytes": 75797231,
+        "entry_type": "matrix",
+        "tabs": [
+          "GP_Dist",
+          "GP_IVT"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "1b8e3201c2ec7da58a58a569af5a59d57c7a12fc7622e3945baa03b0f10bc6a7",
+        "repo_path": "runs/C66/Skm_AM.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "5_AssignHwy/5_FinalNetSkims/Skm_EV.mtx",
+        "size_bytes": 75456621,
+        "entry_type": "matrix",
+        "tabs": [
+          "GP_Dist",
+          "GP_IVT"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "7d3cbc497629839246d946d353a6adc3fe3aed3cd3441ed8a48de11ab93b14aa",
+        "repo_path": "runs/C66/Skm_EV.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "5_AssignHwy/5_FinalNetSkims/Skm_MD.mtx",
+        "size_bytes": 75668344,
+        "entry_type": "matrix",
+        "tabs": [
+          "GP_Dist",
+          "GP_IVT"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "58093343896ad4dc9ff939b3ad40ee8b8ea86417a645b0b3972fc5310dd9b761",
+        "repo_path": "runs/C66/Skm_MD.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "5_AssignHwy/5_FinalNetSkims/Skm_PM.mtx",
+        "size_bytes": 76576979,
+        "entry_type": "matrix",
+        "tabs": [
+          "GP_Dist",
+          "GP_IVT"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "bf1a987e821da15876252273a4f17bd8341a4bb0e0002a0008293484db976ca9",
+        "repo_path": "runs/C66/Skm_PM.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "Temp/4_ModeChoice/pa_HBW_0veh_hi.mtx",
+        "size_bytes": 895561,
+        "entry_type": "matrix",
+        "tabs": [
+          "trips"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "50001672fb78a5dce0c06408b0cd3882fe8b5b62c17fa7f326aba4515a4849f2",
+        "repo_path": "runs/C66/pa_HBW_0veh_hi.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "Temp/4_ModeChoice/pa_HBW_0veh_lo.mtx",
+        "size_bytes": 827936,
+        "entry_type": "matrix",
+        "tabs": [
+          "trips"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "8aece1d94680d0ee695c893097eee564ba7be56b35aea6ce0763e8d13aec4225",
+        "repo_path": "runs/C66/pa_HBW_0veh_lo.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "Temp/4_ModeChoice/pa_HBW_1veh_hi.mtx",
+        "size_bytes": 4032555,
+        "entry_type": "matrix",
+        "tabs": [
+          "trips"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "19bd6c7d897a7cea26e2e9afe64f21b536579db47a90b70c49cad939d80a7e18",
+        "repo_path": "runs/C66/pa_HBW_1veh_hi.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "Temp/4_ModeChoice/pa_HBW_1veh_lo.mtx",
+        "size_bytes": 3829689,
+        "entry_type": "matrix",
+        "tabs": [
+          "trips"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "bd8e0ce3dcc3c389ccf15229544a5376bbffc211f70586b53f33b732fd1087c0",
+        "repo_path": "runs/C66/pa_HBW_1veh_lo.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "Temp/4_ModeChoice/pa_HBW_2veh_hi_noXI.mtx",
+        "size_bytes": 8750432,
+        "entry_type": "matrix",
+        "tabs": [
+          "trips"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "0d53d519556020107049ec1472da8b2bbd9a024fd43dc43824c6df54453d65ed",
+        "repo_path": "runs/C66/pa_HBW_2veh_hi_noXI.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "Temp/4_ModeChoice/pa_HBW_2veh_lo_noXI.mtx",
+        "size_bytes": 4129654,
+        "entry_type": "matrix",
+        "tabs": [
+          "trips"
+        ],
+        "format": "omx",
+        "source_format": "mtx",
+        "sha256": "2670e90d3a359a5cca8b98daa69c36ccafa065d260834b4641e5fa39c9c29c87",
+        "repo_path": "runs/C66/pa_HBW_2veh_lo_noXI.omx",
+        "committed": true
+      },
+      {
+        "relative_path": "Temp/5_AssignHwy/Screenline_Segment_Lookup.csv",
+        "size_bytes": 3337,
+        "entry_type": "datafile",
+        "columns": null,
+        "sha256": "7d3f68f138f5064a15e1d2a87e870b9b0c7d9441a3c60290d780626a097a1593",
+        "repo_path": "runs/C66/Screenline_Segment_Lookup.csv",
+        "committed": true
+      }
+    ]
+  },
+  "error": null,
+  "general_parameters": {
+    "overrides": {
+      "calibFac_LT_BE": 1.15,
+      "calibFac_LT_WE": 1.5,
+      "calibFac_LT_DA": 1.06,
+      "calibFac_LT_SL": 1.0,
+      "calibFac_LT_UT": 1.0,
+      "calibFac_MD_BE": 0.75,
+      "calibFac_MD_WE": 0.9,
+      "calibFac_MD_DA": 3.0,
+      "calibFac_MD_SL": 0.97,
+      "calibFac_MD_UT": 1.2,
+      "calibFac_HV_BE": 2.93,
+      "calibFac_HV_WE": 2.27,
+      "calibFac_HV_DA": 1.25,
+      "calibFac_HV_SL": 3.0,
+      "calibFac_HV_UT": 0.89,
+      "WE_NonFwyTruckCostFac": 1.25,
+      "DA_FwyTruckCostFac": 1.3,
+      "DA_NonFwyTruckCostFac": 0.75,
+      "DA_RampTruckPenAdd": 1.35,
+      "SL_FwyTruckCostFac": 1.15,
+      "SL_NonFwyTruckCostFac": 0.95,
+      "SL_RampTruckPenAdd": 0.65,
+      "calibFac_Ext_PL_3604": 1.82,
+      "calibFac_Ext_MD_3604": 1.05,
+      "calibFac_Ext_HV_3604": 1.15,
+      "calibFac_Ext_PL_3606": 1.2,
+      "calibFac_Ext_MD_3606": 1.05,
+      "calibFac_Ext_HV_3606": 1.1,
+      "calibFac_Ext_PL_3609": 1.0,
+      "calibFac_Ext_MD_3609": 1.2,
+      "calibFac_Ext_HV_3609": 1.2,
+      "calibFac_Ext_PL_3612": 1.05,
+      "calibFac_Ext_MD_3612": 1.05,
+      "calibFac_Ext_HV_3612": 1.05,
+      "calibFac_Ext_PL_3614": 1.05,
+      "calibFac_Ext_MD_3614": 1.05,
+      "calibFac_Ext_HV_3614": 1.05,
+      "calibFac_Ext_PL_3620": 1.23,
+      "calibFac_Ext_MD_3620": 1.23,
+      "calibFac_Ext_HV_3620": 1.23,
+      "calibFac_Ext_PL_3628": 1.11,
+      "calibFac_Ext_MD_3628": 1.11,
+      "calibFac_Ext_HV_3628": 1.1,
+      "calibFac_ff_spd_ArtColLoc": 0.9,
+      "calibFac_ff_spd_ExpwyFwy": 0.95
+    }
+  },
+  "preprocess": {
+    "status": "success"
+  },
+  "postprocess": {
+    "status": "failed",
+    "reason": "quarto render exited 1",
+    "stderr_tail": "ERROR: The process cannot access the file because it is being used by another process. (os error 32): remove 'M:\\GitHub\\WF-TDM-Calibration\\docs'\n\nStack trace:\n    at Object.removeSync (ext:deno_fs/30_fs.js:247:3)\n    at safeRemoveSync (file:///C:/Users/bhereth/AppData/Local/Programs/Quarto/bin/quarto.js:6602:10)\n    at removeIfExists (file:///C:/Users/bhereth/AppData/Local/Programs/Quarto/bin/quarto.js:7139:5)\n    at renderProject (file:///C:/Users/bhereth/AppData/Local/Programs/Quarto/bin/quarto.js:125267:9)\n    at eventLoopTick (ext:core/01_core.js:178:7)\n    at async _Command.actionHandler (file:///C:/Users/bhereth/AppData/Local/Programs/Quarto/bin/quarto.js:130887:24)\n    at async _Command.execute (file:///C:/Users/bhereth/AppData/Local/Programs/Quarto/bin/quarto.js:10978:7)\n    at async _Command.parseCommand (file:///C:/Users/bhereth/AppData/Local/Programs/Quarto/bin/quarto.js:10855:14)\n    at async quarto (file:///C:/Users/bhereth/AppData/Local/Programs/Quarto/bin/quarto.js:176680:5)\n    at async file:///C:/Users/bhereth/AppData/Local/Programs/Quarto/bin/quarto.js:176708:5\n"
+  }
+}
