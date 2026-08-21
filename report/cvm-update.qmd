@@ -101,6 +101,56 @@ html`<div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px;">
 </div>`
 ```
 
+The table below splits that same total into its two sources -- internal
+(II) trips from the CVM rate model versus external (IX/XI/XX) trips from
+the gateway-station process described further down this page -- using each
+run's final, fully-calibrated values.
+
+```{ojs}
+//| label: tbl-cvm-total-summary
+
+function iiExtTotal(veh, metric) {
+  const m = rows.filter(d => d.vehicle_type === veh && d.metric === metric);
+  const ii = d3.sum(m.filter(d => vocOrder.includes(d.component)), d => d.factored);
+  const ext = d3.sum(m.filter(d => extOrder.includes(d.component)), d => d.factored);
+  return { ii, ext, total: ii + ext };
+}
+
+html`
+<table>
+  <thead>
+    <tr>
+      ${["Vehicle Type", "Metric", "Internal (II)", "External (IX/XI/XX)", "Total Commercial Vehicle Activity"].map(d =>
+        html`<th style='text-align:left; padding:5px;'>${d}</th>`)}
+    </tr>
+  </thead>
+  <tbody>
+    ${vehicleOrder.flatMap(veh => ["trips", "vmt"].map(metric => {
+      const t = iiExtTotal(veh, metric);
+      return html`<tr style='border-bottom: 1px solid lightgrey;'>
+        <td style='padding:5px;'>${vehicleLabel.get(veh)}</td>
+        <td style='padding:5px;'>${metric === "trips" ? "Daily Trips" : "Daily VMT"}</td>
+        <td style='padding:5px; text-align:right;'>${fmtInt(t.ii)}</td>
+        <td style='padding:5px; text-align:right;'>${fmtInt(t.ext)}</td>
+        <td style='padding:5px; text-align:right;'><strong>${fmtInt(t.total)}</strong></td>
+      </tr>`;
+    }))}
+    ${["trips", "vmt"].map(metric => {
+      const totals = vehicleOrder.map(veh => iiExtTotal(veh, metric));
+      const ii = d3.sum(totals, d => d.ii);
+      const ext = d3.sum(totals, d => d.ext);
+      return html`<tr style='border-top: 2px solid #999; font-weight:600;'>
+        <td style='padding:5px;'>All Vehicle Types</td>
+        <td style='padding:5px;'>${metric === "trips" ? "Daily Trips" : "Daily VMT"}</td>
+        <td style='padding:5px; text-align:right;'>${fmtInt(ii)}</td>
+        <td style='padding:5px; text-align:right;'>${fmtInt(ext)}</td>
+        <td style='padding:5px; text-align:right;'>${fmtInt(ii + ext)}</td>
+      </tr>`;
+    })}
+  </tbody>
+</table>`
+```
+
 ## Base Model vs. Calibration Adjustment, by Purpose
 
 Each purpose below is one of the six LOCUS-derived vocations, **internal
@@ -196,23 +246,38 @@ html`
 Not every commercial-vehicle trip touching our region comes from the CVM
 rate model above. Any trip with an external end -- **IX** (internal
 origin, external destination), **XI** (external origin, internal
-destination), or **XX** (passing through, both ends external) -- is
-generated and distributed by an entirely different process:
+destination), or **XX** (passing through, both ends external) -- has its
+*volume* set independently of that rate model, though the CVM's own data
+still shapes part of where those trips land:
 
-- **Trip generation**: a linear extrapolation of UDOT volume trend counts
-  at each of the region's external gateway stations, not LOCUS data.
-- **Distribution pattern** (which internal zones or other gateways each
-  external trip connects to): the Utah Statewide Travel Demand Model, not
-  our region's CVM.
+- **Trip generation**: overall AADT at each external gateway station is
+  forecast from HPMS segment AADT volumes, then split into medium- and
+  heavy-truck volumes using base-year UDOT medium-/heavy-truck percentages --
+  themselves adjusted using revised vehicle-length classifications at nearby
+  Continuous Count Stations (CCS). Not a LOCUS-derived rate model.
+- **Within-region distribution** (which internal zone originates an IX
+  trip, or receives an XI trip): shaped by the same land-use-based rate
+  table (`CV TG Rates.csv`, LOCUS-derived) used for internal CVM trips --
+  but for *shape only*. Those zone-level values are immediately rescaled so
+  the region-wide IX/XI total matches the AADT-derived external total from
+  above, so LOCUS data has no influence on *how much* IX/XI volume exists,
+  only *where within the region* it starts or ends.
+- **Gateway/route pattern** (which external station an IX/XI trip uses, and
+  for XX, which entry-and-exit gateway pair): a separate historical
+  subarea-extraction pattern, not LOCUS/CVM data and not a live run of the
+  Utah Statewide model.
 
 The only calibration applied to these trips is a per-station, per-vehicle-type
 multiplier (`calibFac_Ext_MD_<station>` / `calibFac_Ext_HV_<station>`) that
 scales a station's whole truck volume before splitting it into IX/XI/XX
 shares -- there's no vocation dimension here (LOCUS's D2D/HnS/Lcl/Reg/LHl/Unk
 split doesn't apply), and no LT component at all (Light trucks are folded
-into the passenger-vehicle volume at external stations). These factors tend
-to be far milder than the CVM's own vocation-level factors, since they're
-anchored to actual observed station counts rather than a demand-rate model.
+into the passenger-vehicle volume at external stations, which get their own
+separate `calibFac_Ext_PL_<station>` multiplier). These factors are
+derived by comparing the resulting link volumes, once forecast, against each
+station's CCS Fall 2023 weekday average volume -- the difference becomes the
+adjustment factor, so like the rest of the CVM's calibration they're anchored
+to actual observed station counts rather than a demand-rate model.
 
 ```{ojs}
 //| label: fig-cvm-external
