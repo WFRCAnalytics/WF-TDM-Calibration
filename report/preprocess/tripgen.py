@@ -106,9 +106,12 @@ def load_modeled_tripgen(calib_run: str, outputs_dir: Path, repo_root: Path) -> 
 
 
 def load_modeled_cvtripgen(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataFrame:
-    """Total daily commercial-vehicle trips (production end) by county and
-    vehicle type (LT/MD/HV), plus a 'Region' total row (CO_FIPS left as
-    None, same convention as load_modeled_tripgen), for one calibration run.
+    """Daily commercial-vehicle trips (production end) by county and vehicle
+    type (LT/MD/HV) -- both the raw total and a rate per job (TOTEMP, from
+    SE_File.dbf -- CV trip generation is employment-driven, unlike person
+    trip generation's household/population rates) -- plus a 'Region' total
+    row (CO_FIPS left as None, same convention as load_modeled_tripgen), for
+    one calibration run.
 
     Unlike person trip generation, there's no independent household-survey
     equivalent for commercial vehicles (see cvm-update.qmd's own "About the
@@ -117,6 +120,16 @@ def load_modeled_cvtripgen(calib_run: str, outputs_dir: Path, repo_root: Path) -
     comparison."""
     taz_df = pd.DataFrame(DBF(repo_root / "report" / TAZ_DBF, load=True))[["TAZID", "CO_FIPS"]]
     taz_ids = np.arange(1, 3630)
+
+    se_df = pd.DataFrame(DBF(outputs_dir / "SE_File.dbf", load=True))[["Z", "TOTEMP"]].rename(columns={"Z": "TAZID"})
+    emp_county_df = (
+        se_df.merge(taz_df, on="TAZID")
+        .groupby("CO_FIPS", as_index=False)
+        .agg(TOTEMP=("TOTEMP", "sum"))
+    )
+    emp_region_row = pd.DataFrame([{"CO_FIPS": None, "TOTEMP": emp_county_df["TOTEMP"].sum()}])
+    emp_with_region = pd.concat([emp_county_df, emp_region_row], ignore_index=True)
+    emp_with_region["CO_FIPS"] = emp_with_region["CO_FIPS"].astype("Int64")
 
     records = []
     for path in _iter_omx_sources(outputs_dir / "PA_AllPurp_GRAVITY.omx"):
@@ -147,4 +160,7 @@ def load_modeled_cvtripgen(calib_run: str, outputs_dir: Path, repo_root: Path) -
     mod_cv_county_reg_df = pd.concat([mod_cv_county_df, totals_by_veh], ignore_index=True)
     mod_cv_county_reg_df["CO_FIPS"] = mod_cv_county_reg_df["CO_FIPS"].astype("Int64")
 
-    return mod_cv_county_reg_df
+    mod_cv_county_reg_df = mod_cv_county_reg_df.merge(emp_with_region, on="CO_FIPS", how="left")
+    mod_cv_county_reg_df["Trips per Job"] = mod_cv_county_reg_df["Trips"] / mod_cv_county_reg_df["TOTEMP"]
+
+    return mod_cv_county_reg_df.drop(columns=["TOTEMP"])

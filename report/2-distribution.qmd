@@ -213,12 +213,15 @@ atlRows = atlPurposes.map(p => {
   const model = filtered_data.find(d => d.Purpose === p && d.DataSource === "Model");
   const target = filtered_data.find(d => d.Purpose === p && d.DataSource === "Target");
   const any = model ?? target;
+  const modelVal = model ? model.AVG_TRIP_LEN : null;
+  const targetVal = target ? target.AVG_TRIP_LEN : null;
   return {
     Purpose: p,
     PurposeLabel: p.replace(/^\d+-/, ""),
     PurpType: any?.PurpType,
-    Model: model ? model.AVG_TRIP_LEN : null,
-    Target: target ? target.AVG_TRIP_LEN : null
+    Model: modelVal,
+    Target: targetVal,
+    pctDiff: (modelVal != null && targetVal != null && targetVal !== 0) ? (modelVal - targetVal) / targetVal : null
   };
 }).filter(d => d.Model != null || d.Target != null);
 
@@ -231,9 +234,12 @@ atlGroupBoundaries = atlRows
   .filter((d, i) => i > 0 && d.PurpType !== atlRows[i - 1].PurpType)
   .map(d => d.Purpose)
 
+// Headroom for the +/-% labels past the rightmost dot.
+atlXMax = (d3.max(atlRows, d => Math.max(d.Model ?? 0, d.Target ?? 0)) || 1) * 1.15
+
 Plot.plot({
   y: {domain: atlPurposes, label: null, tickFormat: p => atlRows.find(d => d.Purpose === p)?.PurposeLabel ?? p},
-  x: {tickFormat: "s", grid: true, label: varSelect === "GC" ? "Generalized Cost" : "Distance"},
+  x: {domain: [0, atlXMax], tickFormat: "s", grid: true, label: varSelect === "GC" ? "Generalized Cost" : "Distance"},
   color: {
     domain: ["Model", "Target"],
     range: [themeModel, themeTarget],
@@ -242,19 +248,32 @@ Plot.plot({
   style: {fontSize: 16, fontFamily: "Inter, system-ui, sans-serif"},
   marginTop: 10,
   marginBottom: 40,
-  marginRight: 40,
+  marginRight: 55,
   marginLeft: 105,
   height: Math.max(atlPurposes.length * 28, 80),
   marks: [
     Plot.ruleY(atlGroupBoundaries, {y: p => p, dy: -14, stroke: themeNeutral, strokeOpacity: 0.4}),
     Plot.link(atlLinkRows, {x1: "Model", x2: "Target", y: "Purpose", stroke: themeLinkGrey, strokeWidth: 3}),
+    // Target drawn first, Model second, so the Model dot's ring always sits
+    // on top where the two overlap -- same convention as the CVM Update
+    // page's Base-Model-vs-Final dumbbells.
     Plot.dot(atlRows.filter(d => d.Target != null), {
-      x: "Target", y: "Purpose", fill: themeTarget, r: 6,
+      x: "Target", y: "Purpose", fill: themeTarget, r: 7,
       title: d => `${d.PurposeLabel}\nTarget: ${d3.format(",.1f")(d.Target)}`
     }),
     Plot.dot(atlRows.filter(d => d.Model != null), {
-      x: "Model", y: "Purpose", fill: themeModel, r: 6,
+      x: "Model", y: "Purpose", fill: themeModel, r: 5.5,
       title: d => `${d.PurposeLabel}\nModel: ${d3.format(",.1f")(d.Model)}`
+    }),
+    Plot.text(atlRows.filter(d => d.pctDiff != null && d.Model >= d.Target), {
+      x: "Model", y: "Purpose", text: d => d3.format("+.1%")(d.pctDiff),
+      dx: 9, textAnchor: "start", fontSize: 11, fontWeight: 600,
+      fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral
+    }),
+    Plot.text(atlRows.filter(d => d.pctDiff != null && d.Model < d.Target), {
+      x: "Model", y: "Purpose", text: d => d3.format("+.1%")(d.pctDiff),
+      dx: -9, textAnchor: "end", fontSize: 11, fontWeight: 600,
+      fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral
     }),
     Plot.ruleX([0])
   ]
@@ -691,19 +710,25 @@ intraPurposes = [...new Set(dataIntraT.map(d => d.PURP))]
 intraRows = intraPurposes.map(p => {
   const model = dataIntraT.find(d => d.PURP === p && d.DataSource === "Model");
   const target = dataIntraT.find(d => d.PURP === p && d.DataSource === "Target");
+  const modelVal = model ? model.pct_intrazonal : null;
+  const targetVal = target ? target.pct_intrazonal : null;
   return {
     PURP: p,
     PurposeLabel: p.replace(/^\d+-/, ""),
-    Model: model ? model.pct_intrazonal : null,
-    Target: target ? target.pct_intrazonal : null
+    Model: modelVal,
+    Target: targetVal,
+    pctDiff: (modelVal != null && targetVal != null && targetVal !== 0) ? (modelVal - targetVal) / targetVal : null
   };
 }).filter(d => d.Model != null || d.Target != null);
 
 intraLinkRows = intraRows.filter(d => d.Model != null && d.Target != null);
 
+// Headroom for the +/-% labels past the rightmost dot.
+intraXMax = (d3.max(intraRows, d => Math.max(d.Model ?? 0, d.Target ?? 0)) || 1) * 1.15
+
 Plot.plot({
   y: {domain: intraPurposes, label: null, tickFormat: p => intraRows.find(d => d.PURP === p)?.PurposeLabel ?? p},
-  x: {tickFormat: "s", grid: true, label: "% Intrazonal"},
+  x: {domain: [0, intraXMax], tickFormat: "s", grid: true, label: "% Intrazonal"},
   color: {
     domain: ["Model", "Target"],
     range: [themeModel, themeTarget],
@@ -712,18 +737,31 @@ Plot.plot({
   style: {fontSize: 16, fontFamily: "Inter, system-ui, sans-serif"},
   marginTop: 10,
   marginBottom: 40,
-  marginRight: 40,
+  marginRight: 55,
   marginLeft: 95,
   height: Math.max(intraPurposes.length * 28, 80),
   marks: [
     Plot.link(intraLinkRows, {x1: "Model", x2: "Target", y: "PURP", stroke: themeLinkGrey, strokeWidth: 3}),
+    // Target drawn first, Model second, so the Model dot's ring always sits
+    // on top where the two overlap -- same convention as the CVM Update
+    // page's Base-Model-vs-Final dumbbells.
     Plot.dot(intraRows.filter(d => d.Target != null), {
-      x: "Target", y: "PURP", fill: themeTarget, r: 6,
+      x: "Target", y: "PURP", fill: themeTarget, r: 7,
       title: d => `${d.PurposeLabel}\nTarget: ${d3.format(",.1f")(d.Target)}%`
     }),
     Plot.dot(intraRows.filter(d => d.Model != null), {
-      x: "Model", y: "PURP", fill: themeModel, r: 6,
+      x: "Model", y: "PURP", fill: themeModel, r: 5.5,
       title: d => `${d.PurposeLabel}\nModel: ${d3.format(",.1f")(d.Model)}%`
+    }),
+    Plot.text(intraRows.filter(d => d.pctDiff != null && d.Model >= d.Target), {
+      x: "Model", y: "PURP", text: d => d3.format("+.1%")(d.pctDiff),
+      dx: 9, textAnchor: "start", fontSize: 11, fontWeight: 600,
+      fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral
+    }),
+    Plot.text(intraRows.filter(d => d.pctDiff != null && d.Model < d.Target), {
+      x: "Model", y: "PURP", text: d => d3.format("+.1%")(d.pctDiff),
+      dx: -9, textAnchor: "end", fontSize: 11, fontWeight: 600,
+      fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral
     }),
     Plot.ruleX([0])
   ]
