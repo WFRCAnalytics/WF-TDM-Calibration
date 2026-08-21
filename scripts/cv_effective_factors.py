@@ -80,29 +80,27 @@ def load_general_params(tdm_path: Path, general_parameters_path: str, scenario_d
     return {**baseline, **overrides}
 
 
-def build_coadjfac_table(params: dict) -> pd.DataFrame:
+def coadjfac(params: dict, prefix: str, veh: str, voc: str) -> float:
     """Replicates 2_TripGen_CV.s's per-(county, type, vocation) CoAdjFac
-    computation exactly. Returns one row per (county_prefix, vehicle_type,
-    vocation) -- LT rows carry the same factor across all six vocations,
-    since the model applies one undifferentiated calibFac_LT_<CO>."""
-    rows = []
-    for prefix in COUNTY_PREFIXES:
-        lt_factor = float(params[f"calibFac_LT_{prefix}"])
-        for voc in VOCATIONS:
-            rows.append({"county": prefix, "vehicle_type": "LT", "vocation": voc, "coadjfac": lt_factor})
-        for veh in ("MD", "HV"):
-            calib = float(params[f"calibFac_{veh}_{prefix}"])
-            for voc in VOCATIONS:
-                regional = float(params[f"{veh}_{voc}_AdjFac"])
-                county = float(params[f"{prefix}_{veh}_{voc}_AdjFac"])
-                rows.append(
-                    {
-                        "county": prefix,
-                        "vehicle_type": veh,
-                        "vocation": voc,
-                        "coadjfac": regional * county * calib,
-                    }
-                )
+    computation exactly for a single combination -- LT ignores voc (one
+    undifferentiated calibFac_LT_<CO> applies to all six of its vocations)."""
+    if veh == "LT":
+        return float(params[f"calibFac_LT_{prefix}"])
+    regional = float(params[f"{veh}_{voc}_AdjFac"])
+    county = float(params[f"{prefix}_{veh}_{voc}_AdjFac"])
+    calib = float(params[f"calibFac_{veh}_{prefix}"])
+    return regional * county * calib
+
+
+def build_coadjfac_table(params: dict) -> pd.DataFrame:
+    """Tabulates coadjfac() over every (county_prefix, vehicle_type,
+    vocation) combination."""
+    rows = [
+        {"county": prefix, "vehicle_type": veh, "vocation": voc, "coadjfac": coadjfac(params, prefix, veh, voc)}
+        for prefix in COUNTY_PREFIXES
+        for veh in ("LT", "MD", "HV")
+        for voc in VOCATIONS
+    ]
     return pd.DataFrame(rows)
 
 
@@ -141,8 +139,8 @@ def load_pa_cv_long(scenario_dir: Path, zones: pd.DataFrame, county_fips: dict) 
     return long_df.dropna(subset=["county"])
 
 
-def compute_effective_factors(long_df: pd.DataFrame, coadjfac: pd.DataFrame) -> pd.DataFrame:
-    merged = long_df.merge(coadjfac, on=["county", "vehicle_type", "vocation"], how="left")
+def compute_effective_factors(long_df: pd.DataFrame, coadjfac_table: pd.DataFrame) -> pd.DataFrame:
+    merged = long_df.merge(coadjfac_table, on=["county", "vehicle_type", "vocation"], how="left")
     merged["unfactored"] = merged["factored"] / merged["coadjfac"]
 
     def summarize(group_cols):
@@ -183,10 +181,10 @@ def main():
     params = load_general_params(tdm_path, framework["general_parameters_path"], scenario_dir)
     county_fips = {prefix: int(params[key]) for prefix, key in COUNTY_FIPS_KEY.items()}
 
-    coadjfac = build_coadjfac_table(params)
+    coadjfac_table = build_coadjfac_table(params)
     zones = load_zone_county(tdm_path)
     long_df = load_pa_cv_long(scenario_dir, zones, county_fips)
-    result = compute_effective_factors(long_df, coadjfac)
+    result = compute_effective_factors(long_df, coadjfac_table)
 
     print(f"Effective CV calibration factors -- run {run_id}\n")
     region_view = result[result["scope"] == "region"].drop(columns=["scope", "county"])

@@ -82,4 +82,4 @@ general_parameter_overrides: # keep everything same as C68, except for mode choi
   calibFac_ff_spd_ArtColLoc: 0.9
   calibFac_ff_spd_ExpwyFwy: 0.95
   CALIB_MC: 1 # calibrating mode choice
-  calibFac_mc_transit_share: 1.24 # need about 4% increase in transit trips
+  calibFac_mc_transit_share: 1.23 # need about 4% increase in transit trips
