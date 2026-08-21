@@ -118,8 +118,24 @@ outputs:
     # be set at curation time. format is the destination format written to
     # runs/; explicit here even though "omx" is also the default, so intent
     # isn't left implicit.
+    # Person-trip purposes plus everything report/preprocess/distribution.py's
+    # TRUCK_MATS/EXT_MATS pull for the Trip Length Frequency Validation chart's
+    # Commercial Vehicle Purposes / External Purposes selectors (previously
+    # only the 8 person purposes were curated, so those selectors' Model side
+    # was silently all-zero -- the raw .mtx always had these tabs, they just
+    # never made it into the curated .omx). II_MD_Adj/II_HV_Adj aren't listed
+    # -- the model's own output has no such tabs to select (they're a
+    # calibration-factor artifact of the static observed/target comparison
+    # file only), and XX/XX_MD/XX_HV aren't pulled by any current report page.
     - matrix: "3_Distribute/PA_AllPurp_GRAVITY.MTX"
-      tabs: [HBW, HBShp, HBOth, HBSch_Pr, HBSch_Sc, HBC, NHBW, NHBNW]
+      tabs: [
+        HBW, HBShp, HBOth, HBSch_Pr, HBSch_Sc, HBC, NHBW, NHBNW,
+        II_LT, II_MD, II_HV,
+        II_LT_D2D, II_LT_HnS, II_LT_Lcl, II_LT_Reg, II_LT_LHl, II_LT_Unk,
+        II_MD_D2D, II_MD_HnS, II_MD_Lcl, II_MD_Reg, II_MD_LHl, II_MD_Unk,
+        II_HV_D2D, II_HV_HnS, II_HV_Lcl, II_HV_Reg, II_HV_LHl, II_HV_Unk,
+        IX, XI, IX_MD, XI_MD, IX_HV, XI_HV
+      ]
       format: omx
     - matrix: "3_Distribute/skm_DY_GC.MTX"
       tabs: [HBW, HBShp, HBOth, NHBW, NHBNW, HBS, LT, MD, HV, Ext]

@@ -5,10 +5,35 @@ report/preprocess/build_cache.py and report/README.md."""
 
 from pathlib import Path
 
+import numpy as np
+import openmatrix as omx
 import pandas as pd
 from dbfread import DBF
 
 TAZ_DBF = Path("data/0-hhdisag-autoown/WFv1000_TAZ.dbf")
+CV_MATS = ["II_LT", "II_MD", "II_HV"]
+
+
+def _iter_omx_sources(omx_path: Path):
+    """Yields every physical OMX file backing omx_path -- normally just
+    omx_path itself, but tdmcalib's output curation splits an oversized
+    multi-tab matrix into one file per tab instead (see
+    src/tdmcalib/outputs.py's _split_omx_by_tab()), named
+    "<stem>__<tab>.omx" and left as siblings of where the combined file
+    would have been. Raises if neither the combined file nor any split
+    sibling exists, so a genuinely missing output still fails loudly. Same
+    helper as report/preprocess/distribution.py's -- duplicated rather than
+    shared, matching this package's per-module convention (see this
+    module's own docstring)."""
+    if omx_path.exists():
+        yield omx_path
+        return
+    split_paths = sorted(omx_path.parent.glob(f"{omx_path.stem}__*{omx_path.suffix}"))
+    if not split_paths:
+        raise FileNotFoundError(
+            f"{omx_path} not found (and no split '{omx_path.stem}__*{omx_path.suffix}' siblings either)"
+        )
+    yield from split_paths
 
 
 def load_modeled_tripgen(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataFrame:
@@ -78,3 +103,48 @@ def load_modeled_tripgen(calib_run: str, outputs_dir: Path, repo_root: Path) -> 
     )
 
     return mod_p_se_county_reg_df.drop(columns=["Trips", "TOTHH", "HHPOP"])
+
+
+def load_modeled_cvtripgen(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataFrame:
+    """Total daily commercial-vehicle trips (production end) by county and
+    vehicle type (LT/MD/HV), plus a 'Region' total row (CO_FIPS left as
+    None, same convention as load_modeled_tripgen), for one calibration run.
+
+    Unlike person trip generation, there's no independent household-survey
+    equivalent for commercial vehicles (see cvm-update.qmd's own "About the
+    LOCUS Data" note and report/2-distribution.qmd's trip-length-frequency
+    note) -- so this is a plain model summary, not a Model-vs-Target
+    comparison."""
+    taz_df = pd.DataFrame(DBF(repo_root / "report" / TAZ_DBF, load=True))[["TAZID", "CO_FIPS"]]
+    taz_ids = np.arange(1, 3630)
+
+    records = []
+    for path in _iter_omx_sources(outputs_dir / "PA_AllPurp_GRAVITY.omx"):
+        with omx.open_file(path, "r") as f:
+            matrix_lookup = {mat.upper(): mat for mat in f.list_matrices()}
+            for mat_name in CV_MATS:
+                actual_mat_name = matrix_lookup.get(mat_name.upper())
+                if actual_mat_name is None:
+                    continue
+                mat = np.array(f[actual_mat_name]).astype(float)
+                records.append(pd.DataFrame({
+                    "TAZID": taz_ids,
+                    "Trips": mat.sum(axis=1),  # production-end total
+                    "Vehicle Type": mat_name.removeprefix("II_"),
+                }))
+
+    mod_cv_df = pd.concat(records, ignore_index=True)
+    mod_cv_county_df = (
+        mod_cv_df.merge(taz_df, on="TAZID")
+        .groupby(["CO_FIPS", "Vehicle Type"], as_index=False)
+        .agg(Trips=("Trips", "sum"))
+    )
+
+    # add total row for all counties (region) -- CO_FIPS=None marks it, same
+    # convention as load_modeled_tripgen
+    totals_by_veh = mod_cv_county_df.groupby(["Vehicle Type"], as_index=False)["Trips"].sum()
+    totals_by_veh["CO_FIPS"] = None
+    mod_cv_county_reg_df = pd.concat([mod_cv_county_df, totals_by_veh], ignore_index=True)
+    mod_cv_county_reg_df["CO_FIPS"] = mod_cv_county_reg_df["CO_FIPS"].astype("Int64")
+
+    return mod_cv_county_reg_df

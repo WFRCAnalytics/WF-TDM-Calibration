@@ -25,6 +25,7 @@ LOADERS = {
     "hhdisag": hhdisag.load_hhdisag,
     "vehown": hhdisag.load_vehown,
     "modeled_tripgen": tripgen.load_modeled_tripgen,
+    "modeled_cvtripgen": tripgen.load_modeled_cvtripgen,
     "tdm_agg": modechoice.load_tdm_agg,
     "boardings": modechoice.load_boardings,
     "mod_boarding": modechoice.load_mod_boarding,

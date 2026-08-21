@@ -169,12 +169,23 @@ ojs_define(dataStats = gcdtime_Stats)
 ```{ojs}
 viewof varSelect = Inputs.select(new Map([['Generalized Cost','GC'], ['Distance', 'Dist']]), {value: 'GC', label: "Variable"})
 
-viewof purpSelect  = Inputs.select(new Map([['Internal Trip Purposes', 'InternalTripPurposes'], ['Internal Truck Purposes', 'InternalTruckPurposes'], ['External Trip Purposes', 'Externals']]), {value: 'InternalTripPurposes', label: "Purpose Set"});
-
+// No Purpose Set selector -- all purposes shown in one dumbbell chart below,
+// grouped into their Internal/Commercial Vehicle/External sections by the
+// same order gcdtime_Stats already sorted them into (see fig-ave-trip-length).
+// PurpType is null for purposes outside all three groups (e.g. HBC, present
+// in the underlying matrices but not part of `order`) -- the old purpSelect
+// filter silently dropped these too (they never matched any dropdown value),
+// so exclude them explicitly now that nothing else does.
 dataLT = transpose(dataStats)
 filtered_data = dataLT.filter(function(dataL) {
-    return varSelect == dataL.Variable && purpSelect == dataL.PurpType && dataL.calib_run === globalCalibRun;
+    return varSelect == dataL.Variable && dataL.calib_run === globalCalibRun && dataL.PurpType != null;
 })
+
+purpTypeLabel = new Map([
+  ["InternalTripPurposes", "Internal Trip Purposes"],
+  ["InternalTruckPurposes", "Internal Commercial Vehicle Purposes"],
+  ["Externals", "External Trip Purposes"]
+])
 
 import {Legend, Swatches} from "@d3/color-legend"
 import {howto, altplot} from "@d3/example-components"
@@ -183,37 +194,67 @@ import {howto, altplot} from "@d3/example-components"
 ::: {.panel-tabset}
 #### Plot
 
+Purposes below are grouped, top to bottom, into Internal Trip Purposes, Internal
+Commercial Vehicle Purposes, and External Trip Purposes (a light rule marks each
+group boundary).
+
 ```{ojs}
 //|label: fig-ave-trip-length
 //|fig-cap: Average Trip Length
 //|echo: False
+
+// One dumbbell row per purpose (Model dot -- Target dot), instead of a
+// facet-per-purpose pair of bars -- same shape as filtered_data's Purpose
+// values already carry a sort-order prefix ("22-II_MD_Adj"), stripped below
+// for the tick label only, ordering itself untouched.
+atlPurposes = [...new Set(filtered_data.map(d => d.Purpose))]
+
+atlRows = atlPurposes.map(p => {
+  const model = filtered_data.find(d => d.Purpose === p && d.DataSource === "Model");
+  const target = filtered_data.find(d => d.Purpose === p && d.DataSource === "Target");
+  const any = model ?? target;
+  return {
+    Purpose: p,
+    PurposeLabel: p.replace(/^\d+-/, ""),
+    PurpType: any?.PurpType,
+    Model: model ? model.AVG_TRIP_LEN : null,
+    Target: target ? target.AVG_TRIP_LEN : null
+  };
+}).filter(d => d.Model != null || d.Target != null);
+
+atlLinkRows = atlRows.filter(d => d.Model != null && d.Target != null);
+
+// A boundary sits just above each row that starts a new PurpType group
+// (skipping the very first row, which has no boundary above it) -- atlRows
+// is already contiguous by group, from gcdtime_Stats' own sort order.
+atlGroupBoundaries = atlRows
+  .filter((d, i) => i > 0 && d.PurpType !== atlRows[i - 1].PurpType)
+  .map(d => d.Purpose)
+
 Plot.plot({
-  y: {axis: null},
-  x: {tickFormat: "s", grid: true},
+  y: {domain: atlPurposes, label: null, tickFormat: p => atlRows.find(d => d.Purpose === p)?.PurposeLabel ?? p},
+  x: {tickFormat: "s", grid: true, label: varSelect === "GC" ? "Generalized Cost" : "Distance"},
   color: {
     domain: ["Model", "Target"],
     range: [themeModel, themeTarget],
     legend: true
-  },
-  facet: {
-    data: filtered_data,
-    y: "Purpose",
-    label: null,
-    marginLeft: 105,
-    marginTop: 4,
-    marginBottom: 4
   },
   style: {fontSize: 16, fontFamily: "Inter, system-ui, sans-serif"},
   marginTop: 10,
   marginBottom: 40,
   marginRight: 40,
   marginLeft: 105,
-  height: filtered_data.length * 22,
+  height: Math.max(atlPurposes.length * 28, 80),
   marks: [
-    Plot.barX(filtered_data, {
-      y: "DataSource",
-      x: "AVG_TRIP_LEN",
-      fill: "DataSource"
+    Plot.ruleY(atlGroupBoundaries, {y: p => p, dy: -14, stroke: themeNeutral, strokeOpacity: 0.4}),
+    Plot.link(atlLinkRows, {x1: "Model", x2: "Target", y: "Purpose", stroke: themeLinkGrey, strokeWidth: 3}),
+    Plot.dot(atlRows.filter(d => d.Target != null), {
+      x: "Target", y: "Purpose", fill: themeTarget, r: 6,
+      title: d => `${d.PurposeLabel}\nTarget: ${d3.format(",.1f")(d.Target)}`
+    }),
+    Plot.dot(atlRows.filter(d => d.Model != null), {
+      x: "Model", y: "Purpose", fill: themeModel, r: 6,
+      title: d => `${d.PurposeLabel}\nModel: ${d3.format(",.1f")(d.Model)}`
     }),
     Plot.ruleX([0])
   ]
@@ -373,7 +414,7 @@ optionsTripPurpBySet = ({
   ]
 })
 
-viewof vTlfPurpSet = Inputs.select(new Map([['Internal Trip Purposes', 'InternalTripPurposes'], ['Internal Truck Purposes', 'InternalTruckPurposes'], ['External Trip Purposes', 'Externals']]), {value: 'InternalTripPurposes', label: "Purpose Set:"})
+viewof vTlfPurpSet = Inputs.select(new Map([['Internal Trip Purposes', 'InternalTripPurposes'], ['Internal Commercial Vehicle Purposes', 'InternalTruckPurposes'], ['External Trip Purposes', 'Externals']]), {value: 'InternalTripPurposes', label: "Purpose Set:"})
 
 optionsTripPurp = optionsTripPurpBySet[vTlfPurpSet]
 
@@ -429,6 +470,9 @@ colorScale = d3.scaleOrdinal()
 key2 = Legend(colorScale, {title: "Data Source"})
 ```
 
+::: {.panel-tabset}
+#### Frequency
+
 ```{ojs}
 //|label: fig-trip-length-freq
 //|fig-cap: Trip Length Frequency
@@ -468,6 +512,62 @@ Plot.plot({
   ]
 });
 ```
+
+#### Cumulative
+
+Per-bin frequency can be jagged, especially for lower-volume purposes -- the
+cumulative view below smooths past that bin-to-bin noise and makes it easy to
+compare, e.g., median trip length between Model and Target directly. Computed
+at the native bin resolution (not the Frequency tab's adjustable Bin Size,
+which is a histogram-smoothing control a monotonic cumulative curve doesn't
+need).
+
+```{ojs}
+//|label: fig-trip-length-cdf
+//|fig-cap: Cumulative Trip Length Frequency
+//|echo: False
+//|message: False
+//|error: False
+
+function toCdf(rows) {
+  const sorted = [...rows].sort((a, b) => a.BIN - b.BIN);
+  let cum = 0;
+  return sorted.map(d => {
+    cum += d.freq;
+    return { BIN: d.BIN, cumFreq: cum };
+  });
+}
+
+cdfMod = toCdf(freqT_filtered_Mod)
+cdfTgt = toCdf(freqT_filtered_Tgt)
+
+Plot.plot({
+  grid: true,
+  height: 420,
+  x: {
+    label: 'Distance / Cost',
+    domain: [minXValue, maxXValue]
+  },
+  y: {
+    label: 'Cumulative Frequency',
+    domain: [0, 1],
+    tickFormat: f => `${Math.round(f * 100)}%`
+  },
+  marginRight: 40,
+  marginLeft: 60,
+  marginTop: 40,
+  marginBottom: 50,
+  style: { fontSize: 15, fontFamily: "Inter, system-ui, sans-serif" },
+  marks: [
+    Plot.ruleY([0.5], { stroke: themeNeutral, strokeOpacity: 0.4, strokeDasharray: "4,4" }),
+    Plot.line(cdfMod, { x: "BIN", y: "cumFreq", stroke: themeModel, strokeWidth: 3 }),
+    Plot.line(cdfTgt, { x: "BIN", y: "cumFreq", stroke: themeTarget, strokeWidth: 3 }),
+    Plot.frame({ strokeOpacity: 0.2 })
+  ]
+});
+```
+
+:::
 
 ### Intrazonal Trip Percentage
 
@@ -585,33 +685,45 @@ dataIntraT = transpose(dataIntra).filter(d => d.calib_run === globalCalibRun)
 //|label: fig-intrazonal
 //|fig-cap: Intrazonal trip percentage between model and target.
 //|echo: False
+
+intraPurposes = [...new Set(dataIntraT.map(d => d.PURP))]
+
+intraRows = intraPurposes.map(p => {
+  const model = dataIntraT.find(d => d.PURP === p && d.DataSource === "Model");
+  const target = dataIntraT.find(d => d.PURP === p && d.DataSource === "Target");
+  return {
+    PURP: p,
+    PurposeLabel: p.replace(/^\d+-/, ""),
+    Model: model ? model.pct_intrazonal : null,
+    Target: target ? target.pct_intrazonal : null
+  };
+}).filter(d => d.Model != null || d.Target != null);
+
+intraLinkRows = intraRows.filter(d => d.Model != null && d.Target != null);
+
 Plot.plot({
-  y: {axis: null},
-  x: {tickFormat: "s", grid: true},
+  y: {domain: intraPurposes, label: null, tickFormat: p => intraRows.find(d => d.PURP === p)?.PurposeLabel ?? p},
+  x: {tickFormat: "s", grid: true, label: "% Intrazonal"},
   color: {
     domain: ["Model", "Target"],
     range: [themeModel, themeTarget],
     legend: true
-  },
-  facet: {
-    data: dataIntraT,
-    y: "PURP",
-    label: null,
-    marginLeft: 95,
-    marginTop: 4,
-    marginBottom: 4
   },
   style: {fontSize: 16, fontFamily: "Inter, system-ui, sans-serif"},
   marginTop: 10,
   marginBottom: 40,
   marginRight: 40,
   marginLeft: 95,
-  height: dataIntraT.length * 22,
+  height: Math.max(intraPurposes.length * 28, 80),
   marks: [
-    Plot.barX(dataIntraT, {
-      y: "DataSource",
-      x: "pct_intrazonal",
-      fill: "DataSource"
+    Plot.link(intraLinkRows, {x1: "Model", x2: "Target", y: "PURP", stroke: themeLinkGrey, strokeWidth: 3}),
+    Plot.dot(intraRows.filter(d => d.Target != null), {
+      x: "Target", y: "PURP", fill: themeTarget, r: 6,
+      title: d => `${d.PurposeLabel}\nTarget: ${d3.format(",.1f")(d.Target)}%`
+    }),
+    Plot.dot(intraRows.filter(d => d.Model != null), {
+      x: "Model", y: "PURP", fill: themeModel, r: 6,
+      title: d => `${d.PurposeLabel}\nModel: ${d3.format(",.1f")(d.Model)}%`
     }),
     Plot.ruleX([0])
   ]

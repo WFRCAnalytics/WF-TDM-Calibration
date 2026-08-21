@@ -677,9 +677,11 @@ metricMap = new Map([
   ["Trips per Person", "Trips per Person"]
 ])
 
-viewof countySelect = Inputs.select(areasAvailable, {
-  value: "Region",
-  label: "Area"
+purposeOrder = ["All","HBW","HBShp","HBOth","HBSch","NHBW","NHBNW","IX"]
+
+viewof htsYearSelect = Inputs.select(["2023", "2012"], {
+  value: "2023",
+  label: "HTS Year"
 })
 
 viewof metricSelect = Inputs.select(metricMap, {
@@ -689,66 +691,229 @@ viewof metricSelect = Inputs.select(metricMap, {
 ```
 
 ```{ojs}
+// Legend is its own independent cell (not referenced from inside the chart
+// cell below) so that if it fails to evaluate -- e.g. Observable's CDN
+// (@d3/color-legend) being unreachable -- only this swatch is affected, not
+// the charts themselves. Same decoupling cvm-update.qmd's/3-modechoice.qmd's
+// dumbbell legends use.
+import {Legend} from "@d3/color-legend"
+
+tripDumbbellColorScale = d3.scaleOrdinal(["HTS " + htsYearSelect, "Model"], [themeTarget, themeModel])
+keyTripDumbbell = Legend(tripDumbbellColorScale, {title: "Data Source"})
+```
+
+```{ojs}
 //| label: fig-prod-hh
-//| fig-cap: "Trip Generation Rates (II + IX) by Purpose"
+//| fig-cap: "Trip Generation Rates (II + IX) by Purpose -- HTS vs Model"
 //| echo: false
 
-import {GroupedBarChart} from "@d3/grouped-bar-chart"
-import {Swatches} from "@d3/color-legend"
+// Shared with tripDumbbellChart below, which also sizes its columns off
+// these -- keep both in sync.
+tripGridBreakpoint = 900
+tripGridGap = 20
 
-{
-  const container = html`
-    <div style="display:flex; flex-direction:column; gap:10px;"></div>
-  `;
+function tripDumbbellChart(county) {
+  const htsSource = "HTS " + htsYearSelect;
 
-  // Controls
-  const controls = html`
-    <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;"></div>
-  `;
-  controls.append(viewof countySelect);
-  controls.append(viewof metricSelect);
-  container.append(controls);
-
-  // Reactive data -- always keep HTS reference rows (calib_run == null),
-  // but only the selected calibration run's Model rows
-  const filtered_data = tripRates
-    .filter(d => d.County === countySelect)
+  // Reactive data -- always keep the selected HTS reference year (calib_run
+  // == null), but only the selected calibration run's Model rows
+  const filtered = tripRates
+    .filter(d => d.County === county)
     .filter(d => d.calib_run == null || d.calib_run === globalCalibRun)
     .map(d => ({ ...d, "Data Source": String(d["Data Source"]).trim() }));
 
-  const purposeOrder = ["All","HBW","HBShp","HBOth","HBSch","NHBW","NHBNW","IX"];
-  const purposes = purposeOrder.filter(p =>
-    filtered_data.some(d => d.Purpose === p)
-  );
+  // "All" (the county's total across every purpose) runs 4-8x larger than
+  // any individual purpose -- including it would stretch the shared x-axis
+  // so far that the individual purposes collapse together near zero. Shown
+  // in the totals table below the grid instead (see tripTotalsRow).
+  const purposes = purposeOrder.filter(p => p !== "All" && filtered.some(d => d.Purpose === p));
 
-  // Title
-  container.append(html`
-    <div style="font-size:18px; font-weight:600; margin-top:8px;">
-      ${metricSelect} — ${countySelect} — ${globalCalibRun}
-    </div>
-  `);
+  const rows = purposes.map(p => {
+    const hts = filtered.find(d => d.Purpose === p && d["Data Source"] === htsSource);
+    const mod = filtered.find(d => d.Purpose === p && d["Data Source"] === "Model");
+    return { Purpose: p, HTS: hts?.[metricSelect], Model: mod?.[metricSelect] };
+  }).filter(d => d.HTS != null && d.Model != null);
 
-  // Chart
-  const chart = GroupedBarChart(filtered_data, {
-    x: d => d.Purpose,
-    y: d => d[metricSelect],
-    z: d => d["Data Source"],
-    xDomain: purposes,
-    zDomain: ["HTS 2012", "HTS 2023", "Model"],
-    colors: ["lightgray", themeTarget, themeModel],
-    width: 900
+  const xMax = d3.max(rows, d => Math.max(d.HTS, d.Model)) || 1;
+  // Chart sits in one cell of the 2x3 grid (trip-dumbbell-grid below) --
+  // account for the cell being a third of the container width above the
+  // grid's breakpoint, and full width once the grid collapses to one
+  // column, so the plotted width matches what CSS actually gives this chart.
+  const chartWidth = width < tripGridBreakpoint ? width : (width - tripGridGap * 2) / 3;
+
+  const chart = Plot.plot({
+    width: chartWidth,
+    height: 260,
+    marginLeft: 70,
+    marginRight: 20,
+    marginTop: 10,
+    y: {domain: purposes, label: null},
+    x: {label: metricSelect, domain: [0, xMax], grid: true, nice: true},
+    marks: [
+      Plot.link(rows, {
+        x1: "HTS", x2: "Model", y: "Purpose",
+        stroke: themeLinkGrey, strokeWidth: 3
+      }),
+      Plot.dot(rows, {
+        x: "HTS", y: "Purpose", fill: themeTarget, r: 7,
+        title: d => `${d.Purpose}\n${htsSource}: ${d3.format(",.2f")(d.HTS)}`
+      }),
+      Plot.dot(rows, {
+        x: "Model", y: "Purpose", fill: themeModel, r: 7,
+        title: d => `${d.Purpose}\nModel (${globalCalibRun}): ${d3.format(",.2f")(d.Model)}`
+      })
+    ]
   });
 
-  chart.querySelectorAll("text").forEach(t => (t.style.fontSize = "18px"));
-  container.append(chart);
-
-  // Legend
-  const color = d3.scaleOrdinal(
-    ["HTS 2012", "HTS 2023", "BY 2023 Model"],
-    ["lightgray", themeTarget, themeModel]
-  );
-  container.append(Swatches(color, { label: "Data Source" }));
-
-  return container;
+  return html`<div>
+    <div style="font-weight:600; text-align:center; margin-bottom:2px;">${county}</div>
+    ${chart}
+  </div>`;
 }
+
+// One row of "All"-purpose totals per county, left out of the dumbbell
+// panels above (see tripDumbbellChart) since their magnitude would dominate
+// the shared per-panel x-axis.
+function tripTotalsRow(county) {
+  const htsSource = "HTS " + htsYearSelect;
+  const filtered = tripRates
+    .filter(d => d.County === county && d.Purpose === "All")
+    .filter(d => d.calib_run == null || d.calib_run === globalCalibRun)
+    .map(d => ({ ...d, "Data Source": String(d["Data Source"]).trim() }));
+  const hts = filtered.find(d => d["Data Source"] === htsSource);
+  const mod = filtered.find(d => d["Data Source"] === "Model");
+  return { County: county, HTS: hts?.[metricSelect], Model: mod?.[metricSelect] };
+}
+
+{
+  const controls = html`<div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:10px;"></div>`;
+  controls.append(viewof htsYearSelect);
+  controls.append(viewof metricSelect);
+
+  const totalsRows = areasAvailable.map(tripTotalsRow);
+  const fmt = d3.format(",.2f");
+
+  return html`<div>
+    <style>
+      .trip-dumbbell-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px ${tripGridGap}px;
+      }
+      @media (max-width: ${tripGridBreakpoint}px) {
+        .trip-dumbbell-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+    ${controls}
+    <div class="trip-dumbbell-grid">
+      ${areasAvailable.map(tripDumbbellChart)}
+    </div>
+    <div style="font-weight:600; margin-top:20px;">All Purposes (Total), by County</div>
+    <table style="width:100%; border-collapse:collapse; font-size: 13px; margin-top: 6px;">
+      <thead>
+        <tr>
+          <th style="text-align:left; padding:4px 6px; border-bottom:2px solid #999;">County</th>
+          <th style="text-align:right; padding:4px 6px; border-bottom:2px solid #999;">${"HTS " + htsYearSelect}</th>
+          <th style="text-align:right; padding:4px 6px; border-bottom:2px solid #999;">Model (${globalCalibRun})</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${totalsRows.map(r => html`<tr style="border-bottom: 1px solid lightgrey;">
+          <td style="padding:4px 6px;">${r.County}</td>
+          <td style="padding:4px 6px; text-align:right;">${r.HTS != null ? fmt(r.HTS) : "--"}</td>
+          <td style="padding:4px 6px; text-align:right;">${r.Model != null ? fmt(r.Model) : "--"}</td>
+        </tr>`)}
+      </tbody>
+    </table>
+  </div>`;
+}
+```
+
+## Commercial Vehicle Trip Generation
+
+Unlike person trips, there's no household-travel-survey equivalent for commercial
+vehicles, so there's no independent target to validate this against (see the
+Commercial Vehicle Model Update page's "About the LOCUS Data" note, and the Trip
+Distribution page's trip-length-frequency note). The chart below is a plain model
+summary -- daily commercial-vehicle trips produced, by county and vehicle type.
+
+```{python}
+# Modeled commercial-vehicle trip-end productions by county x vehicle type,
+# one calibration run at a time -- see report/preprocess/tripgen.py's
+# load_modeled_cvtripgen(). Model-only, same 'Region' total-row convention as
+# mod_p_se_county_reg_df above.
+mod_cv_county_df = vs.load_cached_per_run(repo_root, "modeled_cvtripgen")
+
+mod_cv_county_df['CO_FIPS'] = mod_cv_county_df['CO_FIPS'].astype('Int64')
+mod_cv_county_df = mod_cv_county_df.merge(
+    counties_df[['CO_FIPS', 'County']], on='CO_FIPS', how='left'
+)
+mod_cv_county_df['County'] = mod_cv_county_df['County'].fillna('Region')
+mod_cv_county_df = mod_cv_county_df.drop(columns=['CO_FIPS'])
+
+if debug: display(mod_cv_county_df)
+```
+
+```{python}
+cvTripGen = (
+    mod_cv_county_df
+    .astype(object)
+    .where(mod_cv_county_df.notna(), None)
+    .to_dict(orient="records")
+)
+ojs_define(cvTripGen=cvTripGen)
+```
+
+```{ojs}
+//| echo: false
+//| include: false
+
+cvVehicleOrder = ["LT", "MD", "HV"]
+cvVehicleLabel = new Map([
+  ["LT", "Light Commercial Vehicles"],
+  ["MD", "Medium Commercial Vehicles"],
+  ["HV", "Heavy Commercial Vehicles"]
+])
+// Region is a sum of these, not a peer magnitude -- excluded from the
+// per-county bars below (see cvHeadline for the region-wide total instead).
+cvCountyOrder = ["Box Elder", "Weber", "Davis", "Salt Lake", "Utah"]
+```
+
+```{ojs}
+//| label: fig-cv-tripgen
+//| fig-cap: "Commercial Vehicle Trip Generation by County (Model Only)"
+
+cvFiltered = cvTripGen
+  .filter(d => d.calib_run === globalCalibRun && cvCountyOrder.includes(d.County))
+
+Plot.plot({
+  width: 840,
+  height: 300,
+  marginBottom: 40,
+  y: {label: "Daily Trips", grid: true, nice: true},
+  x: {label: null, domain: cvCountyOrder},
+  fx: {label: null, domain: cvVehicleOrder, tickFormat: d => cvVehicleLabel.get(d)},
+  marks: [
+    Plot.barY(cvFiltered, {x: "County", y: "Trips", fx: "Vehicle Type", fill: themeModel}),
+    Plot.ruleY([0])
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+
+cvHeadline = cvTripGen.filter(d => d.calib_run === globalCalibRun && d.County === "Region")
+
+html`<div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:8px;">
+  ${cvVehicleOrder.map(v => {
+    const row = cvHeadline.find(d => d["Vehicle Type"] === v);
+    return html`<div style="border:1px solid #e0dfdd; border-radius:8px; padding:10px 16px;">
+      <div style="color:${themeNeutral}; font-size:0.9em;">${cvVehicleLabel.get(v)}</div>
+      <div style="font-weight:600; font-size:1.1em;">${row ? d3.format(",.0f")(row.Trips) : "--"} daily trips</div>
+    </div>`;
+  })}
+</div>`
 ```
