@@ -72,17 +72,28 @@ viewof globalCalibRun = {
   input.classList.add("calib-run-bar");
 
   // Sidebar links for pages that don't have data for every run (currently
-  // just report/cvm-update.qmd) get greyed out -- rather than the run
-  // dropdown itself shrinking to that page's subset -- so the dropdown's
-  // options stay identical everywhere on the site. The link stays clickable;
-  // the page itself is responsible for showing a "no data for this run" state.
+  // just report/cvm-update.qmd, which is only ever generated for the model
+  // version's reference run -- not planned for every run the way the other
+  // report pages are) get greyed out -- rather than the run dropdown itself
+  // shrinking to that page's subset -- so the dropdown's options stay
+  // identical everywhere on the site. The link stays clickable. If the
+  // current page happens to be cvm-update.qmd itself, this also swaps its
+  // own #cvm-content/#cvm-empty-message visibility -- both elements are
+  // absent on every other page, so this is a no-op there.
   function updateSidebarAvailability(run) {
-    const link = document.querySelector('#quarto-sidebar a[href$="cvm-update.html"]');
-    if (!link) return;
     const available = cvm_update_available_runs_ojs.includes(run);
-    const item = link.closest(".sidebar-item") ?? link;
-    item.classList.toggle("sidebar-item-no-run-data", !available);
-    link.title = available ? "" : `No commercial-vehicle factoring data yet for ${run}`;
+
+    const link = document.querySelector('#quarto-sidebar a[href$="cvm-update.html"]');
+    if (link) {
+      const item = link.closest(".sidebar-item") ?? link;
+      item.classList.toggle("sidebar-item-no-run-data", !available);
+      link.title = available ? "" : `No commercial-vehicle factoring data for ${run}`;
+    }
+
+    const content = document.getElementById("cvm-content");
+    const emptyMsg = document.getElementById("cvm-empty-message");
+    if (content) content.style.display = available ? "" : "none";
+    if (emptyMsg) emptyMsg.style.display = available ? "none" : "";
   }
   updateSidebarAvailability(initial);
 

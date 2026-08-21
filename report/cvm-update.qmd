@@ -6,15 +6,42 @@ message: false
 ---
 
 The Commercial Vehicle Model (CVM) generates daily Light (LT), Medium (MD), and Heavy
-(HV) truck trips for six vocations -- Door-to-Door (D2D), Hub-and-Spoke (HnS), Local
-(Lcl), Regional (Reg), Long-Haul (LHl), and Unknown (Unk) -- from trip-rate models
-built on LOCUS commercial-vehicle data. Those raw rates rarely match observed truck
-activity exactly, so a set of calibration factors are layered on top, by county and
-(for MD/HV) by vocation. This page breaks down, for the selected calibration run, how
+(HV) commercial-vehicle trips for six vocations -- Door-to-Door (D2D), Hub-and-Spoke
+(HnS), Local (Lcl), Regional (Reg), Long-Haul (LHl), and Unknown (Unk) -- from trip-rate
+models built on LOCUS commercial-vehicle data. Those raw rates rarely match observed
+commercial-vehicle activity exactly, so a set of calibration factors are layered on
+top, by county and (for MD/HV) by vocation. This page breaks down, for the selected
+calibration run, how
 much of the region's final commercial-vehicle trips and VMT trace back to the raw
 LOCUS-based rates ("base model") versus how much comes from that calibration
 adjustment -- and separately explains what falls **outside** the CVM entirely: the
 external (X) end of any trip that crosses the region boundary.
+
+## About the LOCUS Data
+
+UDOT has licensed commercial-vehicle origin-destination (OD) data from LOCUS that was
+geo-referenced to the region's TAZs and external stations, made available to WFRC as
+part of a 2025 Wasatch Front TDM Truck Model Update effort. That project used the
+licensed LOCUS OD data, alongside segment-level roadway volumes with medium- and
+heavy-duty commercial-vehicle percentages and a base- and horizon-year commercial-vehicle
+trip table extracted from the Utah Statewide Travel Demand Model (USTM), to re-estimate
+and calibrate the CVM's internal (II) trip generation and distribution parameters
+against 2023 base-year observed commercial-vehicle activity. Per the
+LOCUS-derived `CV TG Rates.csv` rate table, that re-estimation also reaches the
+internal-zone side of IX/XI trip generation (see "Within-region distribution" further
+down this page). Consistent with the project's scope, though, USTM continues to supply
+XX trip tables and the external end zones for IX/XI trips; LOCUS data doesn't reach
+those.
+
+**A note on vehicle-class definitions.** LOCUS classifies commercial vehicles by gross
+vehicle weight, while UDOT's roadway count data -- including the Continuous Count
+Station (CCS) adjustments described below -- classifies by vehicle configuration:
+single-unit (SU) vs. multi-unit (MU). The two schemes don't always agree. A short,
+rigid single-unit vehicle like a dump truck or concrete mixer can carry a gross vehicle
+weight well into LOCUS's "Heavy" bucket while still counting as UDOT's shorter
+single-unit ("Medium") category at a count station. Vehicles like these are a possible
+source of any mismatch between the CVM's LOCUS-derived Medium/Heavy split and UDOT's
+own Medium/Heavy percentages.
 
 ```{python}
 # ==============================================================================
@@ -60,23 +87,24 @@ allRows = transpose(cvm_data)
 vocOrder = ["D2D", "HnS", "Lcl", "Reg", "LHl", "Unk"]
 extOrder = ["IX", "XI", "XX"]
 vehicleOrder = ["LT", "MD", "HV"]
-vehicleLabel = new Map([["LT", "Light Trucks"], ["MD", "Medium Trucks"], ["HV", "Heavy Trucks"]])
+vehicleLabel = new Map([["LT", "Light Commercial Vehicles"], ["MD", "Medium Commercial Vehicles"], ["HV", "Heavy Commercial Vehicles"]])
 
 rows = allRows.filter(d => d.calib_run === globalCalibRun)
-hasCvmData = cvm_available_runs.includes(globalCalibRun)
 fmtInt = d3.format(",.0f")
 fmtPct = d3.format(",.1f")
 fmtFactor = d3.format(",.2f")
 ```
 
-```{ojs}
-//| echo: false
-hasCvmData ? html`` : html`<div class="callout-warning" style="padding:0.75rem 1rem; margin-bottom:1rem; border:1px solid #f0c36d; border-radius:6px; background:rgba(240,195,109,0.15);">
-  <strong>No CVM factoring data yet for ${globalCalibRun}.</strong> ${"scripts/cv_purpose_factoring.py"} hasn't been
-  run against this calibration run -- the sections below will be empty until it has (see the Methodology note at
-  the bottom of this page). Pick a different run from the "Calibration Run" selector to see this page's charts.
-</div>`
-```
+CVM factoring is only ever produced for this model version's reference calibration run
+(currently C70, WF TDM v10.0 Beta.2) -- not run for every calibration run the way the
+other report pages are, and not planned to be. Picking a different run below shows a
+plain "no information" notice instead of this page's charts.
+
+::: {#cvm-empty-message style="display:none; padding:0.75rem 1rem; margin-bottom:1rem; border:1px solid #dee2e6; border-radius:6px;"}
+No information was generated for this calibration run.
+:::
+
+::: {#cvm-content}
 
 ## Total Commercial Vehicle Activity
 
@@ -270,9 +298,10 @@ still shapes part of where those trips land:
 
 - **Trip generation**: overall AADT at each external gateway station is
   forecast from HPMS segment AADT volumes, then split into medium- and
-  heavy-truck volumes using base-year UDOT medium-/heavy-truck percentages --
-  themselves adjusted using revised vehicle-length classifications at nearby
-  Continuous Count Stations (CCS). Not a LOCUS-derived rate model.
+  heavy-duty commercial-vehicle volumes using base-year UDOT medium-/heavy-duty
+  commercial-vehicle percentages -- themselves adjusted using revised
+  vehicle-length classifications at nearby Continuous Count Stations (CCS).
+  Not a LOCUS-derived rate model.
 - **Within-region distribution** (which internal zone originates an IX
   trip, or receives an XI trip): shaped by the same land-use-based rate
   table (`CV TG Rates.csv`, LOCUS-derived) used for internal CVM trips --
@@ -287,9 +316,10 @@ still shapes part of where those trips land:
 
 The only calibration applied to these trips is a per-station, per-vehicle-type
 multiplier (`calibFac_Ext_MD_<station>` / `calibFac_Ext_HV_<station>`) that
-scales a station's whole truck volume before splitting it into IX/XI/XX
-shares -- there's no vocation dimension here (LOCUS's D2D/HnS/Lcl/Reg/LHl/Unk
-split doesn't apply), and no LT component at all (Light trucks are folded
+scales a station's whole commercial-vehicle volume before splitting it into
+IX/XI/XX shares -- there's no vocation dimension here (LOCUS's
+D2D/HnS/Lcl/Reg/LHl/Unk split doesn't apply), and no LT component at all
+(Light commercial vehicles are folded
 into the passenger-vehicle volume at external stations, which get their own
 separate `calibFac_Ext_PL_<station>` multiplier). These factors are
 derived by comparing the resulting link volumes, once forecast, against each
@@ -331,7 +361,7 @@ function externalDumbbell(veh) {
 }
 
 html`<div><div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">${["MD", "HV"].map(externalDumbbell)}</div>
-<p style="text-align:center; color:${themeNeutral}; font-size:0.9em;">Light trucks (LT) have no external-station component -- see note above.</p></div>`
+<p style="text-align:center; color:${themeNeutral}; font-size:0.9em;">Light commercial vehicles (LT) have no external-station component -- see note above.</p></div>`
 ```
 
 ```{ojs}
@@ -358,6 +388,8 @@ html`
   </tbody>
 </table>`
 ```
+
+:::
 
 ## Methodology & Caveats
 
