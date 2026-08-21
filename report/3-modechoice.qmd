@@ -635,21 +635,39 @@ xDomain = {
 //| fig-cap: "Mode Share Calibration Results by Trip Purpose"
 
 {
-  const legend = Legend(
-    d3.scaleOrdinal(["Model", "Target"], [themeModel, themeTarget]),
-    {title: "Data Source"}
+  // One point per Mode, per Purpose x Period facet cell -- Target on x,
+  // Model on y, against a 1:1 equality line (same convention as the Trip
+  // Distribution page's Model-vs-Target scatter, report/2-distribution.qmd's
+  // CHART 4a). Replaces the previous grouped-bar-per-mode chart, which got
+  // crowded once faceted 3x5 -- reuses xDomain (already the per-Mode-Group
+  // mode list) rather than a color-coded Model/Target bar pair.
+  const scatterModes = xDomain.filter(d => d.endsWith("||Model")).map(d => d.split("||")[0])
+
+  const scatterRows = facetPurposes.flatMap(purp => {
+    const purposeLabel = facetLabels.get(purp)
+    return facetPeriods.flatMap(per => {
+      const periodLabel = periodLabels.get(per)
+      return scatterModes.map(mode => {
+        const model = filtered_data.find(d => d.PurposeLabel === purposeLabel && d.PeriodLabel === periodLabel && d.Mode === mode && d.DataSource === "Model")
+        const target = filtered_data.find(d => d.PurposeLabel === purposeLabel && d.PeriodLabel === periodLabel && d.Mode === mode && d.DataSource === "Target")
+        return { PurposeLabel: purposeLabel, PeriodLabel: periodLabel, Mode: mode, Model: model?.Percent, Target: target?.Percent }
+      }).filter(d => d.Model != null && d.Target != null)
+    })
+  })
+
+  // One row per facet cell (not per scatterRows datum) so the equality line
+  // draws once per cell, not once per mode.
+  const facetCells = facetPurposes.flatMap(purp =>
+    facetPeriods.map(per => ({ PurposeLabel: facetLabels.get(purp), PeriodLabel: periodLabels.get(per) }))
   )
 
+  const chartMax = (d3.max(scatterRows, d => Math.max(d.Model, d.Target)) || 0.1) * 1.25
+
   const chart = Plot.plot({
-    // marginTop/marginBottom/facetMarginTop (150px) are paid once for the
-    // whole 3-row facet grid, not per row, so shrinking each row means
-    // shrinking the shared content band, not the total height: fixed
-    // margins (150) + 80% of the prior content band (473 * 0.8 = 378.4),
-    // i.e. 20% off the 623px version.
-    height : 528,
+    height : 620,
     width  : 950,
     marginLeft  : 55,
-    marginBottom: 80,
+    marginBottom: 40,
     marginTop : 40,
     facetMarginTop: 30,
     facetMarginRight: 60,
@@ -674,69 +692,30 @@ xDomain = {
       padding: 0.4,
     },
 
-    x: {
-      domain: xDomain,
-      axis: null,
-      padding: 0.2,
-      label: null,
-    },
-
-    y: {
-      grid: true,
-      label: "Share",
-      tickFormat: ".0%",
-      domain: [0, 1],
-    },
-
-    color: {
-      domain: ["Model", "Target"],
-      range:  [themeModel, themeTarget],
-    },
+    x: { label: "Target Share", domain: [0, chartMax], tickFormat: ".0%", grid: true },
+    y: { label: "Model Share", domain: [0, chartMax], tickFormat: ".0%", grid: true },
 
     marks: [
-      Plot.barY(filtered_data, {
-        fx   : "PurposeLabel",
-        fy   : "PeriodLabel",
-        x    : d => `${d.Mode}||${d.DataSource}`,
-        y    : "Percent",
-        fill : "DataSource",
-        sort : { x: null },
-        tip  : {
-          format: {
-            x    : d => d.split("||")[0],
-            y    : d => fmtShare(d),
-            fill : true,
-          }
-        }
+      Plot.link(facetCells, {
+        fx: "PurposeLabel", fy: "PeriodLabel",
+        x1: 0, y1: 0, x2: chartMax, y2: chartMax,
+        stroke: "gray", strokeOpacity: 0.5, strokeDasharray: "4 4"
       }),
-      Plot.text(filtered_data, {
-        fx         : "PurposeLabel",
-        fy         : "PeriodLabel",
-        x          : d => `${d.Mode}||${d.DataSource}`,
-        y          : "Percent",
-        text       : d => fmtShare(d.Percent),
-        textAnchor : "middle",
-        lineAnchor : "bottom",
-        dy         : -4,
-        fontSize   : 9,
+      Plot.dot(scatterRows, {
+        fx: "PurposeLabel", fy: "PeriodLabel",
+        x: "Target", y: "Model", r: 4,
+        fill: themeModel, fillOpacity: 0.85,
+        title: d => `${d.Mode}\nTarget: ${fmtShare(d.Target)}\nModel: ${fmtShare(d.Model)}`
       }),
-      Plot.text(
-        xDomain.filter(d => d.endsWith("||Model")),
-        {
-          x          : d => d,
-          text       : d => d.split("||")[0].replace(/ /g, "\n"),
-          frameAnchor: "bottom",
-          lineAnchor : "top",
-          dy         : 6,
-          fontSize   : 11,
-          lineHeight : 1.2,
-        }
-      ),
-      Plot.ruleY([0]),
+      Plot.text(scatterRows, {
+        fx: "PurposeLabel", fy: "PeriodLabel",
+        x: "Target", y: "Model", text: "Mode",
+        dy: -8, fontSize: 8.5, fill: themeNeutral
+      }),
     ],
   })
 
-  return html`${legend}${chart}`
+  return chart
 }
 ```
 
