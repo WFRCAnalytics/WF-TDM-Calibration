@@ -677,7 +677,7 @@ keyModeShare = Legend(modeShareColorScale, {title: "Data Source"})
   // A "-X%" label to the left of a dot sitting near x=0 would spill into
   // the y-axis label column -- force those onto the right instead, same as
   // this report's other dumbbells.
-  const nearZero = chartMax * 0.18
+  const nearZero = chartMax * 0.22
   const labelsRight = rows.filter(d => d.pctDiff != null && (d.Model >= d.Target || d.Model < nearZero))
   const labelsLeft = rows.filter(d => d.pctDiff != null && d.Model < d.Target && d.Model >= nearZero)
 
@@ -714,34 +714,38 @@ keyModeShare = Legend(modeShareColorScale, {title: "Data Source"})
     x: { label: "Share", domain: [0, chartMax], tickFormat: ".0%", grid: true },
 
     marks: [
+      // Border around every facet cell -- otherwise the column breaks
+      // (Purpose) are only marked by the header labels, easy to lose track
+      // of when scanning down a column.
+      Plot.frame({ stroke: themeNeutral, strokeOpacity: 0.3 }),
       Plot.link(rows, {
         fx: "PurposeLabel", fy: "PeriodLabel",
         x1: "Target", x2: "Model", y: "Mode",
-        stroke: themeLinkGrey, strokeWidth: 2.5
+        stroke: themeLinkGrey, strokeWidth: 3
       }),
       // Target drawn first, Model second, so the Model dot's ring always
       // sits on top where the two overlap -- same convention as this
       // report's other dumbbells.
       Plot.dot(rows, {
         fx: "PurposeLabel", fy: "PeriodLabel",
-        x: "Target", y: "Mode", fill: themeTarget, r: 4.5,
+        x: "Target", y: "Mode", fill: themeTarget, r: 7,
         title: d => `${d.Mode}\nTarget: ${fmtShare(d.Target)}`
       }),
       Plot.dot(rows, {
         fx: "PurposeLabel", fy: "PeriodLabel",
-        x: "Model", y: "Mode", fill: themeModel, r: 3.5,
+        x: "Model", y: "Mode", fill: themeModel, r: 5.5,
         title: d => `${d.Mode}\nModel: ${fmtShare(d.Model)}`
       }),
       Plot.text(labelsRight, {
         fx: "PurposeLabel", fy: "PeriodLabel",
         x: "Model", y: "Mode", text: d => d3.format("+.1%")(d.pctDiff),
-        dx: 7, textAnchor: "start", fontSize: 8, fontWeight: 600,
+        dx: 10, textAnchor: "start", fontSize: 9, fontWeight: 600,
         fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral
       }),
       Plot.text(labelsLeft, {
         fx: "PurposeLabel", fy: "PeriodLabel",
         x: "Model", y: "Mode", text: d => d3.format("+.1%")(d.pctDiff),
-        dx: -7, textAnchor: "end", fontSize: 8, fontWeight: 600,
+        dx: -10, textAnchor: "end", fontSize: 9, fontWeight: 600,
         fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral
       }),
     ],
