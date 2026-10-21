@@ -22,6 +22,7 @@ project:
   resources:
     - "report/data/basemap/ugrc-wfrc-lite.json"
     - "report/data/basemap/expressways.geojson"
+    - "report/data/basemap/urban-areas.geojson"
 
 # wfrc-brand's _extension.yml only auto-contributes HTML/Typst/DOCX format
 # options (theme, fonts, toc, layout) -- footer/navbar/social defaults live in
