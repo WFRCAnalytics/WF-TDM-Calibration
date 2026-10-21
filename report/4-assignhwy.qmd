@@ -750,12 +750,13 @@ function geojsonBounds(fc) {
 }
 
 // 10. HELPER: basemap style. UGRC's vector tile services (bundled into one
-// merged style, report/data/basemap/ugrc-lite.json) don't need an API key,
-// unlike the commercial basemap this page used before -- see
-// _quarto.yml's `resources:` entry for why that file ships with the site.
-// Path is relative to each rendered report page (report/data/basemap/...
-// under docs/), not to this .qmd source file.
-UGRC_BASEMAP_STYLE = "data/basemap/ugrc-lite.json"
+// merged style, report/data/basemap/ugrc-wfrc-lite.json -- a WFRC-tweaked
+// copy of UGRC's "lite" style) don't need an API key, unlike the
+// commercial basemap this page used before -- see _quarto.yml's
+// `resources:` entry for why that file ships with the site. Path is
+// relative to each rendered report page (report/data/basemap/... under
+// docs/), not to this .qmd source file.
+UGRC_BASEMAP_STYLE = "data/basemap/ugrc-wfrc-lite.json"
 UGRC_ATTRIBUTION = "&copy; <a href=\"https://gis.utah.gov/\">Utah AGRC</a>"
 
 // 11. HELPER: a legend/info box rendered as a MapLibre IControl, mirroring

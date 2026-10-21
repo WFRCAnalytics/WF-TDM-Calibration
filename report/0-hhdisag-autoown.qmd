@@ -475,12 +475,13 @@ class HtmlLegendControlHh {
 }
 
 // Basemap style. UGRC's vector tile services (bundled into one merged
-// style, report/data/basemap/ugrc-lite.json) don't need an API key, unlike
-// the commercial basemap these maps used before -- see _quarto.yml's
-// `resources:` entry for why that file ships with the site. Path is
-// relative to each rendered report page (report/data/basemap/... under
-// docs/), not to this .qmd source file.
-UGRC_BASEMAP_STYLE_HH = "data/basemap/ugrc-lite.json"
+// style, report/data/basemap/ugrc-wfrc-lite.json -- a WFRC-tweaked copy
+// of UGRC's "lite" style) don't need an API key, unlike the commercial
+// basemap these maps used before -- see _quarto.yml's `resources:` entry
+// for why that file ships with the site. Path is relative to each
+// rendered report page (report/data/basemap/... under docs/), not to
+// this .qmd source file.
+UGRC_BASEMAP_STYLE_HH = "data/basemap/ugrc-wfrc-lite.json"
 UGRC_ATTRIBUTION_HH = "&copy; <a href=\"https://gis.utah.gov/\">Utah AGRC</a>"
 ```
 

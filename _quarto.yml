@@ -7,14 +7,21 @@ project:
   render:
     - "index.qmd"
     - "report/**/*.qmd"
-  # report/data/basemap/ugrc-lite.json is a static MapLibre style fetched
-  # client-side (maplibregl.Map({style: "data/basemap/ugrc-lite.json"})) by
-  # every interactive map in 4-assignhwy.qmd/0-hhdisag-autoown.qmd -- it's
-  # not referenced from any .qmd's rendered markdown/HTML, so Quarto's
-  # implicit resource discovery won't pick it up on its own; list it
-  # explicitly so it lands at docs/report/data/basemap/ugrc-lite.json.
+  # report/data/basemap/ugrc-wfrc-lite.json is a static MapLibre style
+  # fetched client-side (maplibregl.Map({style:
+  # "data/basemap/ugrc-wfrc-lite.json"})) by every interactive map in
+  # 4-assignhwy.qmd/0-hhdisag-autoown.qmd -- it's not referenced from any
+  # .qmd's rendered markdown/HTML, so Quarto's implicit resource discovery
+  # won't pick it up on its own; list it explicitly so it lands at
+  # docs/report/data/basemap/ugrc-wfrc-lite.json. expressways.geojson is
+  # that style's own "expressways" geojson source (Bangerter/Mountain View
+  # Corridor/Timpanogos Hwy, pulled from UGRC's UtahRoads feature service
+  # since the merged Lite tiles have no route-name attribute to filter
+  # on) -- referenced relative to the style file itself, so it needs the
+  # same explicit listing.
   resources:
-    - "report/data/basemap/ugrc-lite.json"
+    - "report/data/basemap/ugrc-wfrc-lite.json"
+    - "report/data/basemap/expressways.geojson"
 
 # wfrc-brand's _extension.yml only auto-contributes HTML/Typst/DOCX format
 # options (theme, fonts, toc, layout) -- footer/navbar/social defaults live in
