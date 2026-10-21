@@ -429,31 +429,83 @@ Plot.plot({
 ## Interactive Map
 
 ```{ojs}
+//| echo: false
+
+// Shared helpers for both choropleth maps on this page (this one and the
+// Vehicle Ownership map further down).
+
+// Bounding box of a GeoJSON FeatureCollection, as
+// [[minLng, minLat], [maxLng, maxLat]] for map.fitBounds() -- MapLibre has
+// no built-in equivalent of Leaflet's layer.getBounds().
+function geojsonBoundsHh(fc) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const visit = (coords) => {
+    if (typeof coords[0] === "number") {
+      const [x, y] = coords;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    } else {
+      coords.forEach(visit);
+    }
+  };
+  for (const f of fc.features || []) {
+    if (f.geometry) visit(f.geometry.coordinates);
+  }
+  return minX === Infinity ? null : [[minX, minY], [maxX, maxY]];
+}
+
+// A legend/info box rendered as a MapLibre IControl, mirroring the
+// L.control({position}) + onAdd-returns-a-div pattern these maps used to
+// build their legends under Leaflet.
+class HtmlLegendControlHh {
+  constructor(html) { this._html = html; }
+  onAdd(map) {
+    this._map = map;
+    this._container = document.createElement("div");
+    this._container.className = "maplibregl-ctrl";
+    this._container.innerHTML = this._html;
+    return this._container;
+  }
+  onRemove() {
+    this._container.parentNode?.removeChild(this._container);
+    this._map = undefined;
+  }
+}
+
+// Basemap style. UGRC's vector tile services (bundled into one merged
+// style, report/data/basemap/ugrc-lite.json) don't need an API key, unlike
+// the commercial basemap these maps used before -- see _quarto.yml's
+// `resources:` entry for why that file ships with the site. Path is
+// relative to each rendered report page (report/data/basemap/... under
+// docs/), not to this .qmd source file.
+UGRC_BASEMAP_STYLE_HH = "data/basemap/ugrc-lite.json"
+UGRC_ATTRIBUTION_HH = "&copy; <a href=\"https://gis.utah.gov/\">Utah AGRC</a>"
+```
+
+```{ojs}
 {
-  if (!document.getElementById("leaflet-css")) {
+  const maplibregl = await require("maplibre-gl@5.24.0/dist/maplibre-gl.js");
+  if (!document.getElementById("maplibre-css")) {
     const link  = document.createElement("link");
-    link.id     = "leaflet-css";
+    link.id     = "maplibre-css";
     link.rel    = "stylesheet";
-    link.href   = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+    link.href   = "https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css";
     document.head.appendChild(link);
   }
 
-  const L = await require("leaflet@1.9.4");
   const container = html`<div style="height:560px; width:100%; border-radius:6px; overflow:hidden;"></div>`;
   yield container;
 
-  const map = L.map(container, {zoomControl: true});
-
-  L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ' +
-        '&copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: "abcd",
-      maxZoom: 19,
-    }
-  ).addTo(map);
+  const map = new maplibregl.Map({
+    container,
+    style: UGRC_BASEMAP_STYLE_HH,
+    center: [-111.8910, 40.7608],
+    zoom: 9,
+    attributionControl: { customAttribution: UGRC_ATTRIBUTION_HH }
+  });
+  map.addControl(new maplibregl.NavigationControl(), "top-left");
 
   // Aggregate map data across all HHSIZE × WRKS combinations for selected income filter
   const mapAgg = d3.rollup(
@@ -481,64 +533,78 @@ Plot.plot({
   };
   const { geo: base_geo, prop: name_prop } = geo_lookup[vGeoLevel];
 
-  const features = base_geo.features.map(f => {
-    const key = f.properties[name_prop];
-    const row = mapAgg.get(+key) || mapAgg.get(String(key))
-      || { Modeled_Count: 0, Observed_Count: 0, HTS_Count: 0,
-           Mod_vs_PUMS: null, Mod_vs_HTS: null,
-           PUMS_vs_Mod: null, HTS_vs_Mod: null,
-           PUMS_vs_HTS: null, HTS_vs_PUMS: null };
-    return { ...f, properties: { ...f.properties, ...row } };
-  });
-  const map_features_hh = { type: "FeatureCollection", features };
-
   const colorScale = d3.scaleDiverging(d3.interpolateRdBu).domain([0.5, 0, -0.5]);
   function getColor(pct) {
     if (pct === null || pct === undefined) return "#cccccc";
     return colorScale(Math.max(-0.5, Math.min(0.5, pct)));
   }
 
-  let geojsonLayer = L.geoJSON(map_features_hh, {
-    style: feature => ({
-      fillColor:   getColor(feature.properties[hh_xy_cfg.errField]),
-      fillOpacity: 0.72,
-      color:       "#ffffff",
-      weight:      1,
-    }),
-    onEachFeature: (feature, layer) => {
-      const p      = feature.properties;
-      const err    = p[hh_xy_cfg.errField];
-      const noData = err === null || err === undefined;
-      layer.bindPopup(
-        `<b>${vGeoLevel} ${p[name_prop]}</b><br>` +
-        `<i style="font-size:10px;color:#666">${hh_xy_cfg.yCfg.label} vs. ${hh_xy_cfg.xCfg.label}</i><br>` +
-        `Pct Error: ${noData ? "N/A" : (err * 100).toFixed(1) + "%"}<br>` +
-        `Modeled: ${d3.format(",.0f")(p.Modeled_Count)}<br>` +
-        `Target (PUMS): ${d3.format(",.0f")(p.Observed_Count)}<br>` +
-        `Target (HTS): ${d3.format(",.0f")(p.HTS_Count)}`
-      );
-      layer.on("mouseover", () => layer.setStyle({fillOpacity: 0.95, weight: 2}));
-      layer.on("mouseout",  () => geojsonLayer.resetStyle(layer));
-    }
-  }).addTo(map);
-
-  if (geojsonLayer.getBounds().isValid()) {
-    map.fitBounds(geojsonLayer.getBounds(), {padding: [10, 10]});
-  }
-
-  const resizeObserver = new ResizeObserver(() => {
-    setTimeout(() => {
-      map.invalidateSize();
-      if (geojsonLayer.getBounds().isValid()) {
-        map.fitBounds(geojsonLayer.getBounds(), {padding: [10, 10]});
-      }
-    }, 100);
+  const features = base_geo.features.map((f, i) => {
+    const key = f.properties[name_prop];
+    const row = mapAgg.get(+key) || mapAgg.get(String(key))
+      || { Modeled_Count: 0, Observed_Count: 0, HTS_Count: 0,
+           Mod_vs_PUMS: null, Mod_vs_HTS: null,
+           PUMS_vs_Mod: null, HTS_vs_Mod: null,
+           PUMS_vs_HTS: null, HTS_vs_PUMS: null };
+    const err    = row[hh_xy_cfg.errField];
+    const noData = err === null || err === undefined;
+    const popup =
+      `<b>${vGeoLevel} ${key}</b><br>` +
+      `<i style="font-size:10px;color:#666">${hh_xy_cfg.yCfg.label} vs. ${hh_xy_cfg.xCfg.label}</i><br>` +
+      `Pct Error: ${noData ? "N/A" : (err * 100).toFixed(1) + "%"}<br>` +
+      `Modeled: ${d3.format(",.0f")(row.Modeled_Count)}<br>` +
+      `Target (PUMS): ${d3.format(",.0f")(row.Observed_Count)}<br>` +
+      `Target (HTS): ${d3.format(",.0f")(row.HTS_Count)}`;
+    return { ...f, id: i, properties: { ...f.properties, ...row, _color: getColor(err), _popup: popup } };
   });
-  resizeObserver.observe(container);
-  invalidation.then(() => { map.remove(); resizeObserver.disconnect(); });
+  const map_features_hh = { type: "FeatureCollection", features };
 
-  const legend = L.control({position: "bottomright"});
-  legend.onAdd = () => {
+  let loaded = false;
+  let hoveredId = null;
+
+  map.on("load", () => {
+    loaded = true;
+
+    map.addSource("hh-choropleth", { type: "geojson", data: map_features_hh });
+    map.addLayer({
+      id: "hh-choropleth-fill",
+      type: "fill",
+      source: "hh-choropleth",
+      paint: {
+        "fill-color": ["get", "_color"],
+        "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.95, 0.72]
+      }
+    });
+    map.addLayer({
+      id: "hh-choropleth-outline",
+      type: "line",
+      source: "hh-choropleth",
+      paint: {
+        "line-color": "#ffffff",
+        "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 2, 1]
+      }
+    });
+
+    map.on("mousemove", "hh-choropleth-fill", (e) => {
+      if (!e.features.length) return;
+      const id = e.features[0].id;
+      if (id === hoveredId) return;
+      if (hoveredId != null) map.setFeatureState({ source: "hh-choropleth", id: hoveredId }, { hover: false });
+      hoveredId = id;
+      map.setFeatureState({ source: "hh-choropleth", id }, { hover: true });
+    });
+    map.on("mouseleave", "hh-choropleth-fill", () => {
+      if (hoveredId != null) map.setFeatureState({ source: "hh-choropleth", id: hoveredId }, { hover: false });
+      hoveredId = null;
+    });
+    map.on("click", "hh-choropleth-fill", (e) => {
+      if (!e.features.length) return;
+      new maplibregl.Popup().setLngLat(e.lngLat).setHTML(e.features[0].properties._popup).addTo(map);
+    });
+
+    const bounds = geojsonBoundsHh(map_features_hh);
+    if (bounds) map.fitBounds(bounds, { padding: 10 });
+
     const stops  = [-0.5, -0.25, 0, 0.25, 0.5];
     const labels = ["≤ −50%", "−25%", "0%", "+25%", "≥ +50%"];
     const swatches = stops.map((v, i) =>
@@ -548,8 +614,7 @@ Plot.plot({
         `<span style="font-size:11px;">${labels[i]}</span>` +
       `</div>`
     ).join("");
-    const div = L.DomUtil.create("div");
-    div.innerHTML =
+    const legend_html =
       `<div style="background:white;padding:10px 12px;border-radius:6px;` +
                   `box-shadow:0 1px 5px rgba(0,0,0,0.25);line-height:1.5;">` +
         `<div style="font-size:12px;font-weight:600;margin-bottom:4px;">Percent Error</div>` +
@@ -558,9 +623,21 @@ Plot.plot({
         `</div>` +
         swatches +
       `</div>`;
-    return div;
-  };
-  legend.addTo(map);
+    map.addControl(new HtmlLegendControlHh(legend_html), "bottom-right");
+
+    map.resize();
+  });
+
+  const resizeObserver = new ResizeObserver(() => {
+    if (!loaded) return;
+    setTimeout(() => {
+      map.resize();
+      const bounds = geojsonBoundsHh(map_features_hh);
+      if (bounds) map.fitBounds(bounds, { padding: 10 });
+    }, 100);
+  });
+  resizeObserver.observe(container);
+  invalidation.then(() => { map.remove(); resizeObserver.disconnect(); });
 }
 ```
 
@@ -1029,31 +1106,26 @@ Plot.plot({
 
 ```{ojs}
 {
-  if (!document.getElementById("leaflet-css-vo")) {
+  const maplibregl = await require("maplibre-gl@5.24.0/dist/maplibre-gl.js");
+  if (!document.getElementById("maplibre-css")) {
     const link  = document.createElement("link");
-    link.id     = "leaflet-css-vo";
+    link.id     = "maplibre-css";
     link.rel    = "stylesheet";
-    link.href   = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+    link.href   = "https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css";
     document.head.appendChild(link);
   }
-
-  const L = await require("leaflet@1.9.4");
 
   const container = html`<div style="height:560px; width:100%; border-radius:6px; overflow:hidden;"></div>`;
   yield container;
 
-  const map = L.map(container, {zoomControl: true});
-
-  L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ' +
-        '&copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: "abcd",
-      maxZoom: 19,
-    }
-  ).addTo(map);
+  const map = new maplibregl.Map({
+    container,
+    style: UGRC_BASEMAP_STYLE_HH,
+    center: [-111.8910, 40.7608],
+    zoom: 9,
+    attributionControl: { customAttribution: UGRC_ATTRIBUTION_HH }
+  });
+  map.addControl(new maplibregl.NavigationControl(), "top-left");
 
   // Aggregate map data across all HHSize × VehOwn combinations for selected geography
   const mapAgg = d3.rollup(
@@ -1085,64 +1157,78 @@ Plot.plot({
   };
   const {geo: base_geo, prop: name_prop} = geo_lookup[geo_level];
 
-  const features = base_geo.features.map(f => {
-    const prop_name = f.properties[name_prop];
-    const row = mapAgg.get(prop_name)
-      || { Model_HH: 0, ACS_HH: 0, HTS_HH: 0,
-           Pct_Error: null, Pct_Error_HTS: null,
-           Pct_ACS_vs_Mod: null, Pct_HTS_vs_Mod: null,
-           Pct_ACS_vs_HTS: null, Pct_HTS_vs_ACS: null };
-    return { ...f, properties: { ...f.properties, GeoName: prop_name, ...row } };
-  });
-  const map_features_vo = { type: "FeatureCollection", features };
-
   const colorScale = d3.scaleDiverging(d3.interpolateRdBu).domain([0.5, 0, -0.5]);
   function getColor(pct) {
     if (pct === null || pct === undefined) return "#cccccc";
     return colorScale(Math.max(-0.5, Math.min(0.5, pct)));
   }
 
-  let geojsonLayer = L.geoJSON(map_features_vo, {
-    style: feature => ({
-      fillColor:   getColor(feature.properties[vo_xy_cfg.errField]),
-      fillOpacity: 0.72,
-      color:       "#ffffff",
-      weight:      1,
-    }),
-    onEachFeature: (feature, layer) => {
-      const p      = feature.properties;
-      const err    = p[vo_xy_cfg.errField];
-      const noData = err === null || err === undefined;
-      layer.bindPopup(
-        `<b>${p.GeoName}</b><br>` +
-        `<i style="font-size:10px;color:#666">${vo_xy_cfg.yCfg.label} vs. ${vo_xy_cfg.xCfg.label}</i><br>` +
-        `Pct Error: ${noData ? "N/A" : (err * 100).toFixed(1) + "%"}<br>` +
-        `Modeled: ${d3.format(",.0f")(p.Model_HH)}<br>` +
-        `Target (ACS): ${d3.format(",.0f")(p.ACS_HH)}<br>` +
-        `Target (HTS): ${d3.format(",.0f")(p.HTS_HH)}`
-      );
-      layer.on("mouseover", () => layer.setStyle({fillOpacity: 0.95, weight: 2}));
-      layer.on("mouseout",  () => geojsonLayer.resetStyle(layer));
-    }
-  }).addTo(map);
-
-  if (geojsonLayer.getBounds().isValid()) {
-    map.fitBounds(geojsonLayer.getBounds(), {padding: [10, 10]});
-  }
-
-  const resizeObserver = new ResizeObserver(() => {
-    setTimeout(() => {
-      map.invalidateSize();
-      if (geojsonLayer.getBounds().isValid()) {
-        map.fitBounds(geojsonLayer.getBounds(), {padding: [10, 10]});
-      }
-    }, 100);
+  const features = base_geo.features.map((f, i) => {
+    const prop_name = f.properties[name_prop];
+    const row = mapAgg.get(prop_name)
+      || { Model_HH: 0, ACS_HH: 0, HTS_HH: 0,
+           Pct_Error: null, Pct_Error_HTS: null,
+           Pct_ACS_vs_Mod: null, Pct_HTS_vs_Mod: null,
+           Pct_ACS_vs_HTS: null, Pct_HTS_vs_ACS: null };
+    const err    = row[vo_xy_cfg.errField];
+    const noData = err === null || err === undefined;
+    const popup =
+      `<b>${prop_name}</b><br>` +
+      `<i style="font-size:10px;color:#666">${vo_xy_cfg.yCfg.label} vs. ${vo_xy_cfg.xCfg.label}</i><br>` +
+      `Pct Error: ${noData ? "N/A" : (err * 100).toFixed(1) + "%"}<br>` +
+      `Modeled: ${d3.format(",.0f")(row.Model_HH)}<br>` +
+      `Target (ACS): ${d3.format(",.0f")(row.ACS_HH)}<br>` +
+      `Target (HTS): ${d3.format(",.0f")(row.HTS_HH)}`;
+    return { ...f, id: i, properties: { ...f.properties, GeoName: prop_name, ...row, _color: getColor(err), _popup: popup } };
   });
-  resizeObserver.observe(container);
-  invalidation.then(() => { map.remove(); resizeObserver.disconnect(); });
+  const map_features_vo = { type: "FeatureCollection", features };
 
-  const legend = L.control({position: "bottomright"});
-  legend.onAdd = () => {
+  let loaded = false;
+  let hoveredId = null;
+
+  map.on("load", () => {
+    loaded = true;
+
+    map.addSource("vo-choropleth", { type: "geojson", data: map_features_vo });
+    map.addLayer({
+      id: "vo-choropleth-fill",
+      type: "fill",
+      source: "vo-choropleth",
+      paint: {
+        "fill-color": ["get", "_color"],
+        "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.95, 0.72]
+      }
+    });
+    map.addLayer({
+      id: "vo-choropleth-outline",
+      type: "line",
+      source: "vo-choropleth",
+      paint: {
+        "line-color": "#ffffff",
+        "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 2, 1]
+      }
+    });
+
+    map.on("mousemove", "vo-choropleth-fill", (e) => {
+      if (!e.features.length) return;
+      const id = e.features[0].id;
+      if (id === hoveredId) return;
+      if (hoveredId != null) map.setFeatureState({ source: "vo-choropleth", id: hoveredId }, { hover: false });
+      hoveredId = id;
+      map.setFeatureState({ source: "vo-choropleth", id }, { hover: true });
+    });
+    map.on("mouseleave", "vo-choropleth-fill", () => {
+      if (hoveredId != null) map.setFeatureState({ source: "vo-choropleth", id: hoveredId }, { hover: false });
+      hoveredId = null;
+    });
+    map.on("click", "vo-choropleth-fill", (e) => {
+      if (!e.features.length) return;
+      new maplibregl.Popup().setLngLat(e.lngLat).setHTML(e.features[0].properties._popup).addTo(map);
+    });
+
+    const bounds = geojsonBoundsHh(map_features_vo);
+    if (bounds) map.fitBounds(bounds, { padding: 10 });
+
     const stops  = [-0.5, -0.25, 0, 0.25, 0.5];
     const labels = ["≤ −50%", "−25%", "0%", "+25%", "≥ +50%"];
     const swatches = stops.map((v, i) =>
@@ -1152,8 +1238,7 @@ Plot.plot({
         `<span style="font-size:11px;">${labels[i]}</span>` +
       `</div>`
     ).join("");
-    const div = L.DomUtil.create("div");
-    div.innerHTML =
+    const legend_html =
       `<div style="background:white;padding:10px 12px;border-radius:6px;` +
                   `box-shadow:0 1px 5px rgba(0,0,0,0.25);line-height:1.5;">` +
         `<div style="font-size:12px;font-weight:600;margin-bottom:4px;">Percent Error</div>` +
@@ -1162,9 +1247,21 @@ Plot.plot({
         `</div>` +
         swatches +
       `</div>`;
-    return div;
-  };
-  legend.addTo(map);
+    map.addControl(new HtmlLegendControlHh(legend_html), "bottom-right");
+
+    map.resize();
+  });
+
+  const resizeObserver = new ResizeObserver(() => {
+    if (!loaded) return;
+    setTimeout(() => {
+      map.resize();
+      const bounds = geojsonBoundsHh(map_features_vo);
+      if (bounds) map.fitBounds(bounds, { padding: 10 });
+    }, 100);
+  });
+  resizeObserver.observe(container);
+  invalidation.then(() => { map.remove(); resizeObserver.disconnect(); });
 }
 ```
 

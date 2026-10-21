@@ -690,14 +690,14 @@ error_bounds = {
 // 7. HELPER: Color-blind friendly palette (Okabe-Ito)
 palette = ["#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#0072B2", "#D55E00", "#F0E442", "#999999"]
 
-// 8. HELPER: Ctrl/Cmd+scroll to zoom every Leaflet map on this page -- a
+// 8. HELPER: Ctrl/Cmd+scroll to zoom every MapLibre map on this page -- a
 // bare mousewheel over the map only zooms it (with a fading hint) instead
 // of being captured and trapping the page scroll, which is what happens
-// with Leaflet's default scrollWheelZoom. Same pattern Google Maps embeds
-// use. Shared across all three maps on this page since they'd otherwise
-// each need this boilerplate duplicated.
+// with MapLibre's default scrollZoom handler. Same pattern Google Maps
+// embeds use. Shared across all three maps on this page since they'd
+// otherwise each need this boilerplate duplicated.
 function ctrlScrollZoom(map, container) {
-  map.scrollWheelZoom.disable();
+  map.scrollZoom.disable();
 
   const hint = document.createElement("div");
   hint.textContent = /Mac|iPhone|iPad/.test(navigator.platform) ? "Use ⌘ + scroll to zoom" : "Use Ctrl + scroll to zoom";
@@ -715,8 +715,9 @@ function ctrlScrollZoom(map, container) {
   container.addEventListener("wheel", (e) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      const latlng = map.mouseEventToLatLng(e);
-      map.setZoomAround(latlng, map.getZoom() + (e.deltaY < 0 ? 1 : -1));
+      const rect = container.getBoundingClientRect();
+      const lngLat = map.unproject([e.clientX - rect.left, e.clientY - rect.top]);
+      map.zoomTo(map.getZoom() + (e.deltaY < 0 ? 1 : -1), { around: lngLat, duration: 0 });
       hint.style.opacity = "0";
     } else {
       hint.style.opacity = "1";
@@ -724,6 +725,61 @@ function ctrlScrollZoom(map, container) {
       hideTimer = setTimeout(() => { hint.style.opacity = "0"; }, 1000);
     }
   }, { passive: false });
+}
+
+// 9. HELPER: bounding box of a GeoJSON FeatureCollection, as
+// [[minLng, minLat], [maxLng, maxLat]] for map.fitBounds() -- MapLibre has
+// no built-in equivalent of Leaflet's layer.getBounds().
+function geojsonBounds(fc) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const visit = (coords) => {
+    if (typeof coords[0] === "number") {
+      const [x, y] = coords;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    } else {
+      coords.forEach(visit);
+    }
+  };
+  for (const f of fc.features || []) {
+    if (f.geometry) visit(f.geometry.coordinates);
+  }
+  return minX === Infinity ? null : [[minX, minY], [maxX, maxY]];
+}
+
+// 10. HELPER: basemap style. UGRC's vector tile services (bundled into one
+// merged style, report/data/basemap/ugrc-lite.json) don't need an API key,
+// unlike the commercial basemap this page used before -- see
+// _quarto.yml's `resources:` entry for why that file ships with the site.
+// Path is relative to each rendered report page (report/data/basemap/...
+// under docs/), not to this .qmd source file.
+UGRC_BASEMAP_STYLE = "data/basemap/ugrc-lite.json"
+UGRC_ATTRIBUTION = "&copy; <a href=\"https://gis.utah.gov/\">Utah AGRC</a>"
+
+// 11. HELPER: a legend/info box rendered as a MapLibre IControl, mirroring
+// the L.control({position}) + onAdd-returns-a-div pattern the Leaflet maps
+// on this page used to build their legends.
+class HtmlLegendControl {
+  constructor(html) { this._html = html; }
+  onAdd(map) {
+    this._map = map;
+    this._container = document.createElement("div");
+    this._container.className = "maplibregl-ctrl";
+    this._container.style.backgroundColor = "white";
+    this._container.style.padding = "10px";
+    this._container.style.borderRadius = "5px";
+    this._container.style.boxShadow = "0 0 15px rgba(0,0,0,0.2)";
+    this._container.style.fontSize = "12px";
+    this._container.style.lineHeight = "18px";
+    this._container.innerHTML = this._html;
+    return this._container;
+  }
+  onRemove() {
+    this._container.parentNode?.removeChild(this._container);
+    this._map = undefined;
+  }
 }
 ```
 
@@ -833,9 +889,9 @@ Plot.plot({
 ```{ojs}
 // md`#### 4. Interactive Mapping`
 
-// 1. IMPORT LEAFLET
-L = require("leaflet@1.9.4")
-html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">`
+// 1. IMPORT MAPLIBRE
+maplibregl = require("maplibre-gl@5.24.0/dist/maplibre-gl.js")
+html`<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">`
 
 // 2. LOAD GEOMETRY
 // Directly reference the variables defined in Python
@@ -867,158 +923,173 @@ map_display = {
   container.style.border = "1px solid #ccc";
   container.style.zIndex = "1";
 
-  // C. INITIALIZE MAP
-  const map = L.map(container).setView([40.7608, -111.8910], 9);
-  ctrlScrollZoom(map, container);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    maxZoom: 19
-  }).addTo(map);
-
-  // --- HELPER FUNCTIONS ---
-  function highlightSegment(segid) {
-    if (!segid) return;
-    const clean_segid = String(segid).trim();
-    segmentLayer.eachLayer(layer => {
-      if (layer._segid === clean_segid) {
-        layer.setStyle({ color: "#00e5ff", weight: 8, opacity: 1.0 });
-        layer.bringToFront();
-      }
-    });
-  }
-
-  function highlightStations(segid) {
-    if (!segid) return;
-    const clean_segid = String(segid).trim();
-    stationLayer.eachLayer(layer => {
-      if (layer._matched_segid === clean_segid) {
-        // Use setRadius for the size increase
-        layer.setRadius(6);
-        layer.setStyle({
-          color: "#00e5ff",
-          weight: 3,
-          fillColor: "#00e5ff",
-          fillOpacity: 1.0
-        });
-        layer.bringToFront();
-      }
-    });
-  }
-
-  function resetAll() {
-    segmentLayer.eachLayer(l => segmentLayer.resetStyle(l));
-    stationLayer.eachLayer(l => {
-      stationLayer.resetStyle(l);
-      // Explicitly reset the radius to your default of 4
-      if (typeof l.setRadius === "function") {
-        l.setRadius(4);
-      }
-    });
-  }
-
-  // D. ADD SEGMENTS
+  // C. PREPARE SEGMENT + STATION FEATURES (color/popup baked in, stable
+  // numeric ids assigned so hover state can be tracked per-feature)
   const filtered_segments = {
     type: "FeatureCollection",
-    features: segments_geo.features.filter(f => f.properties.SEGID && valid_seg_ids.has(String(f.properties.SEGID).trim()))
+    features: segments_geo.features
+      .filter(f => f.properties.SEGID && valid_seg_ids.has(String(f.properties.SEGID).trim()))
+      .map((f, i) => {
+        const segid = String(f.properties.SEGID).trim();
+        const stats = data_map.get(segid);
+        const group_label = stats ? stats.Label : "N/A";
+        const stations_label = stats ? stats.Stations : "N/A";
+        let finalColor = themeModel;
+        if (enable_color && stats) finalColor = color_map.get(stats.Label) || finalColor;
+        return {
+          ...f,
+          id: i,
+          properties: {
+            ...f.properties,
+            _segid: segid,
+            _color: finalColor,
+            _popup: `<div style="font-family:sans-serif; font-size:12px;"><b>Segment: ${segid}</b><br>Group: ${group_label}<br>Stations: ${stations_label}</div>`
+          }
+        };
+      })
   };
 
-  const segmentLayer = L.geoJSON(filtered_segments, {
-    style: (feature) => {
-      const segid = String(feature.properties.SEGID).trim();
-      const stats = data_map.get(segid);
-      let finalColor = themeModel;
-      if (enable_color && stats) finalColor = color_map.get(stats.Label) || finalColor;
-      return { color: finalColor, weight: 4, opacity: 0.9 };
-    },
-    onEachFeature: (feature, layer) => {
-      const segid = String(feature.properties.SEGID).trim();
-      layer._segid = segid;
-
-      const stats = data_map.get(segid);
-      const group_label = stats ? stats.Label : "N/A";
-      const stations_label = stats ? stats.Stations : "N/A";
-
-      layer.bindPopup(`<div style="font-family:sans-serif; font-size:12px;"><b>Segment: ${segid}</b><br>Group: ${group_label}<br>Stations: ${stations_label}</div>`);
-
-      layer.on('mouseover', () => {
-         resetAll();
-         layer.setStyle({ color: "#00e5ff", weight: 4, opacity: 1.0 });
-         layer.bringToFront();
-         highlightStations(segid);
-      });
-      layer.on('mouseout', () => resetAll());
-    }
-  }).addTo(map);
-
-  // E. ADD STATIONS
   const filtered_sites = {
     type: "FeatureCollection",
-    features: stations_geo.features.filter(f => f.properties.MATCHED_SEGID && valid_seg_ids.has(String(f.properties.MATCHED_SEGID).trim()))
+    features: stations_geo.features
+      .filter(f => f.properties.MATCHED_SEGID && valid_seg_ids.has(String(f.properties.MATCHED_SEGID).trim()))
+      .map((f, i) => {
+        const site_id = String(f.properties.SITE).trim();
+        const segid = String(f.properties.MATCHED_SEGID).trim();
+        const stats = data_map.get(segid);
+        let finalColor = themeTarget;
+        if (enable_color && stats) finalColor = color_map.get(stats.Label) || finalColor;
+        let popup = null;
+        if (stats) {
+          const diffColor = stats.Pct_Error > 0 ? themeDanger : themeTarget;
+          popup = `<div style="font-family: sans-serif; min-width: 160px;">
+           <strong>Station(s): ${stats.Stations}</strong><hr style="margin:4px 0; border:0; border-top:1px solid #eee;">
+           Group: <b>${stats.Label}</b><br/>
+           Target: <b>${Math.round(stats.Tgt_Total).toLocaleString()}</b><br/>
+           Modeled: ${Math.round(stats.Mod_Total).toLocaleString()}<br/>
+           Diff: <span style="color:${diffColor}; font-weight:bold;">${(stats.Pct_Error * 100).toFixed(1)}%</span><br/>
+           <span style="color:#999; font-size:11px;">Seg: ${segid}</span>
+           <br/><span style="color:#999; font-size:10px;">(This dot: Site ${site_id})</span>
+           </div>`;
+        }
+        return {
+          ...f,
+          id: i,
+          properties: { ...f.properties, _site_id: site_id, _matched_segid: segid, _color: finalColor, _popup: popup }
+        };
+      })
   };
 
-  const stationLayer = L.geoJSON(filtered_sites, {
-    pointToLayer: (feature, latlng) => {
-      // Look up stats using MATCHED_SEGID from GeoJSON
-      const segid = String(feature.properties.MATCHED_SEGID).trim();
-      const stats = data_map.get(segid);
+  // Lookups for cross-layer hover highlighting (segment <-> its station(s))
+  const segFeatureIdBySeg = new Map(filtered_segments.features.map(f => [f.properties._segid, f.id]));
+  const stationFeatureIdsBySeg = new Map();
+  for (const f of filtered_sites.features) {
+    const segid = f.properties._matched_segid;
+    if (!segid) continue;
+    if (!stationFeatureIdsBySeg.has(segid)) stationFeatureIdsBySeg.set(segid, []);
+    stationFeatureIdsBySeg.get(segid).push(f.id);
+  }
 
-      let finalColor = themeTarget;
-      if (enable_color && stats) finalColor = color_map.get(stats.Label) || finalColor;
+  // D. INITIALIZE MAP
+  const map = new maplibregl.Map({
+    container,
+    style: UGRC_BASEMAP_STYLE,
+    center: [-111.8910, 40.7608],
+    zoom: 9,
+    attributionControl: { customAttribution: UGRC_ATTRIBUTION }
+  });
+  map.addControl(new maplibregl.NavigationControl(), "top-left");
+  ctrlScrollZoom(map, container);
 
-      return L.circleMarker(latlng, { radius: 4, fillColor: finalColor, color: "#1e1e1e", weight: 1, opacity: 0.9, fillOpacity: 0.9 });
-    },
-    onEachFeature: (feature, layer) => {
-      const site_id = String(feature.properties.SITE).trim();
-      const segid = String(feature.properties.MATCHED_SEGID).trim();
-      layer._site_id = site_id;
-      layer._matched_segid = segid;
+  let loaded = false;
+  let hoveredSegId = null;
 
-      const stats = data_map.get(segid);
-
-      layer.on('mouseover', () => {
-         resetAll();
-         if (segid) highlightSegment(segid);
-         // highlightSegment() just brought the line to front, which would
-         // otherwise sit on top of this dot and eat its clicks -- reassert
-         // the dot on top so it stays hoverable/clickable without zooming in.
-         layer.bringToFront();
-      });
-      layer.on('mouseout', () => resetAll());
-
-      if (stats) {
-        const diffColor = stats.Pct_Error > 0 ? themeDanger : themeTarget;
-        layer.bindPopup(`<div style="font-family: sans-serif; min-width: 160px;">
-         <strong>Station(s): ${stats.Stations}</strong><hr style="margin:4px 0; border:0; border-top:1px solid #eee;">
-         Group: <b>${stats.Label}</b><br/>
-         Target: <b>${Math.round(stats.Tgt_Total).toLocaleString()}</b><br/>
-         Modeled: ${Math.round(stats.Mod_Total).toLocaleString()}<br/>
-         Diff: <span style="color:${diffColor}; font-weight:bold;">${(stats.Pct_Error * 100).toFixed(1)}%</span><br/>
-         <span style="color:#999; font-size:11px;">Seg: ${segid}</span>
-         <br/><span style="color:#999; font-size:10px;">(This dot: Site ${site_id})</span>
-         </div>`);
-      }
+  function resetAll() {
+    if (hoveredSegId == null) return;
+    const segFeatureId = segFeatureIdBySeg.get(hoveredSegId);
+    if (segFeatureId != null) map.setFeatureState({ source: "segments", id: segFeatureId }, { hover: false });
+    for (const id of stationFeatureIdsBySeg.get(hoveredSegId) || []) {
+      map.setFeatureState({ source: "stations", id }, { hover: false });
     }
-  }).addTo(map);
+    hoveredSegId = null;
+  }
 
-  // F. ADD LEGEND
-  if (enable_color && unique_labels.length > 0) {
-    const legend = L.control({ position: 'bottomright' });
+  map.on("load", () => {
+    loaded = true;
 
-    legend.onAdd = function(map) {
-      const div = L.DomUtil.create('div', 'info legend');
-      div.style.backgroundColor = 'white';
-      div.style.padding = '10px';
-      div.style.borderRadius = '5px';
-      div.style.boxShadow = '0 0 15px rgba(0,0,0,0.2)';
-      div.style.fontSize = '12px';
-      div.style.lineHeight = '18px';
+    // D. ADD SEGMENTS
+    map.addSource("segments", { type: "geojson", data: filtered_segments });
+    map.addLayer({
+      id: "segments-line",
+      type: "line",
+      source: "segments",
+      paint: {
+        "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#00e5ff", ["get", "_color"]],
+        "line-width": 4,
+        "line-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 1.0, 0.9]
+      }
+    });
 
-      // Add title
+    // E. ADD STATIONS
+    map.addSource("stations", { type: "geojson", data: filtered_sites });
+    map.addLayer({
+      id: "stations-circle",
+      type: "circle",
+      source: "stations",
+      paint: {
+        "circle-radius": ["case", ["boolean", ["feature-state", "hover"], false], 6, 4],
+        "circle-color": ["case", ["boolean", ["feature-state", "hover"], false], "#00e5ff", ["get", "_color"]],
+        "circle-stroke-color": ["case", ["boolean", ["feature-state", "hover"], false], "#00e5ff", "#1e1e1e"],
+        "circle-stroke-width": ["case", ["boolean", ["feature-state", "hover"], false], 3, 1],
+        "circle-opacity": 0.9,
+        "circle-stroke-opacity": 0.9
+      }
+    });
+
+    // --- HOVER CROSS-HIGHLIGHTING ---
+    map.on("mousemove", "segments-line", (e) => {
+      if (!e.features.length) return;
+      const segid = e.features[0].properties._segid;
+      if (segid === hoveredSegId) return;
+      resetAll();
+      hoveredSegId = segid;
+      map.setFeatureState({ source: "segments", id: e.features[0].id }, { hover: true });
+      for (const id of stationFeatureIdsBySeg.get(segid) || []) {
+        map.setFeatureState({ source: "stations", id }, { hover: true });
+      }
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "segments-line", () => { resetAll(); map.getCanvas().style.cursor = ""; });
+
+    map.on("mousemove", "stations-circle", (e) => {
+      if (!e.features.length) return;
+      const segid = e.features[0].properties._matched_segid;
+      if (segid === hoveredSegId) return;
+      resetAll();
+      hoveredSegId = segid;
+      const segFeatureId = segFeatureIdBySeg.get(segid);
+      if (segFeatureId != null) map.setFeatureState({ source: "segments", id: segFeatureId }, { hover: true });
+      map.setFeatureState({ source: "stations", id: e.features[0].id }, { hover: true });
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "stations-circle", () => { resetAll(); map.getCanvas().style.cursor = ""; });
+
+    // --- CLICK POPUPS ---
+    map.on("click", "segments-line", (e) => {
+      if (!e.features.length) return;
+      new maplibregl.Popup().setLngLat(e.lngLat).setHTML(e.features[0].properties._popup).addTo(map);
+    });
+    map.on("click", "stations-circle", (e) => {
+      if (!e.features.length || !e.features[0].properties._popup) return;
+      new maplibregl.Popup().setLngLat(e.lngLat).setHTML(e.features[0].properties._popup).addTo(map);
+    });
+
+    // F. ADD LEGEND
+    if (enable_color && unique_labels.length > 0) {
       const title_text = current_group === 'FTCLASS' ? 'Functional Class' :
                          current_group === 'ATYPENAME' ? 'Area Type' :
                          current_group === 'COUNTY_NAME' ? 'County' :
                          current_group;
-      div.innerHTML = `<strong>${title_text}</strong><br>`;
 
       // Define sort orders for legend
       const legend_orders = {
@@ -1040,34 +1111,39 @@ map_display = {
         });
       }
 
-      // Add color boxes for each label
+      let legend_html = `<strong>${title_text}</strong><br>`;
       sorted_labels.forEach(label => {
         const color = color_map.get(label);
-        div.innerHTML +=
+        legend_html +=
           `<div style="margin: 4px 0;">
             <span style="display:inline-block; width:18px; height:18px; background-color:${color}; margin-right:5px; vertical-align:middle; border:1px solid #999;"></span>
             <span style="vertical-align:middle;">${label}</span>
           </div>`;
       });
 
-      return div;
-    };
+      map.addControl(new HtmlLegendControl(legend_html), "bottom-right");
+    }
 
-    legend.addTo(map);
-  }
+    // G. FIT TO STATIONS
+    map.resize();
+    const bounds = geojsonBounds(filtered_sites);
+    if (bounds) map.fitBounds(bounds, { padding: 50 });
+  });
 
-  // G. SAFETY & RESIZING
+  // H. SAFETY & RESIZING
   // 1. If mouse leaves the map container entirely, clear highlights (Fixes "stuck when leaving map")
   container.addEventListener('mouseleave', () => resetAll());
 
   // 2. Resize observer for Tabset support
   const resizeObserver = new ResizeObserver(() => {
-    map.invalidateSize();
-    if (filtered_sites.features.length > 0) {
-        map.fitBounds(stationLayer.getBounds(), { padding: [50, 50] });
-    }
+    if (!loaded) return;
+    map.resize();
+    const bounds = geojsonBounds(filtered_sites);
+    if (bounds) map.fitBounds(bounds, { padding: 50 });
   });
   resizeObserver.observe(container);
+
+  invalidation.then(() => { map.remove(); resizeObserver.disconnect(); });
 
   return container;
 }
@@ -1623,7 +1699,7 @@ gdf_vol_diff = segShp[["SEGID", "CO_FIPS", "geometry"]].merge(
     how="inner",
 )
 
-# 5. Reproject to WGS84 (Lat/Lon) for Leaflet
+# 5. Reproject to WGS84 (Lat/Lon) for MapLibre
 if gdf_vol_diff.crs is None:
     gdf_vol_diff.set_crs(epsg=26912, inplace=True)
 gdf_vol_diff = gdf_vol_diff.to_crs(epsg=4326)
@@ -2070,17 +2146,20 @@ viewof bFocusClass = Inputs.radio(
 // object's properties, not reassigns it) never re-triggers OJS reactivity.
 // The map cell below reads it once per re-render (e.g. when Focus Roadway
 // Class changes) to restore the view instead of resetting to a hardcoded
-// default every time a control above changes.
-vmtMapViewState = ({center: [40.7608, -111.8910], zoom: 9})
+// default every time a control above changes. Center is [lng, lat] (MapLibre
+// convention), not Leaflet's old [lat, lng].
+vmtMapViewState = ({center: [-111.8910, 40.7608], zoom: 9})
 ```
 
 ```{ojs}
 //| label: fig-assign-compare-interactive
 //| fig-cap: Segment-Level Model vs Target Volume Comparison
 
-// 1. IMPORT LEAFLET & CSS
-LM = require("leaflet@1.9.4")
-html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">`
+// 1. IMPORT MAPLIBRE & CSS -- named maplibreglVmt (not maplibregl) since
+// OJS top-level cell names must be unique across the whole page, and the
+// segment comparison map above already defines `maplibregl`.
+maplibreglVmt = require("maplibre-gl@5.24.0/dist/maplibre-gl.js")
+html`<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">`
 
 // 2. MAP RENDERING -- the only view in this section still driven by
 // controls (Vehicle Type / Display / Focus Roadway Class, just above)
@@ -2123,21 +2202,6 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
     return colors[bins.length];
   };
 
-  const container = document.createElement("div");
-  container.style.height = "600px";
-  container.style.width = "100%";
-  const map = LM.map(container).setView(vmtMapViewState.center, vmtMapViewState.zoom);
-  ctrlScrollZoom(map, container);
-  map.on("moveend", () => {
-    vmtMapViewState.center = map.getCenter();
-    vmtMapViewState.zoom = map.getZoom();
-  });
-
-  LM.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    maxZoom: 19
-  }).addTo(map);
-
   // GeoJSON Layer -- vol_diff_geojson carries every calib_run's features
   // together (one polyline per SEGID per run), so filter to the selected
   // run before drawing, or every run's segments would overlap on the map.
@@ -2145,81 +2209,108 @@ html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.c
     ? vol_diff_geojson.features.filter(f => f.properties.calib_run === globalCalibRun)
     : [];
 
-  if (runFeatures.length) {
-    LM.geoJSON({type: "FeatureCollection", features: runFeatures}, {
-      style: (feature) => {
-        const p = feature.properties;
-        const val = p[activeCol];
-        const ft = p.FTCLASS;
-        const ftgroup = (ft === 'Freeway') ? 'Freeway' : 'NonFreeway';
+  // Bake color/weight/opacity/popup into each feature's properties (its
+  // style no longer depends on a per-feature callback at draw time) and
+  // assign a stable numeric id for MapLibre's feature-state.
+  const styledFeatures = runFeatures.map((f, i) => {
+    const p = f.properties;
+    const val = p[activeCol];
+    const ft = p.FTCLASS;
+    const ftgroup = (ft === 'Freeway') ? 'Freeway' : 'NonFreeway';
+    const focused = bFocusClass === "All" || bFocusClass === ftgroup;
 
-        const focused = bFocusClass === "All" || bFocusClass === ftgroup;
+    let weight = 1;
+    if (ft === 'Freeway' || ft === 'Expressway') { weight = 4; }
+    else if (ft === 'Principal Arterial') { weight = 3; }
+    else if (ft === 'Minor Arterial') { weight = 2; }
 
-        let weight = 1;
-        if (ft === 'Freeway' || ft === 'Expressway') { weight = 4; }
-        else if (ft === 'Principal Arterial') { weight = 3; }
-        else if (ft === 'Minor Arterial') { weight = 2; }
+    const sign = val > 0 ? "+" : "";
+    const valStr = isPct ? (val * 100).toFixed(1) + "%" : Math.round(val).toLocaleString();
 
-        return {
-          color: getColor(val),
-          weight: weight,
-          opacity: focused ? 0.85 : 0.12
-        };
-      },
-      onEachFeature: (feature, layer) => {
-        const p = feature.properties;
-        const val = p[activeCol];
-        const sign = val > 0 ? "+" : "";
-
-        // Format display string
-        let valStr;
-        if (isPct) {
-            valStr = (val * 100).toFixed(1) + "%";
-        } else {
-            valStr = Math.round(val).toLocaleString();
-        }
-
-        layer.bindPopup(
+    return {
+      ...f,
+      id: i,
+      properties: {
+        ...p,
+        _color: getColor(val),
+        _weight: weight,
+        _opacity: focused ? 0.85 : 0.12,
+        _popup:
           `<strong>Segment: ${p.SEGID}</strong><br/>` +
           `County: ${countyNames.get(Number(p.CO_FIPS)) ?? 'Unknown'}<br/>` +
           `Class: ${p.FTCLASS}<br/>` +
           `Diff: ${sign}${valStr}`
-        );
       }
-    }).addTo(map);
-  }
+    };
+  });
+  const runFeatureCollection = { type: "FeatureCollection", features: styledFeatures };
 
-  // Legend
-  const legend = LM.control({ position: "bottomright" });
-  legend.onAdd = function() {
-    const div = LM.DomUtil.create("div", "info legend");
-    div.style.backgroundColor = "white";
-    div.style.padding = "6px";
-    div.style.borderRadius = "4px";
-    div.style.textAlign = "left";
+  const container = document.createElement("div");
+  container.style.height = "600px";
+  container.style.width = "100%";
 
-    let labels = [`<strong>${isPct ? "% Diff" : "Diff"} (Mod - Tgt)</strong><br>`];
+  const map = new maplibreglVmt.Map({
+    container,
+    style: UGRC_BASEMAP_STYLE,
+    center: vmtMapViewState.center,
+    zoom: vmtMapViewState.zoom,
+    attributionControl: { customAttribution: UGRC_ATTRIBUTION }
+  });
+  map.addControl(new maplibreglVmt.NavigationControl(), "top-left");
+  ctrlScrollZoom(map, container);
+  map.on("moveend", () => {
+    const c = map.getCenter();
+    vmtMapViewState.center = [c.lng, c.lat];
+    vmtMapViewState.zoom = map.getZoom();
+  });
 
-    // Helper to format legend labels
+  let loaded = false;
+
+  map.on("load", () => {
+    loaded = true;
+
+    if (styledFeatures.length) {
+      map.addSource("vol-diff", { type: "geojson", data: runFeatureCollection });
+      map.addLayer({
+        id: "vol-diff-line",
+        type: "line",
+        source: "vol-diff",
+        paint: {
+          "line-color": ["get", "_color"],
+          "line-width": ["get", "_weight"],
+          "line-opacity": ["get", "_opacity"]
+        }
+      });
+
+      map.on("click", "vol-diff-line", (e) => {
+        if (!e.features.length) return;
+        new maplibreglVmt.Popup().setLngLat(e.lngLat).setHTML(e.features[0].properties._popup).addTo(map);
+      });
+      map.on("mouseenter", "vol-diff-line", () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "vol-diff-line", () => { map.getCanvas().style.cursor = ""; });
+    }
+
+    // Legend
     const fmt = (n) => isPct ? (n * 100) + "%" : n;
-
-    labels.push(`<i style="background:${colors[0]}; width:12px; height:12px; display:inline-block;"></i> < ${fmt(bins[0])}`);
+    let legend_html = [`<strong>${isPct ? "% Diff" : "Diff"} (Mod - Tgt)</strong><br>`];
+    legend_html.push(`<i style="background:${colors[0]}; width:12px; height:12px; display:inline-block;"></i> < ${fmt(bins[0])}`);
     for (let i = 0; i < bins.length - 1; i++) {
-       labels.push(
+       legend_html.push(
         `<i style="background:${colors[i+1]}; width:12px; height:12px; display:inline-block;"></i> ${fmt(bins[i])} to ${fmt(bins[i+1])}`
       );
     }
-    labels.push(`<i style="background:${colors[bins.length]}; width:12px; height:12px; display:inline-block;"></i> > ${fmt(bins[bins.length - 1])}`);
+    legend_html.push(`<i style="background:${colors[bins.length]}; width:12px; height:12px; display:inline-block;"></i> > ${fmt(bins[bins.length - 1])}`);
+    map.addControl(new HtmlLegendControl(legend_html.join("<br>")), "bottom-right");
 
-    div.innerHTML = labels.join("<br>");
-    return div;
-  };
-  legend.addTo(map);
+    map.resize();
+  });
 
   const resizeObserver = new ResizeObserver(() => {
-    map.invalidateSize();
+    if (loaded) map.resize();
   });
   resizeObserver.observe(container);
+
+  invalidation.then(() => { map.remove(); resizeObserver.disconnect(); });
 
   return container;
 }
@@ -2499,8 +2590,11 @@ Plot.plot({
 ###### Interactive Mapping
 
 ```{ojs}
-screenlineLeaflet = require("leaflet@1.9.4")
-html`<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">`
+// Named maplibreglScreenline (not maplibregl) since OJS top-level cell
+// names must be unique across the whole page, and earlier maps on this
+// page already define `maplibregl` / `maplibreglVmt`.
+maplibreglScreenline = require("maplibre-gl@5.24.0/dist/maplibre-gl.js")
+html`<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">`
 
 normalizeScreenlineIdJs = value => {
   if (value == null) return ""
@@ -2529,105 +2623,126 @@ screenlineMap = {
   container.style.borderRadius = "8px"
   container.style.border = "1px solid #ccc"
 
-  const map = screenlineLeaflet.map(container).setView([40.7608, -111.8910], 9)
-  ctrlScrollZoom(map, container)
-  screenlineLeaflet.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-    attribution: "&copy; OpenStreetMap &copy; CARTO",
-    maxZoom: 19
-  }).addTo(map)
+  const idOf = feature =>
+    String(feature.properties.ScreenlineKey ?? normalizeScreenlineIdJs(feature.properties.ScreenlineID))
 
-  let lineLayer
-  let pointLayer
+  // Bake per-feature color/size/opacity (and stable numeric ids) into both
+  // layers up front -- MapLibre styles from feature properties/state rather
+  // than a per-feature callback at draw time.
+  const lineFeatures = screenline_geo.features.map((f, i) => {
+    const id = idOf(f)
+    const d = screenlineStatsMap.get(id)
+    return {
+      ...f,
+      id: i,
+      properties: {
+        ...f.properties,
+        _screenlineId: id,
+        _color: screenlineColor(d ? d.Pct_Diff : NaN),
+        _weight: d ? 6 : 3,
+        _opacity: d ? 0.95 : 0.35
+      }
+    }
+  })
+  const pointFeatures = screenline_points.features.map((f, i) => {
+    const id = idOf(f)
+    const d = screenlineStatsMap.get(id)
+    return {
+      ...f,
+      id: i,
+      properties: {
+        ...f.properties,
+        _screenlineId: id,
+        _color: screenlineColor(d ? d.Pct_Diff : NaN),
+        _radius: d ? 6 : 4,
+        _weight: d ? 1.5 : 1,
+        _opacity: d ? 1 : 0.5,
+        _fillOpacity: d ? 0.95 : 0.35
+      }
+    }
+  })
+  const lineFc = { type: "FeatureCollection", features: lineFeatures }
+  const pointFc = { type: "FeatureCollection", features: pointFeatures }
+
+  const lineFeatureIdByScreenlineId = new Map(lineFeatures.map(f => [f.properties._screenlineId, f.id]))
+  const pointFeatureIdByScreenlineId = new Map(pointFeatures.map(f => [f.properties._screenlineId, f.id]))
+
+  const map = new maplibreglScreenline.Map({
+    container,
+    style: UGRC_BASEMAP_STYLE,
+    center: [-111.8910, 40.7608],
+    zoom: 9,
+    attributionControl: { customAttribution: UGRC_ATTRIBUTION }
+  })
+  map.addControl(new maplibreglScreenline.NavigationControl(), "top-left")
+  ctrlScrollZoom(map, container)
+
+  let loaded = false
+  let hoveredId = null
 
   const resetStyles = () => {
-    if (lineLayer) lineLayer.eachLayer(l => lineLayer.resetStyle(l))
-    if (pointLayer) {
-      pointLayer.eachLayer(l => {
-        const d = screenlineStatsMap.get(l._screenlineId)
-        l.setStyle({
-          radius: 6,
-          fillColor: screenlineColor(d ? d.Pct_Diff : NaN),
-          color: "#1f1f1f",
-          weight: 1.5,
-          fillOpacity: 0.95
-        })
-      })
-    }
+    if (hoveredId == null) return
+    const lid = lineFeatureIdByScreenlineId.get(hoveredId)
+    if (lid != null) map.setFeatureState({ source: "screenlines", id: lid }, { hover: false })
+    const pid = pointFeatureIdByScreenlineId.get(hoveredId)
+    if (pid != null) map.setFeatureState({ source: "screenline-points", id: pid }, { hover: false })
+    hoveredId = null
   }
 
   const highlightId = id => {
-    if (lineLayer) {
-      lineLayer.eachLayer(l => {
-        if (l._screenlineId === id) {
-          l.setStyle({color: "#00e5ff", weight: 6, opacity: 1})
-          l.bringToFront()
-        }
-      })
-    }
-    if (pointLayer) {
-      pointLayer.eachLayer(l => {
-        if (l._screenlineId === id) {
-          l.setStyle({color: "#00e5ff", fillColor: "#00e5ff", weight: 2.5})
-          l.setRadius(8)
-          l.bringToFront()
-        }
-      })
-    }
+    hoveredId = id
+    const lid = lineFeatureIdByScreenlineId.get(id)
+    if (lid != null) map.setFeatureState({ source: "screenlines", id: lid }, { hover: true })
+    const pid = pointFeatureIdByScreenlineId.get(id)
+    if (pid != null) map.setFeatureState({ source: "screenline-points", id: pid }, { hover: true })
   }
 
-  lineLayer = screenlineLeaflet.geoJSON(screenline_geo, {
-    style: feature => {
-      const id = String(feature.properties.ScreenlineKey ?? normalizeScreenlineIdJs(feature.properties.ScreenlineID))
-      const d = screenlineStatsMap.get(id)
-      return {
-        color: screenlineColor(d ? d.Pct_Diff : NaN),
-        weight: d ? 6 : 3,
-        opacity: d ? 0.95 : 0.35
+  map.on("load", () => {
+    loaded = true
+
+    map.addSource("screenlines", { type: "geojson", data: lineFc })
+    map.addLayer({
+      id: "screenlines-line",
+      type: "line",
+      source: "screenlines",
+      paint: {
+        "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#00e5ff", ["get", "_color"]],
+        "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 6, ["get", "_weight"]],
+        "line-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 1, ["get", "_opacity"]]
       }
-    },
-    onEachFeature: (feature, layer) => {
-      const id = String(feature.properties.ScreenlineKey ?? normalizeScreenlineIdJs(feature.properties.ScreenlineID))
-      layer._screenlineId = id
-      layer.on("mouseover", () => { resetStyles(); highlightId(id) })
-      layer.on("mouseout", () => resetStyles())
-    }
-  }).addTo(map)
+    })
 
-  pointLayer = screenlineLeaflet.geoJSON(screenline_points, {
-    pointToLayer: (feature, latlng) => {
-      const id = String(feature.properties.ScreenlineKey ?? normalizeScreenlineIdJs(feature.properties.ScreenlineID))
-      const d = screenlineStatsMap.get(id)
-      return screenlineLeaflet.circleMarker(latlng, {
-        radius: d ? 6 : 4,
-        fillColor: screenlineColor(d ? d.Pct_Diff : NaN),
-        color: "#1f1f1f",
-        weight: d ? 1.5 : 1,
-        opacity: d ? 1 : 0.5,
-        fillOpacity: d ? 0.95 : 0.35
+    map.addSource("screenline-points", { type: "geojson", data: pointFc })
+    map.addLayer({
+      id: "screenline-points-circle",
+      type: "circle",
+      source: "screenline-points",
+      paint: {
+        "circle-radius": ["case", ["boolean", ["feature-state", "hover"], false], 8, ["get", "_radius"]],
+        "circle-color": ["case", ["boolean", ["feature-state", "hover"], false], "#00e5ff", ["get", "_color"]],
+        "circle-stroke-color": ["case", ["boolean", ["feature-state", "hover"], false], "#00e5ff", "#1f1f1f"],
+        "circle-stroke-width": ["case", ["boolean", ["feature-state", "hover"], false], 2.5, ["get", "_weight"]],
+        "circle-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 1, ["get", "_fillOpacity"]],
+        "circle-stroke-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 1, ["get", "_opacity"]]
+      }
+    })
+
+    for (const layerId of ["screenlines-line", "screenline-points-circle"]) {
+      map.on("mousemove", layerId, (e) => {
+        if (!e.features.length) return
+        const id = e.features[0].properties._screenlineId
+        if (id === hoveredId) return
+        resetStyles()
+        highlightId(id)
+        map.getCanvas().style.cursor = "pointer"
       })
-    },
-    onEachFeature: (feature, layer) => {
-      const id = String(feature.properties.ScreenlineKey ?? normalizeScreenlineIdJs(feature.properties.ScreenlineID))
-      layer._screenlineId = id
-      layer.on("mouseover", () => { resetStyles(); highlightId(id) })
-      layer.on("mouseout", () => resetStyles())
+      map.on("mouseleave", layerId, () => { resetStyles(); map.getCanvas().style.cursor = "" })
     }
-  }).addTo(map)
 
-  const bounds = lineLayer.getBounds()
-  if (bounds.isValid()) {
-    map.fitBounds(bounds, {padding: [30, 30]})
-  }
+    const bounds = geojsonBounds(lineFc)
+    if (bounds) map.fitBounds(bounds, { padding: 30 })
 
-  const legend = screenlineLeaflet.control({position: "bottomright"})
-  legend.onAdd = function() {
-    const div = screenlineLeaflet.DomUtil.create("div", "info legend")
-    div.style.backgroundColor = "white"
-    div.style.padding = "10px"
-    div.style.borderRadius = "5px"
-    div.style.boxShadow = "0 0 15px rgba(0,0,0,0.2)"
-    div.style.fontSize = "12px"
-    div.innerHTML = `
+    const legend_html = `
       <strong>Model vs Observed</strong><br>
       <div><span style="display:inline-block;width:14px;height:14px;background:#2166ac;margin-right:6px;"></span>Under by 20%+</div>
       <div><span style="display:inline-block;width:14px;height:14px;background:#4393c3;margin-right:6px;"></span>Under by 10-20%</div>
@@ -2637,17 +2752,20 @@ screenlineMap = {
       <div><span style="display:inline-block;width:14px;height:14px;background:#d6604d;margin-right:6px;"></span>Over by 10-20%</div>
       <div><span style="display:inline-block;width:14px;height:14px;background:#b2182b;margin-right:6px;"></span>Over by 20%+</div>
     `
-    return div
-  }
-  legend.addTo(map)
+    map.addControl(new HtmlLegendControl(legend_html), "bottom-right")
+
+    map.resize()
+  })
 
   const resizeObserver = new ResizeObserver(() => {
-    map.invalidateSize()
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, {padding: [30, 30]})
-    }
+    if (!loaded) return
+    map.resize()
+    const bounds = geojsonBounds(lineFc)
+    if (bounds) map.fitBounds(bounds, { padding: 30 })
   })
   resizeObserver.observe(container)
+
+  invalidation.then(() => { map.remove(); resizeObserver.disconnect() })
 
   container.addEventListener("mouseleave", () => resetStyles())
   return container
@@ -3074,102 +3192,54 @@ map_display2 = {
   // ---> THE MAGIC BULLET: Put the box on the webpage BEFORE drawing the map <---
   yield container;
 
-  // 3. INITIALIZE MAP (Now it knows its true size!)
-  const map = L.map(container).setView([40.7608, -111.8910], 9);
-  ctrlScrollZoom(map, container);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO'
-  }).addTo(map);
-
-  // 4. DRAW SEGMENTS
+  // 3. PREPARE SEGMENT + STATION FEATURES (color/popup baked in, stable
+  // numeric ids assigned for feature-state)
   const valid_seg_ids = new Set(map_stats.keys());
+
+  const colorFor = stats => {
+    if (!stats) return null;
+    if (stats.pct_err > 15) return themeDanger;
+    if (stats.pct_err < -15) return themeModel;
+    return themeTarget;
+  };
 
   const filtered_segments = {
     type: "FeatureCollection",
-    features: segments_geo_hot.features.filter(f => f.properties.SEGID && valid_seg_ids.has(String(f.properties.SEGID).trim()))
-  };
-
-  const segmentLayer = L.geoJSON(filtered_segments, {
-    style: (feature) => {
-      const segid = String(feature.properties.SEGID).trim();
-      const stats = map_stats.get(segid);
-
-      let finalColor = "#999999";
-      if (stats) {
-          if (stats.pct_err > 15) finalColor = themeDanger;
-          else if (stats.pct_err < -15) finalColor = themeModel;
-          else finalColor = themeTarget;
-      }
-      return { color: finalColor, weight: 6, opacity: 0.9 };
-    },
-    onEachFeature: (feature, layer) => {
-      const segid = String(feature.properties.SEGID).trim();
-      const stats = map_stats.get(segid);
-
-      if (stats) {
+    features: segments_geo_hot.features
+      .filter(f => f.properties.SEGID && valid_seg_ids.has(String(f.properties.SEGID).trim()))
+      .map((f, i) => {
+        const segid = String(f.properties.SEGID).trim();
+        const stats = map_stats.get(segid);
+        const popup = stats ? (() => {
           const diffColor = stats.diff > 0 ? themeDanger : themeModel;
-          layer.bindPopup(`<div style="font-family: sans-serif; min-width: 180px;">
+          return `<div style="font-family: sans-serif; min-width: 180px;">
              <strong>Segment: ${segid}</strong><hr style="margin:4px 0; border:0; border-top:1px solid #eee;">
              Target Mean: <b>${Math.round(stats.mean_tgt).toLocaleString()}</b><br/>
              Modeled Value: <b>${Math.round(stats.mod_val).toLocaleString()}</b><br/>
              Diff: <span style="color:${diffColor}; font-weight:bold;">${Math.round(stats.diff).toLocaleString()}
              (${stats.pct_err > 0 ? '+' : ''}${stats.pct_err.toFixed(1)}%)</span>
-             </div>`);
-      }
+             </div>`;
+        })() : null;
+        return {
+          ...f,
+          id: i,
+          properties: { ...f.properties, _color: colorFor(stats) || "#999999", _popup: popup }
+        };
+      })
+  };
 
-      layer.on('mouseover', function() {
-         this.setStyle({ color: "#00e5ff", weight: 9, opacity: 1.0 });
-         this.bringToFront();
-         // Without this, the highlighted line stays on top of the DOM stack
-         // even after mouseout (resetStyle only resets color/weight, not
-         // z-order), permanently burying any station dot along that line.
-         stationLayer.bringToFront();
-      });
-      layer.on('mouseout', function() {
-         segmentLayer.resetStyle(this);
-      });
-    }
-  }).addTo(map);
-
-  // 4. DRAW STATIONS (CCS Points)
   // Filter out any stations that don't belong to the current segments
   const filtered_stations = {
     type: "FeatureCollection",
-    features: stations_geo_hot.features.filter(f => f.properties.SEGID && valid_seg_ids.has(String(f.properties.SEGID).trim()))
-  };
-
-  const stationLayer = L.geoJSON(filtered_stations, {
-    pointToLayer: (feature, latlng) => {
-      // Look up the performance stats for this station's segment
-      const segid = String(feature.properties.SEGID).trim();
-      const stats = map_stats.get(segid);
-
-      // Match the color of the segment
-      let finalColor = "#1e1e1e";
-      if (stats) {
-          if (stats.pct_err > 15) finalColor = themeDanger; // over threshold
-          else if (stats.pct_err < -15) finalColor = themeModel; // under threshold
-          else finalColor = themeTarget; // within tolerance
-      }
-
-      // Draw a nice crisp circle
-      return L.circleMarker(latlng, {
-          radius: 6,
-          fillColor: finalColor,
-          color: "#ffffff", // White border to make the dot pop off the map
-          weight: 2,
-          opacity: 1.0,
-          fillOpacity: 1.0
-      });
-    },
-    onEachFeature: (feature, layer) => {
-      const segid = String(feature.properties.SEGID).trim();
-      const station = String(feature.properties.STATION).trim();
-      const stats = map_stats.get(segid);
-
-      if (stats) {
+    features: stations_geo_hot.features
+      .filter(f => f.properties.SEGID && valid_seg_ids.has(String(f.properties.SEGID).trim()))
+      .map((f, i) => {
+        const segid = String(f.properties.SEGID).trim();
+        const station = String(f.properties.STATION).trim();
+        const stats = map_stats.get(segid);
+        const popup = stats ? (() => {
           const diffColor = stats.diff > 0 ? themeDanger : themeModel;
-          layer.bindPopup(`<div style="font-family: sans-serif; min-width: 180px;">
+          return `<div style="font-family: sans-serif; min-width: 180px;">
              <strong>Station: ${station}</strong><br>
              <span style="color:#666; font-size:11px;">Segment: ${segid}</span>
              <hr style="margin:4px 0; border:0; border-top:1px solid #eee;">
@@ -3177,39 +3247,128 @@ map_display2 = {
              Modeled Value: <b>${Math.round(stats.mod_val).toLocaleString()}</b><br/>
              Diff: <span style="color:${diffColor}; font-weight:bold;">${Math.round(stats.diff).toLocaleString()}
              (${stats.pct_err > 0 ? '+' : ''}${stats.pct_err.toFixed(1)}%)</span>
-             </div>`);
+             </div>`;
+        })() : null;
+        return {
+          ...f,
+          id: i,
+          properties: { ...f.properties, _color: colorFor(stats) || "#1e1e1e", _popup: popup }
+        };
+      })
+  };
+
+  // 4. INITIALIZE MAP (container is already in the DOM, so it knows its true size)
+  const map = new maplibregl.Map({
+    container,
+    style: UGRC_BASEMAP_STYLE,
+    center: [-111.8910, 40.7608],
+    zoom: 9,
+    attributionControl: { customAttribution: UGRC_ATTRIBUTION }
+  });
+  map.addControl(new maplibregl.NavigationControl(), "top-left");
+  ctrlScrollZoom(map, container);
+
+  let loaded = false;
+  let hoveredSegId = null;
+
+  map.on("load", () => {
+    loaded = true;
+
+    // 5. DRAW SEGMENTS
+    map.addSource("hot-segments", { type: "geojson", data: filtered_segments });
+    map.addLayer({
+      id: "hot-segments-line",
+      type: "line",
+      source: "hot-segments",
+      paint: {
+        "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#00e5ff", ["get", "_color"]],
+        "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 9, 6],
+        "line-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 1.0, 0.9]
       }
+    });
 
-      // Add a cool hover effect where the dot grows when you mouse over it
-      layer.on('mouseover', function() {
-         this.setStyle({ radius: 9, weight: 3 });
-         this.bringToFront();
-      });
-      layer.on('mouseout', function() {
-         stationLayer.resetStyle(this);
-      });
+    // 6. DRAW STATIONS (CCS Points)
+    map.addSource("hot-stations", { type: "geojson", data: filtered_stations });
+    map.addLayer({
+      id: "hot-stations-circle",
+      type: "circle",
+      source: "hot-stations",
+      paint: {
+        "circle-radius": ["case", ["boolean", ["feature-state", "hover"], false], 9, 6],
+        "circle-color": ["get", "_color"],
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": ["case", ["boolean", ["feature-state", "hover"], false], 3, 2],
+        "circle-opacity": 1.0,
+        "circle-stroke-opacity": 1.0
+      }
+    });
+
+    map.on("mousemove", "hot-segments-line", (e) => {
+      if (!e.features.length) return;
+      const id = e.features[0].id;
+      if (id === hoveredSegId) return;
+      if (hoveredSegId != null) map.setFeatureState({ source: "hot-segments", id: hoveredSegId }, { hover: false });
+      hoveredSegId = id;
+      map.setFeatureState({ source: "hot-segments", id }, { hover: true });
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "hot-segments-line", () => {
+      if (hoveredSegId != null) map.setFeatureState({ source: "hot-segments", id: hoveredSegId }, { hover: false });
+      hoveredSegId = null;
+      map.getCanvas().style.cursor = "";
+    });
+    map.on("click", "hot-segments-line", (e) => {
+      if (!e.features.length || !e.features[0].properties._popup) return;
+      new maplibregl.Popup().setLngLat(e.lngLat).setHTML(e.features[0].properties._popup).addTo(map);
+    });
+
+    let hoveredStationId = null;
+    map.on("mousemove", "hot-stations-circle", (e) => {
+      if (!e.features.length) return;
+      const id = e.features[0].id;
+      if (id === hoveredStationId) return;
+      if (hoveredStationId != null) map.setFeatureState({ source: "hot-stations", id: hoveredStationId }, { hover: false });
+      hoveredStationId = id;
+      map.setFeatureState({ source: "hot-stations", id }, { hover: true });
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "hot-stations-circle", () => {
+      if (hoveredStationId != null) map.setFeatureState({ source: "hot-stations", id: hoveredStationId }, { hover: false });
+      hoveredStationId = null;
+      map.getCanvas().style.cursor = "";
+    });
+    map.on("click", "hot-stations-circle", (e) => {
+      if (!e.features.length || !e.features[0].properties._popup) return;
+      new maplibregl.Popup().setLngLat(e.lngLat).setHTML(e.features[0].properties._popup).addTo(map);
+    });
+
+    if (filtered_segments.features.length > 0) {
+      const bounds = geojsonBounds(filtered_segments);
+      if (bounds) map.fitBounds(bounds, { padding: 30 });
     }
-  }).addTo(map);
 
-  if (filtered_segments.features.length > 0) {
-      map.fitBounds(segmentLayer.getBounds(), { padding: [30, 30] });
-  }
+    map.resize();
+  });
 
-  // 5. TABSET RESIZE & ZOOM FIX
+  // 7. TABSET RESIZE & ZOOM FIX
   const resizeObserver = new ResizeObserver(() => {
+    if (!loaded) return;
     // Wait 100ms for the tab animation to open completely
     setTimeout(() => {
-        // 1. Tell Leaflet its true 600px size
-        map.invalidateSize();
+        // 1. Tell MapLibre its true 600px size
+        map.resize();
 
         // 2. NOW calculate the zoom to fit the segments perfectly!
         if (filtered_segments.features.length > 0) {
-            map.fitBounds(segmentLayer.getBounds(), { padding: [30, 30] });
+            const bounds = geojsonBounds(filtered_segments);
+            if (bounds) map.fitBounds(bounds, { padding: 30 });
         }
     }, 100);
   });
 
   resizeObserver.observe(container);
+
+  invalidation.then(() => { map.remove(); resizeObserver.disconnect(); });
 
   return container;
 }
