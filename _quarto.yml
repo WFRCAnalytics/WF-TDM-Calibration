@@ -13,16 +13,15 @@ project:
   # 4-assignhwy.qmd/0-hhdisag-autoown.qmd -- it's not referenced from any
   # .qmd's rendered markdown/HTML, so Quarto's implicit resource discovery
   # won't pick it up on its own; list it explicitly so it lands at
-  # docs/report/data/basemap/ugrc-wfrc-lite.json. expressways.geojson is
-  # that style's own "expressways" geojson source (Bangerter/Mountain View
-  # Corridor/Timpanogos Hwy, pulled from UGRC's UtahRoads feature service
-  # since the merged Lite tiles have no route-name attribute to filter
-  # on) -- referenced relative to the style file itself, so it needs the
-  # same explicit listing.
+  # docs/report/data/basemap/ugrc-wfrc-lite.json. Its "expressways" source
+  # (Bangerter/Mountain View Corridor/Timpanogos Hwy, pulled from UGRC's
+  # UtahRoads feature service since the merged Lite tiles have no
+  # route-name attribute to filter on) and "urban-areas" source (municipal
+  # boundaries, pulled from UGRC's UtahMunicipalBoundaries_Cartography
+  # feature service) are both embedded inline in this one file rather than
+  # kept as separate files, so no further entries are needed here.
   resources:
     - "report/data/basemap/ugrc-wfrc-lite.json"
-    - "report/data/basemap/expressways.geojson"
-    - "report/data/basemap/urban-areas.geojson"
 
 # wfrc-brand's _extension.yml only auto-contributes HTML/Typst/DOCX format
 # options (theme, fonts, toc, layout) -- footer/navbar/social defaults live in
