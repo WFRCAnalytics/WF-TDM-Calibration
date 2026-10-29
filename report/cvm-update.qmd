@@ -10,8 +10,8 @@ The Commercial Vehicle Model (CVM) generates daily Light (LT), Medium (MD), and 
 (HnS), Local (Lcl), Regional (Reg), Long-Haul (LHl), and Unknown (Unk) -- from trip-rate
 models built on LOCUS commercial-vehicle data. Those raw rates rarely match observed
 commercial-vehicle activity exactly, so a set of calibration factors are layered on
-top, by county and (for MD/HV) by vocation. This page breaks down, for the selected
-calibration run, how
+top, by county and (for MD/HV) by vocation. This page breaks down, for calibration
+run C70 (the only run this data is produced for -- see below), how
 much of the region's final commercial-vehicle trips and VMT trace back to the raw
 LOCUS-based rates ("base model") versus how much comes from that calibration
 adjustment -- and separately explains what falls **outside** the CVM entirely: the
@@ -45,41 +45,30 @@ own Medium/Heavy percentages.
 
 ```{python}
 # ==============================================================================
-# LOAD PER-RUN CVM FACTORING DATA
+# LOAD CVM FACTORING DATA -- locked to calibration run C70
 # ==============================================================================
 # Unlike the other report pages, this data isn't part of the normal curated
 # runs/ output or report/preprocess/ cache -- computing it requires converting
 # raw Cube .mtx matrices via Voyager (see scripts/cv_purpose_factoring.py's
 # module docstring), which is too slow to do on every `quarto render`. Instead
 # that script is run manually per calibration run and its output committed
-# here as a small static CSV, same as any other report/data/ input. Not every
-# run in runs/ has had the script run against it yet, so `calib_runs` (below)
-# stays the same full site-wide list every other report page offers -- the
-# shared calibration-run selector (_calib_run_selector.qmd) always shows every
-# available run, greying out this page's own sidebar entry when the selected
-# run has no CVM data rather than shrinking the dropdown itself. The
-# CVM-specific subset lives in `cvm_available_runs` instead, used only to
-# decide what this page itself can render.
-import sys
+# here as a small static CSV, same as any other report/data/ input. CVM
+# factoring is only ever produced for this model version's reference
+# calibration run (C70) -- not for every calibration run the way the other
+# report pages are, and not planned to be -- so this page has no run selector
+# of its own and just loads that one file.
 from pathlib import Path
 
 import pandas as pd
 
-sys.path.insert(0, ".")
-import _validation_scripts as vs
-
-repo_root = Path("..")
-calib_runs = vs.list_available_runs(repo_root)
+CALIB_RUN = "C70"
 
 data_dir = Path("data/cvm-update")
-files = sorted(data_dir.glob("purpose_factoring_*.csv"))
-cvm_df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True) if files else pd.DataFrame()
-cvm_available_runs = sorted(cvm_df["calib_run"].unique().tolist(), key=lambda s: int("".join(c for c in s if c.isdigit()) or 0)) if not cvm_df.empty else []
+cvm_df = pd.read_csv(data_dir / f"purpose_factoring_{CALIB_RUN}.csv")
 
-ojs_define(cvm_data=cvm_df, cvm_available_runs=cvm_available_runs)
+ojs_define(cvm_data=cvm_df)
 ```
 
-{{< include _calib_run_selector.qmd >}}
 {{< include _chart_theme.qmd >}}
 
 ```{ojs}
@@ -89,22 +78,16 @@ extOrder = ["IX", "XI", "XX"]
 vehicleOrder = ["LT", "MD", "HV"]
 vehicleLabel = new Map([["LT", "Light Commercial Vehicles"], ["MD", "Medium Commercial Vehicles"], ["HV", "Heavy Commercial Vehicles"]])
 
-rows = allRows.filter(d => d.calib_run === globalCalibRun)
+rows = allRows
 fmtInt = d3.format(",.0f")
 fmtPct = d3.format(",.1f")
 fmtFactor = d3.format(",.2f")
 ```
 
 CVM factoring is only ever produced for this model version's reference calibration run
-(currently C70, WF TDM v10.0 Beta.2) -- not run for every calibration run the way the
-other report pages are, and not planned to be. Picking a different run below shows a
-plain "no information" notice instead of this page's charts.
-
-::: {#cvm-empty-message style="display:none; padding:0.75rem 1rem; margin-bottom:1rem; border:1px solid #dee2e6; border-radius:6px;"}
-No information was generated for this calibration run.
-:::
-
-::: {#cvm-content}
+-- not run for every calibration run the way the other report pages are, and not
+planned to be. This page is locked to **calibration run C70** (WF TDM v10.0 Beta.2)
+and has no run selector of its own.
 
 ## Total Commercial Vehicle Activity
 
@@ -388,8 +371,6 @@ html`
   </tbody>
 </table>`
 ```
-
-:::
 
 ## Methodology & Caveats
 
