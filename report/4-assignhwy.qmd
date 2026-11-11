@@ -19,6 +19,7 @@ import _validation_scripts as vs
 import math
 import os
 import openpyxl
+import yaml
 ```
 
 ```{python}
@@ -1236,7 +1237,72 @@ The interactive chart below displays the 2023 daily traffic volume trend for a s
 
 # See report/preprocess/assignhwy.py.
 df_final_export = vs.load_cached_per_run(repo_root, "ccs_daily")
-ojs_define(ccs_daily_data=df_final_export)
+
+# Station point geometry for every SITE present in the daily-volume dataset
+# above (siteInfo's universe in the OJS Multi-Station Comparison section
+# below) -- independent of df_final's valid_segids subset the Volume
+# Validation dashboard's own station map (ccs-export-geojson, above) uses.
+daily_site_ids = set(df_final_export["SITE"].astype(str))
+gdf_daily_stations = gdf_ccs_locations[gdf_ccs_locations["SITE"].isin(daily_site_ids)][
+    ["SITE", "geometry"]
+].to_crs("EPSG:4326")
+daily_stations_export = gdf_daily_stations.__geo_interface__
+
+# Per-link Speed Factor / Capacity Factor calibration adjustments -- see
+# report/preprocess/assignhwy.py's load_sfac_cfac() and
+# config/framework.yaml's outputs.include.
+sfac_cfac_export = vs.load_cached_per_run(repo_root, "sfac_cfac")
+
+# Parallel-corridor groupings (config/parallel_corridors.yaml) -- flattened
+# to one row per (corridor, member). A member's SEGID is read straight from
+# the YAML for a bare `segid` entry (no CCS station), or resolved from
+# df_bridge (already computed/corrected above -- see the ccs-manual-override
+# cell) for a `site` entry, so the YAML itself never needs to repeat a
+# SITE's SEGID by hand.
+with open(repo_root / "config" / "parallel_corridors.yaml", encoding="utf-8-sig") as f:
+    _parallel_corridors_config = yaml.safe_load(f) or {}
+
+site_to_segid = dict(zip(df_bridge["SITE"], df_bridge["MATCHED_SEGID"]))
+_corridor_rows = []
+for _corridor in _parallel_corridors_config.get("corridors", []):
+    for _member in _corridor["members"]:
+        _site = _member.get("site")
+        _segid = _member.get("segid") or (site_to_segid.get(_site) if _site else None)
+        _corridor_rows.append({
+            "corridor_id": _corridor["id"],
+            "corridor_label": _corridor.get("label", _corridor["id"]),
+            "SITE": _site,
+            "SEGID": _segid,
+            "role": _member.get("role"),
+        })
+parallel_corridors_export = pd.DataFrame(
+    _corridor_rows, columns=["corridor_id", "corridor_label", "SITE", "SEGID", "role"]
+)
+
+# Per-station year override (e.g. -316 has no usable 2023 coverage, so it
+# uses 2024 instead -- see report/preprocess/assignhwy.py's
+# _build_merged_base(), which already applies this same file server-side to
+# pick which year's rows go into df_final_export above). Exported as-is so
+# the OJS charts below can explicitly key their own year-dependent logic
+# (the x-axis domain, the Sept 1 - Nov 15 calibration window) off the same
+# override, rather than inferring it from whichever year's data happens to
+# be present for the selected station.
+ccs_year_overrides_export = pd.read_csv(
+    repo_root / "inputs" / "ccs_year_overrides.csv", dtype={"SITE": str}
+)
+# Mirrors assignhwy.py's DEFAULT_CCS_YEAR -- kept in sync by hand, same
+# duplicated-constant convention this module already uses for other
+# static/shared values (see this file's own module docstring).
+CCS_DEFAULT_YEAR = 2023
+
+ojs_define(
+    ccs_daily_data=df_final_export,
+    daily_stations_py=daily_stations_export,
+    sfac_cfac_py=sfac_cfac_export,
+    ccs_year_overrides_py=ccs_year_overrides_export,
+    ccs_default_year_py=CCS_DEFAULT_YEAR,
+    parallel_corridors_py=parallel_corridors_export,
+)
 ```
 
 ```{ojs}
@@ -1254,7 +1320,56 @@ daily_data = transpose(ccs_daily_data)
 // SITE, keyed for lookup by the "3. Select Station" widget below -- these
 // don't vary by date, so the first daily row for a site is representative.
 siteInfo = new Map(daily_data.map(d => [d.SITE, d]))
+
+// Point geometry for the same station universe as siteInfo/daily_data (see
+// daily_stations_py, above) -- backs the Multi-Station Comparison map below.
+daily_stations_geo = daily_stations_py
+
+// Per-station year override (see ccs_year_overrides_py, above) -- the
+// single source of truth both charts below use for their year-dependent
+// logic (x-axis domain, Sept 1 - Nov 15 calibration window), instead of
+// each inferring the year from whichever rows happen to be present for the
+// selected station.
+yearBySite = new Map(transpose(ccs_year_overrides_py).map(d => [String(d.SITE), +d.YEAR]))
+function yearForSite(site) {
+  return yearBySite.get(site) ?? ccs_default_year_py;
+}
+
+// Parallel-corridor groupings (config/parallel_corridors.yaml) -- one row
+// per (corridor, member) in parallel_corridors_py, grouped here into
+// per-corridor member lists for the "Parallel Corridor" filter in the
+// Multi-Station Comparison section below. A member with no SITE (a bare
+// SEGID, no CCS station) can't join the station-based multi-select/barbell,
+// so it's kept separate (segidOnlyMembers) for that section's own
+// supplementary table instead.
+parallelCorridors = Array.from(
+  d3.group(transpose(parallel_corridors_py), d => d.corridor_id),
+  ([id, rows]) => ({
+    id,
+    label: rows[0].corridor_label,
+    siteMembers: rows.filter(d => d.SITE).map(d => d.SITE),
+    segidOnlyMembers: rows.filter(d => !d.SITE && d.SEGID).map(d => d.SEGID)
+  })
+)
+
+// Per-SEGID aggregate of the curated SFAC/CFAC link table (sfac_cfac_py is
+// per directional A-B link -- a SEGID can have several, so this collapses
+// to one row per SEGID) -- backs the segid-only-members supplementary table.
+sfacCfacBySegid = {
+  const rows = transpose(sfac_cfac_py).filter(d => d.SEGID && d.SEGID !== "nan");
+  const bySegid = d3.group(rows, d => d.SEGID);
+  return new Map(Array.from(bySegid, ([segid, links]) => [segid, {
+    SEGID: segid,
+    STREET: links[0].STREET,
+    FTCLASS: links[0].FTCLASS,
+    SFAC: d3.mean(links, d => d.SFAC),
+    CFAC: d3.mean(links, d => d.CFAC),
+    DY_VOL: d3.sum(links, d => d.DY_VOL)
+  }]));
+}
 ```
+
+#### Single-Station Detail
 
 ```{ojs}
 //| echo: false
@@ -1314,8 +1429,18 @@ viewof selectedStation = {
   const info = siteInfo.get(selectedStation);
   const hasDetail = info && info.SITE_DESCRIPTION && info.SITE_DESCRIPTION !== "0";
 
+  // High-visibility flag for a station using a non-default year (see
+  // yearForSite()/ccs_year_overrides.csv, e.g. -316 has no usable 2023
+  // coverage so it uses 2024 instead) -- easy to miss otherwise, since
+  // nothing else about the chart calls out that it's showing a different
+  // year than every other station.
+  const overrideYear = yearForSite(selectedStation);
+  const yearBadge = overrideYear !== ccs_default_year_py
+    ? html`<div style="display:inline-block; margin-bottom:8px; padding:4px 10px; background:#ffc107; color:#3d2e00; border-radius:4px; font-weight:700; font-size:12px; letter-spacing:0.3px;">⚠ USING ${overrideYear} DATA</div><br>`
+    : "";
+
   if (!hasDetail) {
-    return html`<div style="margin: -8px 0 12px 0; padding: 8px 12px; background: #f4f4f6; border-left: 3px solid ${themeNeutral}; border-radius: 4px; font-size: 13px; color: #666;">No location details available for station ${selectedStation}.</div>`;
+    return html`<div>${yearBadge}<div style="margin: -8px 0 12px 0; padding: 8px 12px; background: #f4f4f6; border-left: 3px solid ${themeNeutral}; border-radius: 4px; font-size: 13px; color: #666;">No location details available for station ${selectedStation}.</div></div>`;
   }
 
   const route = info.ROUTE_NAME && info.ROUTE_NAME !== "0" ? info.ROUTE_NAME : null;
@@ -1331,9 +1456,9 @@ viewof selectedStation = {
     ? html`<br><span style="color:${themeDanger}; font-size:11px;">⚠ No modeled volume for this station's segment (outside the model's core reporting area) -- chart below omits the Modeled Volume line.</span>`
     : "";
 
-  return html`<div style="margin: -8px 0 12px 0; padding: 8px 12px; background: #f4f4f6; border-left: 3px solid ${themeAccent}; border-radius: 4px; font-size: 13px;">
+  return html`<div>${yearBadge}<div style="margin: -8px 0 12px 0; padding: 8px 12px; background: #f4f4f6; border-left: 3px solid ${themeAccent}; border-radius: 4px; font-size: 13px;">
     <strong>${info.SITE_DESCRIPTION}</strong>${meta ? html`<br><span style="color: #555;">${meta}</span>` : ""}${noModelNote}
-  </div>`;
+  </div></div>`;
 }
 ```
 
@@ -1386,8 +1511,13 @@ filteredStations = daily_data
   // Tue/Wed/Thu average within the calibration period -- the subset of days
   // typically used as the "representative weekday" ground truth for
   // calibration, since it excludes weekend and Mon/Fri shoulder effects.
-  const calStart = new Date("2023-09-01");
-  const calEnd = new Date("2023-11-15");
+  // The window (and the chart's whole x-axis, below) follows
+  // yearForSite(selectedStation) -- ccs_year_overrides.csv, e.g. -316 has no
+  // usable 2023 coverage so it uses 2024 instead -- rather than inferring
+  // the year from whichever rows happen to be present.
+  const year = yearForSite(selectedStation);
+  const calStart = new Date(year, 8, 1);
+  const calEnd = new Date(year, 10, 15);
   const calTueThuRows = stationData.filter(d => {
     const dow = d.Date.getDay();
     return d.Date >= calStart && d.Date <= calEnd && dow >= 2 && dow <= 4;
@@ -1408,8 +1538,10 @@ filteredStations = daily_data
     : 1000;
 
   // ─── The Plot ────────────────────────────────────────────────────────────────
-  return Plot.plot({
-    width: Math.min(width, 960),
+  const thumbSize = 200;
+  const chartWidth = Math.min(width, 960) - (width > 600 ? thumbSize + 12 : 0);
+  const chart = Plot.plot({
+    width: chartWidth,
     height: 450,
     marginLeft: 60,
     marginBottom: 40,
@@ -1428,7 +1560,7 @@ filteredStations = daily_data
     x: {
       label: null,
       tickFormat: "%B",
-      domain: [new Date("2023-01-01"), new Date("2023-12-31")]
+      domain: [new Date(year, 0, 1), new Date(year, 11, 31)]
     },
 
     y: {
@@ -1440,13 +1572,13 @@ filteredStations = daily_data
 
     marks: [
       // 1. Calibration Period
-      Plot.rectX([{start: new Date("2023-09-01"), end: new Date("2023-11-15")}], {
+      Plot.rectX([{start: calStart, end: calEnd}], {
         x1: "start", x2: "end",
         y1: 0, y2: yMaxVol,
         fill: palette.cal,
         fillOpacity: 0.08
       }),
-      Plot.text([{x: new Date("2023-10-08"), y: yMaxVol}], {
+      Plot.text([{x: new Date(year, 9, 8), y: yMaxVol}], {
         x: "x", y: "y",
         text: d => "Calibration Period",
         fill: palette.cal,
@@ -1493,6 +1625,468 @@ filteredStations = daily_data
       }))
     ]
   });
+
+  // ─── Thumbnail Location Map ──────────────────────────────────────────────────
+  // A small, non-interactive (interactive: false) static-style map next to
+  // the chart, just showing where this station sits -- not meant for
+  // exploration, so no zoom/pan controls or attribution clutter like the
+  // full interactive maps elsewhere on this page.
+  const mapContainer = document.createElement("div");
+  mapContainer.style.width = `${thumbSize}px`;
+  mapContainer.style.height = `${thumbSize}px`;
+  mapContainer.style.borderRadius = "8px";
+  mapContainer.style.border = "1px solid #ccc";
+  mapContainer.style.flexShrink = "0";
+
+  const stationFeature = daily_stations_geo.features.find(
+    f => String(f.properties.SITE) === selectedStation
+  );
+
+  const thumbMap = new maplibregl.Map({
+    container: mapContainer,
+    style: UGRC_BASEMAP_STYLE,
+    center: stationFeature ? stationFeature.geometry.coordinates : [-111.8910, 40.7608],
+    zoom: stationFeature ? 13 : 8,
+    interactive: false,
+    attributionControl: false
+  });
+
+  if (stationFeature) {
+    thumbMap.on("load", () => {
+      // mapContainer is constructed detached from the document (it's only
+      // attached once the html`` template below is inserted), so MapLibre
+      // measures a stale/zero size at construction time and centers wrong
+      // until explicitly told to re-measure and recenter here.
+      thumbMap.resize();
+      thumbMap.setCenter(stationFeature.geometry.coordinates);
+
+      thumbMap.addSource("thumb-station", { type: "geojson", data: stationFeature });
+      thumbMap.addLayer({
+        id: "thumb-station-circle",
+        type: "circle",
+        source: "thumb-station",
+        paint: {
+          "circle-radius": 7,
+          "circle-color": themeTarget,
+          "circle-stroke-color": "#1e1e1e",
+          "circle-stroke-width": 1.5
+        }
+      });
+    });
+  }
+
+  invalidation.then(() => thumbMap.remove());
+
+  return html`<div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
+    <div style="flex:1; min-width:300px;">${chart}</div>
+    ${mapContainer}
+  </div>`;
+}
+```
+
+#### Multi-Station Comparison
+
+Compare the three constant reference values -- HPMS AADT, Modeled Volume, and Target (Cal. Period Tue-Thu Avg) -- across multiple stations at once. Narrow the station list with the filters below, then use the multi-select to choose which stations to display.
+
+```{ojs}
+//| label: multi-station-summary
+//| echo: false
+
+// One summary row per SITE with the same three reference values plotted as
+// horizontal lines in the single-station chart below (HPMS AADT, Modeled
+// Volume, and the Cal. Period Tue-Thu Avg "target"), plus the grouping
+// fields the filters below narrow on -- so both charts agree.
+stationSummaryAll = {
+  const bySite = d3.group(daily_data, d => d.SITE);
+  return Array.from(bySite, ([SITE, rows]) => {
+    const ref = rows[0];
+    // The Sept 1 - Nov 15 calibration window follows yearForSite(SITE) --
+    // ccs_year_overrides.csv, e.g. -316 has no usable 2023 coverage so it
+    // uses 2024 instead -- rather than inferring the year from whichever
+    // rows happen to be present.
+    const year = yearForSite(SITE);
+    const calStart = new Date(year, 8, 1);
+    const calEnd = new Date(year, 10, 15);
+    const calTueThuRows = rows.filter(d => {
+      const dow = d.Date.getDay();
+      return d.Date >= calStart && d.Date <= calEnd && dow >= 2 && dow <= 4;
+    });
+    return {
+      SITE,
+      FTCLASS: ref.FTCLASS,
+      ATYPENAME: ref.ATYPENAME,
+      COUNTY_NAME: ref.COUNTY_NAME,
+      HPMS_AADT: ref.HPMS_AADT,
+      MODEL_VOL: ref.MODEL_VOL,
+      HAS_MODEL_DATA: ref.HAS_MODEL_DATA,
+      TargetVol: calTueThuRows.length > 0 ? d3.mean(calTueThuRows, d => d.DAILY_VOL) : 0
+    };
+  });
+}
+
+// Local sort orders for the three filters below -- mirrors the orders used
+// by the single-station Group/Filter controls and the VMT dashboard's
+// legend ordering elsewhere on this page.
+multiSortOrders = ({
+  "FTCLASS": ['Freeway', 'Expressway', 'Principal Arterial', 'Minor Arterial', 'Collector'],
+  "ATYPENAME": ['Urban', 'Suburban', 'Transition', 'Rural'],
+  "COUNTY_NAME": ['Box Elder', 'Weber', 'Davis', 'Salt Lake', 'Utah']
+})
+
+function multiSortedOptions(field) {
+  const vals = Array.from(new Set(stationSummaryAll.map(d => d[field])))
+    .filter(v => v != null && v !== "0" && v !== "");
+  const order = multiSortOrders[field];
+  return order
+    ? vals.sort((a, b) => (order.indexOf(a) === -1 ? 999 : order.indexOf(a)) - (order.indexOf(b) === -1 ? 999 : order.indexOf(b)))
+    : vals.sort();
+}
+```
+
+```{ojs}
+//| echo: false
+//| panel: input
+
+viewof multiFilterFtclass = Inputs.select(
+  ["All"].concat(multiSortedOptions("FTCLASS")),
+  { label: "Functional Class:", value: "All" }
+)
+
+viewof multiFilterAtype = Inputs.select(
+  ["All"].concat(multiSortedOptions("ATYPENAME")),
+  { label: "Area Type:", value: "All" }
+)
+
+viewof multiFilterCounty = Inputs.select(
+  ["All"].concat(multiSortedOptions("COUNTY_NAME")),
+  { label: "County:", value: "All" }
+)
+
+// config/parallel_corridors.yaml groupings -- picking one narrows the
+// station list to that corridor's site-based members only (a bare-SEGID
+// member with no station can't appear here; see selectedCorridorInfo's
+// supplementary table below instead).
+viewof multiFilterCorridor = Inputs.select(
+  new Map([["All", "All"]].concat(parallelCorridors.map(c => [c.label, c.id]))),
+  { label: "Parallel Corridor:", value: "All" }
+)
+
+// The selected corridor's own record (for siteMembers/segidOnlyMembers
+// below), or null when "All" is selected.
+selectedCorridorInfo = multiFilterCorridor === "All"
+  ? null
+  : parallelCorridors.find(c => c.id === multiFilterCorridor)
+
+// Stations left after the filters above are applied -- the option list
+// (and default selection) for the multi-select below.
+allStations = stationSummaryAll
+  .filter(d => multiFilterFtclass === "All" || d.FTCLASS === multiFilterFtclass)
+  .filter(d => multiFilterAtype === "All" || d.ATYPENAME === multiFilterAtype)
+  .filter(d => multiFilterCounty === "All" || d.COUNTY_NAME === multiFilterCounty)
+  .filter(d => !selectedCorridorInfo || selectedCorridorInfo.siteMembers.includes(d.SITE))
+  .map(d => d.SITE)
+  .sort()
+
+// Remembers the multi-select pick across recomputation of allStations (e.g.
+// switching globalCalibRun or one of the filters above) -- same
+// mutable-plus-resync pattern as lastSelectedStation below.
+mutable lastSelectedStationsMulti = null
+
+viewof selectedStationsMulti = {
+  const preserved = (lastSelectedStationsMulti ?? []).filter(s => allStations.includes(s));
+  const value = preserved.length > 0 ? preserved : allStations;
+  const select = Inputs.select(allStations, {
+    multiple: Math.max(1, Math.min(allStations.length, 12)),
+    value,
+    label: "Compare Stations:",
+    format: d => {
+      const desc = siteInfo.get(d)?.SITE_DESCRIPTION;
+      return desc && desc !== "0" ? `${d} — ${desc}` : d;
+    }
+  });
+  select.addEventListener("input", () => {
+    mutable lastSelectedStationsMulti = select.value;
+  });
+  return select;
+}
+```
+
+```{ojs}
+//| label: multi-station-chart
+//| echo: false
+
+{
+  const palette = { hpms: "#3d3a37", model: themeModel, target: themeTarget };
+
+  const summary = selectedStationsMulti
+    .map(site => stationSummaryAll.find(d => d.SITE === site))
+    .filter(Boolean);
+
+  if (summary.length === 0) {
+    return html`<div style="padding: 24px; text-align:center; color:#888;">Select one or more stations above to compare.</div>`;
+  }
+
+  const siteOrder = summary.map(d => d.SITE);
+  const plotHeight = Math.max(320, siteOrder.length * 40 + 60);
+  // Always fix the volume axis to start at 0, rather than letting Plot
+  // auto-scale to the data's min/max (the default for a dot-based chart
+  // with no zero-baseline mark). Extra headroom (vs. a plain *1.05) leaves
+  // room for the +/-% labels past the rightmost dot, same as the other
+  // dumbbell charts in this report (e.g. 1-tripgen.qmd's tripDumbbellChart).
+  const maxVol = (d3.max(summary, d => Math.max(d.HPMS_AADT, d.TargetVol, d.MODEL_VOL ?? 0)) || 1) * 1.15;
+
+  // Model's percent difference from Target, labeled at the Model dot --
+  // same convention as the dumbbell charts elsewhere in this report
+  // (1-tripgen.qmd, 3-modechoice.qmd, 2-distribution.qmd): a negative (Model
+  // < Target) label always sits to the LEFT of the Model dot, a positive one
+  // always to the right -- Target is on the opposite side from the label in
+  // both cases, so the label never overlaps the Target dot. The one
+  // exception: a negative label on a Model value too close to the y-axis
+  // would clip past it into the station-name column, so that subset flips
+  // to a right-anchored, tightly-spaced label instead (still nowhere near
+  // Target, since Target is necessarily even further right than Model
+  // here).
+  const plotWidthPx = Math.min(width, 900);
+  const innerWidthPx = plotWidthPx - 90 /* marginLeft */ - 20 /* default marginRight */;
+  const minLabelValue = (55 /* approx "-xx.x%" label width + gap, in px */ / innerWidthPx) * maxVol;
+  const barbellRows = summary
+    .filter(d => d.HAS_MODEL_DATA)
+    .map(d => ({ ...d, pctDiff: d.TargetVol ? (d.MODEL_VOL - d.TargetVol) / d.TargetVol : null }))
+    .filter(d => d.pctDiff != null);
+  const labelsRight = barbellRows.filter(d => d.pctDiff >= 0);
+  const labelsLeft = barbellRows.filter(d => d.pctDiff < 0 && d.MODEL_VOL >= minLabelValue);
+  const labelsLeftClamped = barbellRows.filter(d => d.pctDiff < 0 && d.MODEL_VOL < minLabelValue);
+
+  // High-visibility flag for any selected station using a non-default year
+  // (see yearForSite()/ccs_year_overrides.csv) -- grouped by year, since a
+  // mix of override years across the selected stations is possible. Easy to
+  // miss otherwise, since Target/pctDiff above are computed per-station
+  // against each one's own year with no other visual cue.
+  const overrideSites = d3.group(
+    summary.filter(d => yearForSite(d.SITE) !== ccs_default_year_py),
+    d => yearForSite(d.SITE)
+  );
+  const yearBadge = overrideSites.size > 0
+    ? html`<div style="margin-bottom:8px;">${Array.from(overrideSites, ([yr, rows]) => html`<div style="display:inline-block; margin-right:8px; padding:4px 10px; background:#ffc107; color:#3d2e00; border-radius:4px; font-weight:700; font-size:12px; letter-spacing:0.3px;">⚠ USING ${yr} DATA: ${rows.map(d => d.SITE).join(", ")}</div>`)}</div>`
+    : "";
+
+  // Manual legend -- the barbell connects Target and Modeled Volume only;
+  // HPMS AADT is drawn as a separate hollow diamond so it reads as a
+  // reference value, not a third barbell endpoint.
+  const legend = html`<div style="display:flex; gap:18px; align-items:center; font-size:12px; margin-bottom:8px; flex-wrap:wrap;">
+    <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${palette.target};margin-right:5px;vertical-align:middle;"></span>Target (Cal. Tue-Thu Avg)</span>
+    <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${palette.model};margin-right:5px;vertical-align:middle;"></span>Modeled Volume</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border:2px solid ${palette.hpms};background:white;transform:rotate(45deg);margin-right:7px;vertical-align:middle;"></span>HPMS AADT (reference)</span>
+  </div>`;
+
+  // Stations run down the y-axis (one row per station); volume is read
+  // across the x-axis.
+  const plot = Plot.plot({
+    width: plotWidthPx,
+    height: plotHeight,
+    marginBottom: 40,
+    marginLeft: 90,
+    style: {
+      fontSize: "12px",
+      fontFamily: "system-ui, -apple-system, sans-serif",
+      backgroundColor: "white"
+    },
+    y: { label: null, domain: siteOrder },
+    x: { label: "Volume", grid: true, tickFormat: "s", domain: [0, maxVol] },
+    marks: [
+      // Barbell: the line connecting Target <-> Modeled Volume (omitted for
+      // stations with no modeled segment, same HAS_MODEL_DATA gate used by
+      // the single-station chart below).
+      Plot.ruleY(summary.filter(d => d.HAS_MODEL_DATA), {
+        y: "SITE", x1: "TargetVol", x2: "MODEL_VOL",
+        stroke: "currentColor", strokeOpacity: 0.35, strokeWidth: 2.5
+      }),
+
+      // HPMS AADT -- reference only, drawn as a hollow diamond so it's
+      // visually distinct from the barbell endpoints.
+      Plot.dot(summary, {
+        y: "SITE", x: "HPMS_AADT",
+        r: 5, symbol: "diamond",
+        stroke: palette.hpms, fill: "white", strokeWidth: 2,
+        title: d => `Station ${d.SITE}\nHPMS AADT: ${Math.round(d.HPMS_AADT).toLocaleString()}`
+      }),
+
+      // Target endpoint
+      Plot.dot(summary, {
+        y: "SITE", x: "TargetVol",
+        r: 7, fill: palette.target, stroke: "white", strokeWidth: 1,
+        title: d => `Station ${d.SITE}\nTarget (Cal. Tue-Thu Avg): ${Math.round(d.TargetVol).toLocaleString()}`
+      }),
+
+      // Modeled Volume endpoint
+      Plot.dot(summary.filter(d => d.HAS_MODEL_DATA), {
+        y: "SITE", x: "MODEL_VOL",
+        r: 7, fill: palette.model, stroke: "white", strokeWidth: 1,
+        title: d => `Station ${d.SITE}\nModeled Volume: ${Math.round(d.MODEL_VOL).toLocaleString()}`
+      }),
+
+      // Model's %-difference-from-Target labels. A white halo (stroke
+      // behind the fill, via paintOrder) keeps the text legible where it'd
+      // otherwise be crossed by the HPMS AADT diamond or the grid.
+      Plot.text(labelsRight, {
+        x: "MODEL_VOL", y: "SITE", text: d => d3.format("+.1%")(d.pctDiff),
+        dx: 10, textAnchor: "start", fontSize: 11, fontWeight: 600,
+        fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral,
+        stroke: "white", strokeWidth: 4, paintOrder: "stroke"
+      }),
+      Plot.text(labelsLeft, {
+        x: "MODEL_VOL", y: "SITE", text: d => d3.format("+.1%")(d.pctDiff),
+        dx: -10, textAnchor: "end", fontSize: 11, fontWeight: 600,
+        fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral,
+        stroke: "white", strokeWidth: 4, paintOrder: "stroke"
+      }),
+      // Model values too close to the y-axis for a left-anchored label
+      // (see minLabelValue above) -- a tight, right-anchored label instead
+      // of flipping all the way across to the Target side.
+      Plot.text(labelsLeftClamped, {
+        x: "MODEL_VOL", y: "SITE", text: d => d3.format("+.1%")(d.pctDiff),
+        dx: 4, textAnchor: "start", fontSize: 11, fontWeight: 600,
+        fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral,
+        stroke: "white", strokeWidth: 4, paintOrder: "stroke"
+      })
+    ]
+  });
+
+  return html`<div style="width: 100%;">${yearBadge}${legend}${plot}</div>`;
+}
+```
+
+```{ojs}
+//| label: multi-station-corridor-segids
+//| echo: false
+
+// A selected corridor's segid-only members (no CCS station, so they can't
+// appear in the barbell/map above) -- surfaced here instead, straight from
+// the curated SFAC/CFAC table (sfacCfacBySegid), since that's the only
+// data a bare SEGID has.
+selectedCorridorInfo && selectedCorridorInfo.segidOnlyMembers.length > 0
+  ? (() => {
+      const rows = selectedCorridorInfo.segidOnlyMembers
+        .map(segid => sfacCfacBySegid.get(segid))
+        .filter(Boolean);
+      return html`<div style="margin-top:8px;">
+        <div style="font-size:12px; font-weight:600; margin-bottom:4px;">Also in "${selectedCorridorInfo.label}" (no CCS station):</div>
+        ${Inputs.table(rows, {
+          columns: ["SEGID", "STREET", "FTCLASS", "SFAC", "CFAC", "DY_VOL"],
+          header: { DY_VOL: "Modeled Daily Volume" },
+          format: {
+            SFAC: d => d.toFixed(2),
+            CFAC: d => d.toFixed(2),
+            DY_VOL: d => Math.round(d).toLocaleString()
+          },
+          layout: "auto"
+        })}
+      </div>`;
+    })()
+  : ""
+```
+
+##### Station Locations
+
+```{ojs}
+//| label: multi-station-map
+//| echo: false
+
+{
+  const selected = new Set(selectedStationsMulti);
+  const features = daily_stations_geo.features.filter(f => selected.has(String(f.properties.SITE)));
+
+  if (features.length === 0) {
+    return html`<div style="padding: 24px; text-align:center; color:#888;">Select one or more stations above to see them on the map.</div>`;
+  }
+
+  const fc = { type: "FeatureCollection", features };
+
+  const container = document.createElement("div");
+  container.style.height = "420px";
+  container.style.width = "100%";
+  container.style.borderRadius = "8px";
+  container.style.border = "1px solid #ccc";
+  container.style.zIndex = "1";
+
+  // Reuses maplibregl/UGRC_BASEMAP_STYLE/UGRC_ATTRIBUTION/ctrlScrollZoom/
+  // geojsonBounds -- all defined once in the Interactive Mapping tab's
+  // ojs-dashboard cell, above, and shared by every map on this page.
+  const map = new maplibregl.Map({
+    container,
+    style: UGRC_BASEMAP_STYLE,
+    center: [-111.8910, 40.7608],
+    zoom: 9,
+    attributionControl: { customAttribution: UGRC_ATTRIBUTION }
+  });
+  map.addControl(new maplibregl.NavigationControl(), "top-left");
+  ctrlScrollZoom(map, container);
+
+  let loaded = false;
+
+  map.on("load", () => {
+    loaded = true;
+    map.addSource("multi-stations", { type: "geojson", data: fc });
+
+    map.addLayer({
+      id: "multi-stations-circle",
+      type: "circle",
+      source: "multi-stations",
+      paint: {
+        "circle-radius": 6,
+        "circle-color": themeTarget,
+        "circle-stroke-color": "#1e1e1e",
+        "circle-stroke-width": 1,
+        "circle-opacity": 0.9
+      }
+    });
+
+    // Station id label on each point.
+    map.addLayer({
+      id: "multi-stations-label",
+      type: "symbol",
+      source: "multi-stations",
+      layout: {
+        "text-field": ["get", "SITE"],
+        "text-font": ["Noto Sans Bold"],
+        "text-size": 11,
+        "text-offset": [0, 1.2],
+        "text-anchor": "top"
+      },
+      paint: {
+        "text-color": "#1e1e1e",
+        "text-halo-color": "white",
+        "text-halo-width": 1.5
+      }
+    });
+
+    map.on("click", "multi-stations-circle", (e) => {
+      if (!e.features.length) return;
+      const site = e.features[0].properties.SITE;
+      const desc = siteInfo.get(site)?.SITE_DESCRIPTION;
+      new maplibregl.Popup().setLngLat(e.lngLat).setHTML(
+        `<strong>Station ${site}</strong>${desc && desc !== "0" ? `<br>${desc}` : ""}`
+      ).addTo(map);
+    });
+    map.on("mouseenter", "multi-stations-circle", () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "multi-stations-circle", () => { map.getCanvas().style.cursor = ""; });
+
+    map.resize();
+    const bounds = geojsonBounds(fc);
+    if (bounds) map.fitBounds(bounds, { padding: 60, maxZoom: 14 });
+  });
+
+  const resizeObserver = new ResizeObserver(() => {
+    if (!loaded) return;
+    map.resize();
+    const bounds = geojsonBounds(fc);
+    if (bounds) map.fitBounds(bounds, { padding: 60, maxZoom: 14 });
+  });
+  resizeObserver.observe(container);
+
+  invalidation.then(() => { map.remove(); resizeObserver.disconnect(); });
+
+  return container;
 }
 ```
 

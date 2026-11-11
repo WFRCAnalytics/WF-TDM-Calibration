@@ -112,6 +112,18 @@ outputs:
     - datafile: "5_AssignHwy/4_Summaries/*Summary_SEGID_Detailed.csv"
     - datafile: "5_AssignHwy/4_Summaries/*Summary_Screenline.csv"
     - datafile: "Temp/5_AssignHwy/Screenline_Segment_Lookup.csv"
+    # Per-directional-link network summary (finer-grained than
+    # Summary_SEGID.csv above, which is itself an aggregate across the A-B
+    # links that share a SEGID). Curated for SFAC/CFAC -- the per-link Speed
+    # Factor / Capacity Factor calibration adjustments -- plus enough context
+    # (join keys, classification, volume/speed/v-c) to interpret them without
+    # re-pulling the raw ~56MB/200+-column .dbf. A .dbf source is always
+    # converted to CSV on curation regardless of "columns" (see
+    # src/tdmcalib/outputs.py's _write_dbf_as_csv()).
+    - datafile: "5_AssignHwy/2b_Shapefiles/_Summary.dbf"
+      columns: [A, B, SEGID, LINKID, STREET, DISTANCE, FT, FTCLASS, ATYPENAME,
+                CO_NAME, LANES, FF_SPD, SFAC, CFAC, DY_VOL, DY_SPD,
+                AM_CAP, MD_CAP, PM_CAP, EV_CAP, AM_VC, MD_VC, PM_VC, EV_VC]
     # Matrix conversions (Cube .MTX -> .omx). source_format defaults to "mtx"
     # (Cube's native format, the real Scenarios/{calib_run_id}/ working
     # folder's actual output) -- requires config/local.yaml's Voyager_EXE to

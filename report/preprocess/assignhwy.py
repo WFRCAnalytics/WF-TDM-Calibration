@@ -39,6 +39,13 @@ PATH_IN_CCS_LOCATIONS_SUPPLEMENT = Path(
 GOOGLE_SPEEDS_MAG = Path("data/4-assignhwy/google-api-speeds/MAG/both_time_*_2023.csv")
 GOOGLE_SPEEDS_WFRC = Path("data/4-assignhwy/google-api-speeds/WFRC/both_time_*_2023.csv")
 PATH_IN_CCS_DAILY = Path("inputs/CCS_Observed_Counts_Raw.csv")
+# Per-station override of which year's rows in PATH_IN_CCS_DAILY to use (see
+# _build_merged_base()) -- for a station with no usable 2023 coverage (e.g.
+# -316), rather than a blanket year for every station. Hand-maintained; not
+# touched by scripts/process_ccs_observed_counts.py, which only appends new
+# rows to PATH_IN_CCS_DAILY itself.
+PATH_IN_CCS_YEAR_OVERRIDES = Path("inputs/ccs_year_overrides.csv")
+DEFAULT_CCS_YEAR = 2023
 
 CRS_UTM = 26912
 FIPS_MAP = {3: "Box Elder", 11: "Davis", 35: "Salt Lake", 49: "Utah", 57: "Weber"}
@@ -214,18 +221,27 @@ def load_mod_tidy(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.Data
 def _build_merged_base(repo_root: Path) -> pd.DataFrame:
     """Daily CCS counts joined to matched-segment metadata (AADT2023,
     FTCLASS, ATYPENAME). Shared/not run-specific -- duplicated from
-    4-assignhwy.qmd's ccs-daily-prep cell (steps 1-2)."""
+    4-assignhwy.qmd's ccs-daily-prep cell (steps 1-2).
+
+    Which year's rows get used is per-station: DEFAULT_CCS_YEAR unless
+    PATH_IN_CCS_YEAR_OVERRIDES names a different year for that station (e.g.
+    -316 has no usable 2023 coverage, so it uses 2024 -- see
+    scripts/process_ccs_observed_counts.py for how 2024 rows were added to
+    PATH_IN_CCS_DAILY in the first place)."""
     df_bridge = _build_bridge(repo_root)
     seg_shp = _build_seg_shp(repo_root)
 
-    df_raw_daily = pd.read_csv(repo_root / PATH_IN_CCS_DAILY)
+    df_raw_daily = pd.read_csv(repo_root / PATH_IN_CCS_DAILY, dtype={"STATION": str})
     df_raw_daily["DATE_ONLY"] = pd.to_datetime(df_raw_daily["DATE_ONLY"])
 
-    df_2023 = df_raw_daily[df_raw_daily["DATE_ONLY"].dt.year == 2023].copy()
-    df_2023 = df_2023.rename(columns={"TOTAL_VOL": "DAILY_VOL", "STATION": "SITE"})
-    df_2023["SITE"] = df_2023["SITE"].astype(str)
+    year_overrides = pd.read_csv(repo_root / PATH_IN_CCS_YEAR_OVERRIDES, dtype={"SITE": str})
+    year_by_site = dict(zip(year_overrides["SITE"], year_overrides["YEAR"]))
+    target_year = df_raw_daily["STATION"].map(year_by_site).fillna(DEFAULT_CCS_YEAR).astype(int)
 
-    df_merged_base = df_2023.merge(
+    df_selected_year = df_raw_daily[df_raw_daily["DATE_ONLY"].dt.year == target_year].copy()
+    df_selected_year = df_selected_year.rename(columns={"TOTAL_VOL": "DAILY_VOL", "STATION": "SITE"})
+
+    df_merged_base = df_selected_year.merge(
         df_bridge[
             ["SITE", "MATCHED_SEGID", "COUNTY_NAME", "SITE_DESCRIPTION", "ROUTE_NAME", "MILEPOST"]
         ],
@@ -258,8 +274,8 @@ def load_ccs_daily(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.Dat
 
     df = df_merged[
         [
-            "SITE", "DATE_ONLY", "DAILY_VOL", "COUNTY_NAME", "FTCLASS", "ATYPENAME", "AADT2023",
-            "DY_Vol", "SITE_DESCRIPTION", "ROUTE_NAME", "MILEPOST",
+            "SITE", "SEGID", "DATE_ONLY", "DAILY_VOL", "COUNTY_NAME", "FTCLASS", "ATYPENAME",
+            "AADT2023", "DY_Vol", "SITE_DESCRIPTION", "ROUTE_NAME", "MILEPOST",
         ]
     ].copy()
     df.rename(columns={"AADT2023": "HPMS_AADT", "DY_Vol": "MODEL_VOL"}, inplace=True)
@@ -281,7 +297,19 @@ def load_ccs_daily(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.Dat
     df["ATYPENAME"] = df["ATYPENAME"].astype(str)
     df["SITE_DESCRIPTION"] = df["SITE_DESCRIPTION"].astype(str)
     df["ROUTE_NAME"] = df["ROUTE_NAME"].astype(str)
+    df["SEGID"] = df["SEGID"].astype(str)
     return df
+
+
+def load_sfac_cfac(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataFrame:
+    """Per-directional-link Speed Factor / Capacity Factor calibration
+    adjustments (plus join/context columns), for one calibration run. Reads
+    runs/{calib_run}/_Summary_filtered.csv directly -- the curated,
+    column-filtered CSV config/framework.yaml's outputs.include produces from
+    each scenario's 5_AssignHwy/2b_Shapefiles/_Summary.dbf (see
+    src/tdmcalib/outputs.py). Pure function of outputs_dir -- no
+    shared/reference data needed."""
+    return pd.read_csv(outputs_dir / "_Summary_filtered.csv", dtype={"SEGID": str})
 
 
 def load_seg_detail(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataFrame:

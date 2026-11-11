@@ -39,6 +39,7 @@ LOADERS = {
     "mod_distrib_hbw_sum": distribution.load_mod_distrib_hbw_sum,
     "mod_tidy": assignhwy.load_mod_tidy,
     "ccs_daily": assignhwy.load_ccs_daily,
+    "sfac_cfac": assignhwy.load_sfac_cfac,
     "seg_detail": assignhwy.load_seg_detail,
     "xx": assignhwy.load_xx,
 }

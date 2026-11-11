@@ -1,0 +1,42 @@
+#========================================================================================
+# config/parallel_corridors.yaml
+#
+# Groups of competing/parallel highway facilities for calibration comparison
+# -- e.g. a freeway and a nearby parallel arterial that split the same
+# travel demand, where SFAC/CFAC (see config/framework.yaml's
+# outputs.include and report/preprocess/assignhwy.py's load_sfac_cfac()) on
+# one or both facilities get tuned to balance modeled volume between them.
+#
+# A repo-wide setting (not per-calibration-run, unlike calibration_runs/*.yaml)
+# -- a corridor grouping is a property of the physical network, not of any
+# one model run. Consumed by report/4-assignhwy.qmd's Multi-Station
+# Comparison section (the "Parallel Corridor" filter).
+#
+# Each group's members are either:
+#   - site: <CCS station SITE id, e.g. "-316"> -- preferred when the
+#     facility has a station: its SEGID is resolved automatically (via the
+#     existing CCS-to-network match, report/4-assignhwy.qmd's df_bridge/
+#     report/preprocess/assignhwy.py's _build_bridge()) and it carries
+#     observed daily counts for the barbell chart's Target value.
+#   - segid: <bare network SEGID, e.g. "0068_036.0"> -- for a facility
+#     segment with no CCS station. No observed-count Target is possible for
+#     these, but SFAC/CFAC/modeled volume still show in a small supplementary
+#     table next to the chart.
+# Give a member exactly one of site/segid, not both.
+#
+# role (optional, purely descriptive, not used for any logic): e.g.
+# "primary" for the facility being protected/calibrated to, "alternate" for
+# the one it competes with.
+#========================================================================================
+
+corridors:
+  # EXAMPLE -- replace with real groupings (delete this entry once real
+  # corridors are added below). site/segid values here are illustrative,
+  # not necessarily real network identifiers.
+  - id: example-corridor
+    label: "Example: US-89 vs I-15"
+    members:
+      - site: "-316"
+        role: alternate
+      - segid: "0015_123.4"
+        role: primary

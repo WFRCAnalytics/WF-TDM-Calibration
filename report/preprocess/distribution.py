@@ -1,8 +1,12 @@
 """Trip Distribution & HBW Destination Choice stage preprocessing --
 extracted from report/2-distribution.qmd so the expensive per-run parsing
-(OMX skims/trip matrices, DBF household-disaggregation files) happens once
-per tdmcalib run/import, not on every `quarto render`. See
+(OMX skims/trip matrices, household-disaggregation files) happens once per
+tdmcalib run/import, not on every `quarto render`. See
 report/preprocess/build_cache.py and report/README.md.
+
+The household-disaggregation files are curated from Cube Voyager .dbf
+outputs, but curation always converts a .dbf to CSV (src/tdmcalib/outputs.py's
+_write_dbf_as_csv()), so they're read here as plain CSV, not via dbfread.
 
 Static/shared reference data (TAZ shapefile, HTS survey CSVs) isn't
 run-specific, so it's duplicated here rather than shared with the qmd file
@@ -17,7 +21,6 @@ import geopandas as gpd
 import numpy as np
 import openmatrix as omx
 import pandas as pd
-from dbfread import DBF
 
 TAZ_SHP = Path("data/4-assignhwy/taz/WFv1000_TAZ.shp")
 HTS_TRIPS_CSV = Path("inputs/UT_HTS_2023_Linked_Trips.csv")
@@ -305,8 +308,11 @@ def load_mod_distrib_hbw_sum(calib_run: str, outputs_dir: Path, repo_root: Path)
     run."""
     tazv10_wf = _load_taz(repo_root)[["TAZID", "DISTLRG"]]
 
+    # Curated from a Cube Voyager .dbf output, but curation always converts a
+    # .dbf to CSV (src/tdmcalib/outputs.py's _write_dbf_as_csv()) -- ".csv"
+    # below is the curated name, not the raw TDM output's own (.dbf) name.
     hhdisag_dfs = {
-        s: pd.DataFrame(DBF(outputs_dir / f"VO_HH{s}_IncLoHi_Worker_VehOwn.dbf", load=True))
+        s: pd.read_csv(outputs_dir / f"VO_HH{s}_IncLoHi_Worker_VehOwn.csv")
         for s in range(1, 7)
     }
 

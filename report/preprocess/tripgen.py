@@ -1,7 +1,13 @@
 """Trip Generation stage preprocessing -- extracted from report/1-tripgen.qmd
-so the expensive per-run parsing (pa_final.csv, SE_File.dbf) happens once
+so the expensive per-run parsing (pa_final.csv, SE_File.csv) happens once
 per tdmcalib run/import, not on every `quarto render`. See
-report/preprocess/build_cache.py and report/README.md."""
+report/preprocess/build_cache.py and report/README.md.
+
+SE_File is curated from a Cube Voyager .dbf output, but curation always
+converts a .dbf to CSV (src/tdmcalib/outputs.py's _write_dbf_as_csv()) --
+"SE_File.csv" below is that curated name, not the raw TDM output's own
+(.dbf) name. TAZ_DBF, below, is a different, static reference file (checked
+into report/data/, not a curated run output), so it's still read as .dbf."""
 
 from pathlib import Path
 
@@ -51,7 +57,7 @@ def load_modeled_tripgen(calib_run: str, outputs_dir: Path, repo_root: Path) -> 
     mod_pa_wide_df = pd.read_csv(outputs_dir / "pa_final.csv")
 
     # from tdm 0_InputProcessing output
-    mod_se_df = pd.DataFrame(DBF(outputs_dir / "SE_File.dbf", load=True))
+    mod_se_df = pd.read_csv(outputs_dir / "SE_File.csv")
     mod_se_df = mod_se_df[["Z", "TOTHH", "HHPOP"]].rename(columns={"Z": "TAZID"})
     mod_se_county_df = (
         mod_se_df.merge(taz_df[["TAZID", "CO_FIPS"]], on="TAZID")
@@ -108,7 +114,7 @@ def load_modeled_tripgen(calib_run: str, outputs_dir: Path, repo_root: Path) -> 
 def load_modeled_cvtripgen(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataFrame:
     """Daily commercial-vehicle trips (production end) by county and vehicle
     type (LT/MD/HV) -- both the raw total and a rate per job (TOTEMP, from
-    SE_File.dbf -- CV trip generation is employment-driven, unlike person
+    SE_File.csv -- CV trip generation is employment-driven, unlike person
     trip generation's household/population rates) -- plus a 'Region' total
     row (CO_FIPS left as None, same convention as load_modeled_tripgen), for
     one calibration run.
@@ -121,7 +127,7 @@ def load_modeled_cvtripgen(calib_run: str, outputs_dir: Path, repo_root: Path) -
     taz_df = pd.DataFrame(DBF(repo_root / "report" / TAZ_DBF, load=True))[["TAZID", "CO_FIPS"]]
     taz_ids = np.arange(1, 3630)
 
-    se_df = pd.DataFrame(DBF(outputs_dir / "SE_File.dbf", load=True))[["Z", "TOTEMP"]].rename(columns={"Z": "TAZID"})
+    se_df = pd.read_csv(outputs_dir / "SE_File.csv")[["Z", "TOTEMP"]].rename(columns={"Z": "TAZID"})
     emp_county_df = (
         se_df.merge(taz_df, on="TAZID")
         .groupby("CO_FIPS", as_index=False)

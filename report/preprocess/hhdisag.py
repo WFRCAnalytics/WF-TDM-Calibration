@@ -1,15 +1,19 @@
 """Household Disaggregation & Vehicle Ownership stage preprocessing --
 extracted from report/0-hhdisag-autoown.qmd so the expensive per-run
-parsing (Joint_HHSize_Income_Worker.dbf, VO_HHSize_VehOwn.dbf) happens once
+parsing (Joint_HHSize_Income_Worker.csv, VO_HHSize_VehOwn.csv) happens once
 per tdmcalib run/import, not on every `quarto render`. See
-report/preprocess/build_cache.py and report/README.md."""
+report/preprocess/build_cache.py and report/README.md.
+
+Both source files are curated from Cube Voyager .dbf outputs, but curation
+itself always converts a .dbf to CSV (src/tdmcalib/outputs.py's
+_write_dbf_as_csv()) -- the filenames below are the curated (.csv) names,
+not the raw TDM output's own (.dbf) names."""
 
 from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from dbfread import DBF
 
 TAZ_SHP = Path("data/4-assignhwy/taz/WFv1000_TAZ.shp")
 PROJECT_CRS = "EPSG:26912"
@@ -27,7 +31,7 @@ def load_hhdisag(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataF
     """Household counts by TAZ x household size x income x workers, for one
     calibration run. Pure function of outputs_dir -- no shared/reference
     data needed."""
-    hhdis_df = pd.DataFrame(DBF(outputs_dir / "Joint_HHSize_Income_Worker.dbf", load=True))
+    hhdis_df = pd.read_csv(outputs_dir / "Joint_HHSize_Income_Worker.csv")
 
     value_vars = [col for col in hhdis_df.columns if col.startswith("S") and col[1].isdigit()]
     id_vars = ["Z", "CO_FIPS"]
@@ -53,9 +57,7 @@ def load_vehown(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataFr
     taz_shp = gpd.read_file(repo_root / "report" / TAZ_SHP).to_crs(PROJECT_CRS)
     taz_shp["TAZID"] = taz_shp["TAZID"].astype(int)
 
-    df_mod_vehown = pd.DataFrame(
-        DBF(outputs_dir / "VO_HHSize_VehOwn.dbf", load=True, encoding="utf-8")
-    )
+    df_mod_vehown = pd.read_csv(outputs_dir / "VO_HHSize_VehOwn.csv")
     df_mod_vehown["Z"] = df_mod_vehown["Z"].astype(int)
 
     sv_cols = [col for col in df_mod_vehown.columns if col.startswith("S") and "V" in col]

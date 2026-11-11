@@ -88,7 +88,7 @@
                     "type": "array",
                     "items": { "type": "string" },
                     "minItems": 1,
-                    "description": "Column names (matched against the CSV's header row) to keep. The matched file is written as a column-filtered copy named '<stem>_filtered.csv' instead of a byte-for-byte copy. Omit to copy the matched file(s) byte-for-byte."
+                    "description": "Column names (matched against the CSV header row or .dbf field names) to keep. The matched file is written as a column-filtered copy named '<stem>_filtered.csv' instead of a byte-for-byte copy. Omit to copy the matched file(s) whole -- a .dbf source is still converted to a full '<stem>.csv' rather than copied as raw dBASE bytes; any other format is copied byte-for-byte."
                   }
                 }
               },

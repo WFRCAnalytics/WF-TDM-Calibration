@@ -26,13 +26,18 @@ outputs/ subfolder.
 Each outputs.include entry is one of three shapes (config/schemas/
 calibration_run.schema.json enforces exactly one): {"datafile": <glob
 pattern>, "columns": [...]}, "columns" optional, {"matrix": <glob pattern>,
-"tabs": [...]}, or {"network": <glob pattern>, "fields": [...]}. Declaring
+"tabs": [...]}, or {"network": <glob pattern>, "fields": [...]}. A
+"datafile" entry's source can be a CSV (header row) or a Cube Voyager .dbf
+(e.g. 5_AssignHwy/2b_Shapefiles/_Summary.dbf) -- either way, declaring
 "columns" means the matched file(s) should be column-filtered rather than
 copied whole -- e.g. Cube Voyager's "TAZ-Based Metrics.csv" summaries carry
 ~18 columns and run ~200 MB, comfortably over any reasonable size ceiling,
 when the handful of columns a report actually reads would be a fraction of
 that. For an entry like this, copy_selected() writes a column-filtered copy
-(named "<stem>_filtered.csv") instead of copying the file whole. A "matrix"
+(named "<stem>_filtered.csv") instead of copying the file whole. A plain
+(uncolumned) "datafile" entry over a .dbf source is likewise converted to a
+full CSV ("<stem>.csv") rather than copied as raw dBASE bytes -- every
+curated output should land in an openly-readable format. A "matrix"
 entry matches a Cube Voyager .mtx file and extracts only the named "tabs"
 tables via CONVERTMAT (matrix_utils.extract_matrix_tabs) -- for large
 multi-table matrices (skims, trip tables) where only one or two tables are
@@ -59,6 +64,8 @@ import fnmatch
 import hashlib
 import shutil
 from pathlib import Path
+
+from dbfread import DBF
 
 from tdmcalib import matrix_utils, network_utils
 from tdmcalib.exceptions import OutputCollectionError
@@ -102,7 +109,17 @@ def _dest_filename(entry: dict) -> str:
         fmt = entry.get("format") or "geojson"
         return f"{src_name.stem}.shp.zip" if fmt == "shp" else f"{src_name.stem}.{fmt}"
     if entry.get("columns"):
-        return f"{src_name.stem}_filtered{src_name.suffix}"
+        # Column-filtered output is always written as CSV (see
+        # _write_filtered_csv), regardless of the source format -- keeping the
+        # source's own suffix here (e.g. ".dbf") would mislabel the bytes
+        # actually written.
+        return f"{src_name.stem}_filtered.csv"
+    if src_name.suffix.lower() == ".dbf":
+        # A plain (uncolumned) datafile entry over a .dbf source is still
+        # converted to CSV on curation (see _write_dbf_as_csv) rather than
+        # copied as raw dBASE bytes -- every curated output should land in an
+        # openly-readable format.
+        return f"{src_name.stem}.csv"
     return src_name.name
 
 
@@ -225,8 +242,43 @@ def _manifest_entry(entry: dict, dst: Path, repo_root: Path, max_bytes: int, tab
     }
 
 
+def _write_rows_as_csv(dst: Path, fieldnames: list, rows) -> None:
+    with open(dst, "w", newline="") as fout:
+        writer = csv.DictWriter(fout, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+
+
+def _write_dbf_as_csv(src: Path, dst: Path) -> None:
+    """Converts a whole .dbf to CSV, every field, no column filtering -- used
+    for a plain datafile entry over a .dbf source with no declared "columns"
+    (see copy_selected()). Every curated output should land in an openly
+    readable format rather than raw dBASE bytes. Streamed (load=False) since
+    a Cube-produced .dbf can carry tens of thousands of rows and 200+ columns
+    (e.g. 5_AssignHwy/2b_Shapefiles/_Summary.dbf)."""
+    table = DBF(src, load=False)
+    _write_rows_as_csv(dst, table.field_names, table)
+
+
 def _write_filtered_csv(src: Path, dst: Path, columns: list):
-    with open(src, newline="") as fin, open(dst, "w", newline="") as fout:
+    """Writes a column-filtered CSV copy of src. src is either a CSV (read via
+    csv.DictReader) or a .dbf (read via dbfread, streamed as in
+    _write_dbf_as_csv) -- either way, rows are dicts keyed by field name, so
+    the rest of this function (column validation, writing) is
+    format-agnostic."""
+    if src.suffix.lower() == ".dbf":
+        table = DBF(src, load=False)
+        missing = [c for c in columns if c not in table.field_names]
+        if missing:
+            raise OutputCollectionError(
+                f"columns {missing} not found in {src.name} "
+                f"(available: {table.field_names})"
+            )
+        _write_rows_as_csv(dst, columns, table)
+        return
+
+    with open(src, newline="") as fin:
         reader = csv.DictReader(fin)
         missing = [c for c in columns if c not in (reader.fieldnames or [])]
         if missing:
@@ -234,10 +286,7 @@ def _write_filtered_csv(src: Path, dst: Path, columns: list):
                 f"columns {missing} not found in {src.name} "
                 f"(available: {reader.fieldnames})"
             )
-        writer = csv.DictWriter(fout, fieldnames=columns, extrasaction="ignore")
-        writer.writeheader()
-        for row in reader:
-            writer.writerow(row)
+        _write_rows_as_csv(dst, columns, reader)
 
 
 def copy_selected(
@@ -252,7 +301,10 @@ def copy_selected(
     its filename -- curated outputs don't preserve the model's internal
     folder structure. A datafile entry with a "columns" list (see select())
     is written as a column-filtered copy ("<stem>_filtered.csv") instead of
-    a byte-for-byte copy; a "matrix" entry is extracted via
+    a byte-for-byte copy; a plain (uncolumned) datafile entry over a .dbf
+    source is still converted to a full CSV ("<stem>.csv") rather than
+    copied as raw dBASE bytes (see _write_dbf_as_csv()); a "matrix" entry is
+    extracted via
     matrix_utils.extract_matrix_tabs() in its declared format (omx/mtx); a
     "network" entry is exported via network_utils.export_network_fields()
     in its declared format (geojson/shp/net) -- both matrix and network
@@ -316,6 +368,8 @@ def copy_selected(
             )
         elif entry.get("columns"):
             _write_filtered_csv(src, dst, entry["columns"])
+        elif src.suffix.lower() == ".dbf":
+            _write_dbf_as_csv(src, dst)
         else:
             shutil.copy2(src, dst)
 
