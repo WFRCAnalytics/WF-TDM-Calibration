@@ -30,13 +30,85 @@
 #========================================================================================
 
 corridors:
-  # EXAMPLE -- replace with real groupings (delete this entry once real
-  # corridors are added below). site/segid values here are illustrative,
-  # not necessarily real network identifiers.
-  - id: example-corridor
-    label: "Example: US-89 vs I-15"
+  - id: weber_south
+    label: "I-15, Washington Blvd, Harrison Blvd (Ogden)"
     members:
+      - site: "-348"
+      - site: "-329"
+      - segid: "0203_003.1"
+  - id: davis_central
+    label: "I-15 and Legacy Parkway (Centerville)"
+    members:
+      - site: "-625"
+      - site: "-315"
+  - id: davis_north
+    label: "I-15 and US-89 (Layton)"
+    members:
+      - site: "-612"
       - site: "-316"
-        role: alternate
-      - segid: "0015_123.4"
-        role: primary
+  - id: davis_so
+    label: "I-15 and Legacy Parkway (North Salt Lake)"
+    members:
+      - site: "-624"
+      - site: "-616"
+  - id: beck
+    label: "I-15 and Beck Street"
+    members:
+      - segid: "0015_310.2"
+      - segid: "0089_381.6"
+  - id: salt_lake_central
+    label: "MVC, Bangerter, I-215, I-15"
+    members:
+      - segid: "WFRC_8157"
+      - site: "-711"
+      - site: "-353"
+      - site: "-629"
+      - site: "-617"
+  - id: salt_lake_south
+    label: "I-15, Redwood Rd, MVC (Draper)"
+    members:
+      - site: "-635"
+      - site: "-407"
+      - site: "-633"
+  - id: lehi
+    label: "2100 N, Lehi Main, Pioneer Crossing (Lehi)"
+    members:
+      - site: "-648"
+      - segid: "2895_004.8"
+      - site: "-632"
+  - id: saratoga
+    label: "SR-73, Pony Express"
+    members:
+      - site: "-626"
+      - site: "-644"
+  - id: pleasant_grove
+    label: "I-15, State St (Pleasant Grove)"
+    members:
+      - site: "-670"
+      - site: "-647"
+  - id: orem
+    label: "I-15, State St (Orem)"
+    members:
+      - site: "-669"
+      - segid: "0089_338.0"
+  - id: provo_north
+    label: "I-15, 500 W, University Ave (Provo)"
+    members:
+      - site: "-306"
+      - segid: "0089_335.6"
+      - site: "-659"
+  - id: springville_north
+    label: "I-15, State St (Springville)"
+    members:
+      - site: "-667"
+      - site: "-660"
+  - id: springville_south
+    label: "I-15, State St (Springville)"
+    members:
+      - site: "-611"
+      - site: "-664"
+  - id: spanishfork
+    label: "I-15, Main St (Spanish Fork)"
+    members:
+      - site: "-655"
+      - site: "-653"

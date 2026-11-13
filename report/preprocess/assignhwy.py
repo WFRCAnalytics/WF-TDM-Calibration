@@ -307,9 +307,23 @@ def load_sfac_cfac(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.Dat
     runs/{calib_run}/_Summary_filtered.csv directly -- the curated,
     column-filtered CSV config/framework.yaml's outputs.include produces from
     each scenario's 5_AssignHwy/2b_Shapefiles/_Summary.dbf (see
-    src/tdmcalib/outputs.py). Pure function of outputs_dir -- no
-    shared/reference data needed."""
-    return pd.read_csv(outputs_dir / "_Summary_filtered.csv", dtype={"SEGID": str})
+    src/tdmcalib/outputs.py).
+
+    Also merges in each SEGID's already-reduced, one-row-per-SEGID DY_Vol
+    from *Summary_SEGID.csv (as SEG_DY_VOL) -- a SEGID in _Summary.dbf is
+    per directional *sub-link* (e.g. one row per cross-street along the
+    corridor), so summing its own DY_VOL across all rows sharing a SEGID
+    wildly overcounts (adds up volume along the corridor's length instead of
+    reading one representative value); Summary_SEGID.csv's "Both"-direction
+    DY_Vol is the correct total (the same source load_ccs_daily() uses for
+    station MODEL_VOL), so report/4-assignhwy.qmd's sfacCfacBySegid reads it
+    off here instead of re-deriving (and getting wrong) a volume of its own."""
+    df = pd.read_csv(outputs_dir / "_Summary_filtered.csv", dtype={"SEGID": str})
+
+    seg_summary = pd.read_csv(vs.find_one(outputs_dir, "*Summary_SEGID.csv"), dtype={"SEGID": str})
+    seg_vol = seg_summary.loc[seg_summary["DIRECTION"] == "Both", ["SEGID", "DY_Vol"]]
+    seg_vol = seg_vol.rename(columns={"DY_Vol": "SEG_DY_VOL"})
+    return df.merge(seg_vol, on="SEGID", how="left")
 
 
 def load_seg_detail(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataFrame:

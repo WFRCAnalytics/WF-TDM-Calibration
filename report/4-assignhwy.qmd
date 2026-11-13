@@ -1338,23 +1338,31 @@ function yearForSite(site) {
 // Parallel-corridor groupings (config/parallel_corridors.yaml) -- one row
 // per (corridor, member) in parallel_corridors_py, grouped here into
 // per-corridor member lists for the "Parallel Corridor" filter in the
-// Multi-Station Comparison section below. A member with no SITE (a bare
-// SEGID, no CCS station) can't join the station-based multi-select/barbell,
-// so it's kept separate (segidOnlyMembers) for that section's own
-// supplementary table instead.
+// Multi-Station Comparison section below. `members` keeps every member
+// (site- or segid-based) with its resolved SEGID, for the unified
+// Model Volume/SFAC/CFAC/Target table below; siteMembers stays separate
+// since that's what narrows the station multi-select/barbell to a bare
+// list of SITEs (a segid-only member can't join that station-based picker).
 parallelCorridors = Array.from(
   d3.group(transpose(parallel_corridors_py), d => d.corridor_id),
   ([id, rows]) => ({
     id,
     label: rows[0].corridor_label,
-    siteMembers: rows.filter(d => d.SITE).map(d => d.SITE),
-    segidOnlyMembers: rows.filter(d => !d.SITE && d.SEGID).map(d => d.SEGID)
+    members: rows.map(d => ({ SITE: d.SITE || null, SEGID: d.SEGID, role: d.role })),
+    siteMembers: rows.filter(d => d.SITE).map(d => d.SITE)
   })
 )
 
 // Per-SEGID aggregate of the curated SFAC/CFAC link table (sfac_cfac_py is
-// per directional A-B link -- a SEGID can have several, so this collapses
-// to one row per SEGID) -- backs the segid-only-members supplementary table.
+// per directional A-B *sub-link* -- a SEGID can span several of these in
+// series along a corridor, e.g. one per cross-street -- so this collapses
+// to one row per SEGID) -- backs the parallel-corridor member table. SFAC/
+// CFAC are genuinely per-link calibration knobs, so averaging them across a
+// SEGID's sub-links is fine; volume is NOT averaged/summed from these rows
+// (summing would add up volume along the corridor's length, not read one
+// representative value) -- SEG_DY_VOL is instead the already-correct,
+// one-row-per-SEGID total merged in server-side (see
+// report/preprocess/assignhwy.py's load_sfac_cfac()).
 sfacCfacBySegid = {
   const rows = transpose(sfac_cfac_py).filter(d => d.SEGID && d.SEGID !== "nan");
   const bySegid = d3.group(rows, d => d.SEGID);
@@ -1364,7 +1372,7 @@ sfacCfacBySegid = {
     FTCLASS: links[0].FTCLASS,
     SFAC: d3.mean(links, d => d.SFAC),
     CFAC: d3.mean(links, d => d.CFAC),
-    DY_VOL: d3.sum(links, d => d.DY_VOL)
+    DY_VOL: +links[0].SEG_DY_VOL
   }]));
 }
 ```
@@ -1771,8 +1779,8 @@ viewof multiFilterCorridor = Inputs.select(
   { label: "Parallel Corridor:", value: "All" }
 )
 
-// The selected corridor's own record (for siteMembers/segidOnlyMembers
-// below), or null when "All" is selected.
+// The selected corridor's own record (for siteMembers/members below), or
+// null when "All" is selected.
 selectedCorridorInfo = multiFilterCorridor === "All"
   ? null
   : parallelCorridors.find(c => c.id === multiFilterCorridor)
@@ -1957,27 +1965,41 @@ viewof selectedStationsMulti = {
 ```
 
 ```{ojs}
-//| label: multi-station-corridor-segids
+//| label: multi-station-corridor-table
 //| echo: false
 
-// A selected corridor's segid-only members (no CCS station, so they can't
-// appear in the barbell/map above) -- surfaced here instead, straight from
-// the curated SFAC/CFAC table (sfacCfacBySegid), since that's the only
-// data a bare SEGID has.
-selectedCorridorInfo && selectedCorridorInfo.segidOnlyMembers.length > 0
+// Unified per-member view of the selected corridor: every member (whether
+// it's a CCS station or a bare SEGID with no station) gets a row with its
+// Modeled Volume and SFAC/CFAC -- all three sourced from the curated
+// link-level SFAC/CFAC table (sfacCfacBySegid) so every row reads off the
+// same underlying segment summary. Target only exists for members backed by
+// a CCS station (stationSummaryAll), so it's "--" for a bare SEGID.
+selectedCorridorInfo
   ? (() => {
-      const rows = selectedCorridorInfo.segidOnlyMembers
-        .map(segid => sfacCfacBySegid.get(segid))
-        .filter(Boolean);
+      const rows = selectedCorridorInfo.members.map(m => {
+        const segRow = m.SEGID ? sfacCfacBySegid.get(m.SEGID) : null;
+        const siteRow = m.SITE ? stationSummaryAll.find(d => d.SITE === m.SITE) : null;
+        return {
+          Member: m.SITE ?? m.SEGID,
+          Role: m.role ?? "",
+          STREET: segRow?.STREET ?? "",
+          FTCLASS: segRow?.FTCLASS ?? siteRow?.FTCLASS ?? "",
+          ModelVolume: segRow?.DY_VOL ?? siteRow?.MODEL_VOL ?? null,
+          SFAC: segRow?.SFAC ?? null,
+          CFAC: segRow?.CFAC ?? null,
+          Target: m.SITE ? siteRow?.TargetVol ?? null : null
+        };
+      });
       return html`<div style="margin-top:8px;">
-        <div style="font-size:12px; font-weight:600; margin-bottom:4px;">Also in "${selectedCorridorInfo.label}" (no CCS station):</div>
+        <div style="font-size:12px; font-weight:600; margin-bottom:4px;">"${selectedCorridorInfo.label}" members:</div>
         ${Inputs.table(rows, {
-          columns: ["SEGID", "STREET", "FTCLASS", "SFAC", "CFAC", "DY_VOL"],
-          header: { DY_VOL: "Modeled Daily Volume" },
+          columns: ["Member", "Role", "STREET", "FTCLASS", "ModelVolume", "SFAC", "CFAC", "Target"],
+          header: { ModelVolume: "Modeled Volume", Target: "Target (CCS)" },
           format: {
-            SFAC: d => d.toFixed(2),
-            CFAC: d => d.toFixed(2),
-            DY_VOL: d => Math.round(d).toLocaleString()
+            ModelVolume: d => d != null ? Math.round(d).toLocaleString() : "—",
+            SFAC: d => d != null ? d.toFixed(2) : "—",
+            CFAC: d => d != null ? d.toFixed(2) : "—",
+            Target: d => d != null ? Math.round(d).toLocaleString() : "—"
           },
           layout: "auto"
         })}
