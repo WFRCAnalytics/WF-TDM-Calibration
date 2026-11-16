@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "calib_run_id": "C72",
+  "run_id": "20261116-172637-7b4c",
+  "status": "failed",
+  "execution_mode": "cli",
+  "started_at": "2026-11-16T17:26:37.497292+00:00",
+  "finished_at": "2026-11-16T17:27:22.372157+00:00",
+  "framework_commit": "239884df89587fb1ffcd4eadaf9df6f42f1a27cc",
+  "tdm": {
+    "requested_ref": "calib/C72",
+    "resolved_commit": "a9190bffa107adddb64ea4eb457ee12ba89bbc26",
+    "resolved_tag": "calib/C72",
+    "branch": null,
+    "detached_head": true,
+    "dirty": false
+  },
+  "control_center": {
+    "baseline_file": "_ControlCenter - Base_2023.block",
+    "overrides": {
+      "UserName": "Bill Hereth",
+      "UserCompany": "WFRC",
+      "runId": "_",
+      "Run_vizTool": 1
+    },
+    "rendered_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C72\\_ControlCenter.block",
+    "driver_script": "Scenarios/_default/__HailMary_resumable.s",
+    "start_at_label": "STEP0",
+    "start_at_override": false
+  },
+  "scenario_folder": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C72",
+  "execution": {
+    "command": [
+      "cmd.exe",
+      "/c",
+      "M:\\GitHub\\WF-TDM-Calibration\\bin\\RunModel.bat",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C72\\_ControlCenter.block",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C72"
+    ],
+    "exit_code": 2,
+    "log_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C72\\logs\\orchestrator_invocation.log",
+    "status_source": "exit_code"
+  },
+  "outputs": {
+    "inventory_count": 23,
+    "inventory_total_bytes": 1387197,
+    "curated": []
+  },
+  "error": "No resolved model completion report in M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C72\\_Log\\_RunTime.txt (see M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C72\\logs\\orchestrator_invocation.log). Voyager exit code: 2.\n\nVoyager errors (TPPL0001.PRN):\nF(614): Can't find file or file conversion error: M:\\GitHub\\WF-TDM-Calibration\\tdm\\1_Inputs\\3_Highway\\WFv1000_MasterNet_20260430.net\nF(614): OS reports: The system cannot find the file specified.\nF(641): Step 368, RUN MATRIX can not be run while ONRUNERRORGOTO processing.",
+  "general_parameters": {
+    "overrides": {
+      "CALIB_MC": 0
+    }
+  }
+}

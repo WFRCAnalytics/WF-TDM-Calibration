@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "calib_run_id": "C72",
+  "run_id": "20261116-173643-5326",
+  "status": "running",
+  "execution_mode": "cli",
+  "started_at": "2026-11-16T17:36:43.361173+00:00",
+  "finished_at": null,
+  "framework_commit": "239884df89587fb1ffcd4eadaf9df6f42f1a27cc",
+  "tdm": {
+    "requested_ref": "calib/C72",
+    "resolved_commit": "a9190bffa107adddb64ea4eb457ee12ba89bbc26",
+    "resolved_tag": "calib/C72",
+    "branch": null,
+    "detached_head": true,
+    "dirty": false
+  },
+  "control_center": {
+    "baseline_file": "_ControlCenter - Base_2023.block",
+    "overrides": {
+      "UserName": "Bill Hereth",
+      "UserCompany": "WFRC",
+      "runId": "_",
+      "Run_vizTool": 1,
+      "MasterPrefix": "WFv1000_MasterNet_20260430_sfac_cfac"
+    },
+    "rendered_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C72\\_ControlCenter.block",
+    "driver_script": "Scenarios/_default/__HailMary_resumable.s",
+    "start_at_label": "STEP0",
+    "start_at_override": false
+  },
+  "scenario_folder": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C72",
+  "execution": {
+    "command": [
+      "cmd.exe",
+      "/c",
+      "M:\\GitHub\\WF-TDM-Calibration\\bin\\RunModel.bat",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C72\\_ControlCenter.block",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C72"
+    ],
+    "log_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C72\\logs\\orchestrator_invocation.log"
+  },
+  "outputs": {
+    "inventory_count": null,
+    "inventory_total_bytes": null,
+    "curated": []
+  },
+  "error": null,
+  "general_parameters": {
+    "overrides": {
+      "CALIB_MC": 0
+    }
+  }
+}
