@@ -134,6 +134,26 @@ def load_cached_per_run(repo_root: Path, name: str):
     return pd.concat(frames, ignore_index=True)
 
 
+def load_cached_global(repo_root: Path, name: str):
+    """Like load_cached_per_run(), but for a calib_run-INdependent cache
+    built once (runs/_global/cache/{name}.parquet, written by
+    report/preprocess/build_cache.py's build_global()) and shared by every
+    calibration run's report, rather than frozen into one run's own
+    per-run cache -- see report/preprocess/assignhwy.py's load_ccs_base()
+    for why this split exists (adding/fixing a CCS station takes effect
+    for every run immediately, without rebuilding every run's cache).
+    No 'calib_run' column/tagging, since the result isn't per-run."""
+    import pandas as pd
+
+    cache_path = repo_root / "runs" / "_global" / "cache" / f"{name}.parquet"
+    if not cache_path.is_file():
+        raise FileNotFoundError(
+            f"No global cached '{name}' dataset found at {cache_path}. Run "
+            f"`python -m report.preprocess.build_cache --run <id>` (from the repo root) first."
+        )
+    return pd.read_parquet(cache_path)
+
+
 def plot_volume_diff(dfFiltered, varVehType, segShp):
     # Local imports: contextily/matplotlib are report-render-only
     # dependencies (the "reports" Jupyter kernel, not tdmcalib's own dev

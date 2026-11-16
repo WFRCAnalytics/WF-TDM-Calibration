@@ -1235,14 +1235,19 @@ The interactive chart below displays the 2023 daily traffic volume trend for a s
 # | message: false
 # | warning: false
 
-# See report/preprocess/assignhwy.py.
-df_final_export = vs.load_cached_per_run(repo_root, "ccs_daily")
+# See report/preprocess/assignhwy.py. Split into a calib_run-independent
+# global dataset (station roster/observed counts/site metadata -- shared by
+# every run, so fixing/adding a station takes effect everywhere right away)
+# and a per-run one (just modeled DY volume by SEGID); the OJS
+# ccs-data-global cell below joins them back together client-side.
+ccs_base_export = vs.load_cached_global(repo_root, "ccs_base")
+ccs_model_vol_export = vs.load_cached_per_run(repo_root, "ccs_model_vol")
 
 # Station point geometry for every SITE present in the daily-volume dataset
 # above (siteInfo's universe in the OJS Multi-Station Comparison section
 # below) -- independent of df_final's valid_segids subset the Volume
 # Validation dashboard's own station map (ccs-export-geojson, above) uses.
-daily_site_ids = set(df_final_export["SITE"].astype(str))
+daily_site_ids = set(ccs_base_export["SITE"].astype(str))
 gdf_daily_stations = gdf_ccs_locations[gdf_ccs_locations["SITE"].isin(daily_site_ids)][
     ["SITE", "geometry"]
 ].to_crs("EPSG:4326")
@@ -1282,7 +1287,7 @@ parallel_corridors_export = pd.DataFrame(
 # Per-station year override (e.g. -316 has no usable 2023 coverage, so it
 # uses 2024 instead -- see report/preprocess/assignhwy.py's
 # _build_merged_base(), which already applies this same file server-side to
-# pick which year's rows go into df_final_export above). Exported as-is so
+# pick which year's rows go into ccs_base_export above). Exported as-is so
 # the OJS charts below can explicitly key their own year-dependent logic
 # (the x-axis domain, the Sept 1 - Nov 15 calibration window) off the same
 # override, rather than inferring it from whichever year's data happens to
@@ -1296,7 +1301,8 @@ ccs_year_overrides_export = pd.read_csv(
 CCS_DEFAULT_YEAR = 2023
 
 ojs_define(
-    ccs_daily_data=df_final_export,
+    ccs_base_py=ccs_base_export,
+    ccs_model_vol_py=ccs_model_vol_export,
     daily_stations_py=daily_stations_export,
     sfac_cfac_py=sfac_cfac_export,
     ccs_year_overrides_py=ccs_year_overrides_export,
@@ -1311,10 +1317,33 @@ ojs_define(
 
 // Define daily_data globally so the Input Panel above can see it. Reuses
 // globalCalibRun (the shared header selector, _calib_run_selector.qmd)
-// so one control governs the whole site.
-daily_data = transpose(ccs_daily_data)
-  .filter(d => d.calib_run === globalCalibRun)
-  .map(d => ({...d, Date: new Date(d.DATE_STR) }))
+// so one control governs the whole site. ccs_base_py (station roster,
+// observed counts, site metadata) is calib_run-independent -- see
+// report/preprocess/assignhwy.py's load_ccs_base() -- so every row from it
+// is kept; MODEL_VOL/FTCLASS/ATYPENAME come from the per-run
+// ccs_model_vol_py instead (see that function's docstring for why these
+// three specifically are run-specific), joined in here by SEGID for
+// whichever run is selected. A SEGID with no row for that run (e.g. just
+// outside its core-county reporting area) has no match here, i.e.
+// HAS_MODEL_DATA = false.
+daily_data = {
+  const modelBySegid = new Map(
+    transpose(ccs_model_vol_py)
+      .filter(d => d.calib_run === globalCalibRun)
+      .map(d => [d.SEGID, d])
+  );
+  return transpose(ccs_base_py).map(d => {
+    const model = modelBySegid.get(d.SEGID);
+    return {
+      ...d,
+      Date: new Date(d.DATE_STR),
+      MODEL_VOL: model ? +model.MODEL_VOL : 0,
+      FTCLASS: model ? model.FTCLASS : "0",
+      ATYPENAME: model ? model.ATYPENAME : "0",
+      HAS_MODEL_DATA: model !== undefined
+    };
+  });
+}
 
 // One row of static site metadata (description/route/milepost/county) per
 // SITE, keyed for lookup by the "3. Select Station" widget below -- these
@@ -1356,22 +1385,43 @@ parallelCorridors = Array.from(
 // Per-SEGID aggregate of the curated SFAC/CFAC link table (sfac_cfac_py is
 // per directional A-B *sub-link* -- a SEGID can span several of these in
 // series along a corridor, e.g. one per cross-street -- so this collapses
-// to one row per SEGID) -- backs the parallel-corridor member table. SFAC/
-// CFAC are genuinely per-link calibration knobs, so averaging them across a
-// SEGID's sub-links is fine; volume is NOT averaged/summed from these rows
-// (summing would add up volume along the corridor's length, not read one
-// representative value) -- SEG_DY_VOL is instead the already-correct,
-// one-row-per-SEGID total merged in server-side (see
-// report/preprocess/assignhwy.py's load_sfac_cfac()).
+// to one row per SEGID) -- backs the parallel-corridor member table.
+//
+// 0.0 is this network's "no override" SENTINEL for SFAC/CFAC, meaning the
+// model used the unadjusted value -- i.e. effectively a multiplier of 1,
+// NOT a real 0. A SEGID can lump the actual calibrated mainline in with
+// uncalibrated frontage-road/local sub-links (sentinel 0, far lower
+// volume) -- any kind of mean across all of them (flat, or even
+// volume-weighted) still blends an unrelated facility's "no override" in
+// with the real one. Instead, take the MODE of the SEGID's non-zero
+// values: a calibrator applies one override value across however many
+// links make up the facility being tuned, so the most-repeated non-zero
+// value IS that override -- e.g. SEGID 0089_402.2 (station -316) has 6
+// links at SFAC=0.82 (the real override) and ~25 at the 0 sentinel; the
+// mode of non-zero values is unambiguously 0.82. A SEGID with no override
+// anywhere (every link at the sentinel) reports 1, per the sentinel's true
+// meaning.
+//
+// Volume is NOT averaged/summed from these rows (summing would add up
+// volume along the corridor's length, not read one representative value)
+// -- SEG_DY_VOL is instead the already-correct, one-row-per-SEGID total
+// merged in server-side (see report/preprocess/assignhwy.py's
+// load_sfac_cfac()).
 sfacCfacBySegid = {
   const rows = transpose(sfac_cfac_py).filter(d => d.SEGID && d.SEGID !== "nan");
   const bySegid = d3.group(rows, d => d.SEGID);
+  const modeNonZero = (links, field) => {
+    const nonZero = links.map(d => +d[field]).filter(v => v !== 0);
+    if (nonZero.length === 0) return 1;
+    const counts = d3.rollup(nonZero, v => v.length, v => v);
+    return Array.from(counts).sort((a, b) => b[1] - a[1])[0][0];
+  };
   return new Map(Array.from(bySegid, ([segid, links]) => [segid, {
     SEGID: segid,
     STREET: links[0].STREET,
     FTCLASS: links[0].FTCLASS,
-    SFAC: d3.mean(links, d => d.SFAC),
-    CFAC: d3.mean(links, d => d.CFAC),
+    SFAC: modeNonZero(links, "SFAC"),
+    CFAC: modeNonZero(links, "CFAC"),
     DY_VOL: +links[0].SEG_DY_VOL
   }]));
 }

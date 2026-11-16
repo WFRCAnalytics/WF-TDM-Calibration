@@ -254,11 +254,56 @@ def _build_merged_base(repo_root: Path) -> pd.DataFrame:
     return df_merged_base
 
 
-def load_ccs_daily(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataFrame:
-    """Daily CCS volume vs. modeled DY volume, by station, for one
-    calibration run."""
+def load_ccs_base(repo_root: Path) -> pd.DataFrame:
+    """Daily CCS volume by station -- the calib_run-INdependent side of the
+    Highway Assignment report's station comparison (station roster,
+    observed daily counts, HPMS AADT, site metadata). Built once
+    (report/preprocess/build_cache.py's build_global(), not per-run) and
+    shared by every calibration run's chart -- previously this was baked
+    into each run's own per-run cache alongside MODEL_VOL (see
+    load_ccs_model_vol() below for that genuinely run-specific piece), which
+    meant adding/fixing a station (SiteData_supplement.csv,
+    ccs_year_overrides.csv, CCS_Observed_Counts_Raw.csv) only took effect
+    for whichever run's cache got rebuilt next, leaving every other run
+    stuck on a stale snapshot of the shared station data until someone
+    remembered to rebuild its cache too.
+
+    FTCLASS/ATYPENAME are NOT here, even though they read as static network
+    attributes -- the segment shapefile (seg_shp/_build_seg_shp()) has
+    neither field, so the only place they're actually available is each
+    run's own Summary_SEGID.csv output. They stay in load_ccs_model_vol()
+    below, genuinely tagged per-run (a network recode could in principle
+    give the same SEGID a different FTCLASS/ATYPENAME between runs)."""
     df_merged_base = _build_merged_base(repo_root)
 
+    df = df_merged_base[
+        [
+            "SITE", "SEGID", "DATE_ONLY", "DAILY_VOL", "COUNTY_NAME",
+            "AADT2023", "SITE_DESCRIPTION", "ROUTE_NAME", "MILEPOST",
+        ]
+    ].copy()
+    df.rename(columns={"AADT2023": "HPMS_AADT"}, inplace=True)
+    df["DATE_STR"] = df["DATE_ONLY"].dt.strftime("%Y-%m-%d")
+    df = df.fillna(0)
+    # SITE_DESCRIPTION/ROUTE_NAME are categorical strings, but an unmatched
+    # row gets the same blanket fillna(0) as the numeric columns above --
+    # cast to str so each column stays a single dtype (mixed str/int object
+    # columns aren't parquet-writable).
+    df["SITE_DESCRIPTION"] = df["SITE_DESCRIPTION"].astype(str)
+    df["ROUTE_NAME"] = df["ROUTE_NAME"].astype(str)
+    df["SEGID"] = df["SEGID"].astype(str)
+    return df
+
+
+def load_ccs_model_vol(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataFrame:
+    """Modeled DY volume, FTCLASS, and ATYPENAME by SEGID, for one
+    calibration run -- the run-specific piece of the CCS daily-volume
+    comparison (see load_ccs_base() above for the shared/global station
+    side, and its docstring for why FTCLASS/ATYPENAME live here instead of
+    there). report/4-assignhwy.qmd's daily_data joins this in client-side
+    by SEGID for whichever calib_run is selected; a SEGID with no row here
+    has no model output for that run (HAS_MODEL_DATA = false there), same
+    as a missing match used to fillna(0) to here."""
     mod_df_wide = pd.read_csv(vs.find_one(outputs_dir, "*Summary_SEGID.csv"))
     if "DY_Vol" not in mod_df_wide.columns:
         mod_df_wide["DY_Vol"] = (
@@ -267,37 +312,11 @@ def load_ccs_daily(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.Dat
             + mod_df_wide["DY_Vol_MD"]
             + mod_df_wide["DY_Vol_HV"]
         )
-
-    df_merged = df_merged_base.merge(
-        mod_df_wide[["SEGID", "DY_Vol", "FTCLASS", "ATYPENAME"]], on="SEGID", how="left"
-    )
-
-    df = df_merged[
-        [
-            "SITE", "SEGID", "DATE_ONLY", "DAILY_VOL", "COUNTY_NAME", "FTCLASS", "ATYPENAME",
-            "AADT2023", "DY_Vol", "SITE_DESCRIPTION", "ROUTE_NAME", "MILEPOST",
-        ]
-    ].copy()
-    df.rename(columns={"AADT2023": "HPMS_AADT", "DY_Vol": "MODEL_VOL"}, inplace=True)
-    df["DATE_STR"] = df["DATE_ONLY"].dt.strftime("%Y-%m-%d")
-    # Record whether this station's matched segment actually has model
-    # output *before* the blanket fillna(0) below turns a genuinely missing
-    # MODEL_VOL into a real-looking 0 -- e.g. a station just outside the
-    # model's core-county reporting area (see report/4-assignhwy.qmd's
-    # ccs-daily-viz chart, which uses this to skip the Modeled Volume line
-    # rather than show a misleading "model predicts zero").
-    df["HAS_MODEL_DATA"] = df["MODEL_VOL"].notna()
-    df = df.fillna(0)
-    # FTCLASS/ATYPENAME/SITE_DESCRIPTION/ROUTE_NAME are categorical strings, but
-    # unmatched rows get the same blanket fillna(0) as the numeric columns above
-    # (matching 4-assignhwy.qmd's own .fillna(0) exactly) -- cast to str so each
-    # column stays a single dtype (mixed str/int object columns aren't
-    # parquet-writable, unlike the in-memory-only pre-cache version).
+    df = mod_df_wide[["SEGID", "DY_Vol", "FTCLASS", "ATYPENAME"]].copy()
+    df["SEGID"] = df["SEGID"].astype(str)
     df["FTCLASS"] = df["FTCLASS"].astype(str)
     df["ATYPENAME"] = df["ATYPENAME"].astype(str)
-    df["SITE_DESCRIPTION"] = df["SITE_DESCRIPTION"].astype(str)
-    df["ROUTE_NAME"] = df["ROUTE_NAME"].astype(str)
-    df["SEGID"] = df["SEGID"].astype(str)
+    df.rename(columns={"DY_Vol": "MODEL_VOL"}, inplace=True)
     return df
 
 
@@ -315,8 +334,8 @@ def load_sfac_cfac(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.Dat
     corridor), so summing its own DY_VOL across all rows sharing a SEGID
     wildly overcounts (adds up volume along the corridor's length instead of
     reading one representative value); Summary_SEGID.csv's "Both"-direction
-    DY_Vol is the correct total (the same source load_ccs_daily() uses for
-    station MODEL_VOL), so report/4-assignhwy.qmd's sfacCfacBySegid reads it
+    DY_Vol is the correct total (the same source load_ccs_model_vol() uses
+    for station MODEL_VOL), so report/4-assignhwy.qmd's sfacCfacBySegid reads it
     off here instead of re-deriving (and getting wrong) a volume of its own."""
     df = pd.read_csv(outputs_dir / "_Summary_filtered.csv", dtype={"SEGID": str})
 

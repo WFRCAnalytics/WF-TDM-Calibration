@@ -38,26 +38,56 @@ LOADERS = {
     "mod_dist_hbw_sum": distribution.load_mod_dist_hbw_sum,
     "mod_distrib_hbw_sum": distribution.load_mod_distrib_hbw_sum,
     "mod_tidy": assignhwy.load_mod_tidy,
-    "ccs_daily": assignhwy.load_ccs_daily,
+    "ccs_model_vol": assignhwy.load_ccs_model_vol,
     "sfac_cfac": assignhwy.load_sfac_cfac,
     "seg_detail": assignhwy.load_seg_detail,
     "xx": assignhwy.load_xx,
 }
 
+# name -> loader(repo_root) -> DataFrame. Calib_run-INdependent -- built once
+# per build_global() call (below), not per run, and shared by every
+# calibration run's report instead of frozen into one run's own cache (see
+# report/preprocess/assignhwy.py's load_ccs_base()).
+GLOBAL_LOADERS = {
+    "ccs_base": assignhwy.load_ccs_base,
+}
+
 
 def build(repo_root: Path, calib_run_id: str) -> dict:
-    """Builds every registered cache dataset for one calibration run.
-    Returns {name: "ok" or an error string} -- never raises for an
-    individual dataset's failure, so one bad/changed dataset doesn't stop
-    the others from building."""
+    """Builds every registered cache dataset for one calibration run, plus
+    the shared/global datasets (build_global()) -- rebuilding the global
+    side on every call, regardless of which run was asked for, is what lets
+    editing a shared input (e.g. CCS station data) take effect everywhere
+    without rebuilding every other run's own cache. Returns {name: "ok" or
+    an error string} -- never raises for an individual dataset's failure,
+    so one bad/changed dataset doesn't stop the others from building."""
     outputs_dir = vs.resolve_latest_run_outputs(repo_root, calib_run_id)
     cache_dir = repo_root / "runs" / calib_run_id / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    results = {}
+    results = build_global(repo_root)
     for name, load_fn in LOADERS.items():
         try:
             df = load_fn(calib_run_id, outputs_dir, repo_root)
+            df.to_parquet(cache_dir / f"{name}.parquet", index=False)
+            results[name] = "ok"
+        except Exception as e:  # noqa: BLE001 -- one dataset's failure shouldn't stop the rest
+            results[name] = f"failed: {e}"
+    return results
+
+
+def build_global(repo_root: Path) -> dict:
+    """Builds every registered calib_run-independent cache dataset
+    (GLOBAL_LOADERS) once, shared by every calibration run's report. See
+    build()'s docstring for why this runs on every build() call rather than
+    needing its own separate trigger."""
+    cache_dir = repo_root / "runs" / "_global" / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    results = {}
+    for name, load_fn in GLOBAL_LOADERS.items():
+        try:
+            df = load_fn(repo_root)
             df.to_parquet(cache_dir / f"{name}.parquet", index=False)
             results[name] = "ok"
         except Exception as e:  # noqa: BLE001 -- one dataset's failure shouldn't stop the rest
