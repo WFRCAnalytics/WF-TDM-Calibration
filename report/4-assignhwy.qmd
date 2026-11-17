@@ -1244,7 +1244,7 @@ ccs_base_export = vs.load_cached_global(repo_root, "ccs_base")
 ccs_model_vol_export = vs.load_cached_per_run(repo_root, "ccs_model_vol")
 
 # Station point geometry for every SITE present in the daily-volume dataset
-# above (siteInfo's universe in the OJS Multi-Station Comparison section
+# above (siteInfo's universe in the OJS Parallel Corridor Calibration section
 # below) -- independent of df_final's valid_segids subset the Volume
 # Validation dashboard's own station map (ccs-export-geojson, above) uses.
 daily_site_ids = set(ccs_base_export["SITE"].astype(str))
@@ -1284,6 +1284,17 @@ parallel_corridors_export = pd.DataFrame(
     _corridor_rows, columns=["corridor_id", "corridor_label", "SITE", "SEGID", "role"]
 )
 
+# Line geometry for every SEGID a parallel-corridor member resolves to
+# (site-based members included, via site_to_segid above) -- backs the
+# Parallel Corridor Calibration section's Station & Segment Locations map, so a
+# bare-segid member (no station, e.g. the "beck" corridor's two segments)
+# still shows up there instead of being invisible.
+_corridor_segids = sorted({r["SEGID"] for r in _corridor_rows if r["SEGID"]})
+gdf_corridor_segments = gdf_network_clean[gdf_network_clean["SEGID"].isin(_corridor_segids)][
+    ["SEGID", "geometry"]
+].to_crs("EPSG:4326")
+corridor_segments_export = gdf_corridor_segments.__geo_interface__
+
 # Per-station year override (e.g. -316 has no usable 2023 coverage, so it
 # uses 2024 instead -- see report/preprocess/assignhwy.py's
 # _build_merged_base(), which already applies this same file server-side to
@@ -1308,6 +1319,7 @@ ojs_define(
     ccs_year_overrides_py=ccs_year_overrides_export,
     ccs_default_year_py=CCS_DEFAULT_YEAR,
     parallel_corridors_py=parallel_corridors_export,
+    corridor_segments_py=corridor_segments_export,
 )
 ```
 
@@ -1351,8 +1363,13 @@ daily_data = {
 siteInfo = new Map(daily_data.map(d => [d.SITE, d]))
 
 // Point geometry for the same station universe as siteInfo/daily_data (see
-// daily_stations_py, above) -- backs the Multi-Station Comparison map below.
+// daily_stations_py, above) -- backs the Parallel Corridor Calibration map below.
 daily_stations_geo = daily_stations_py
+
+// Line geometry for parallel-corridor members (see corridor_segments_py,
+// above) -- lets the Station Locations map below draw a bare-segid
+// member's facility even though it has no station point of its own.
+corridor_segments_geo = corridor_segments_py
 
 // Per-station year override (see ccs_year_overrides_py, above) -- the
 // single source of truth both charts below use for their year-dependent
@@ -1367,7 +1384,7 @@ function yearForSite(site) {
 // Parallel-corridor groupings (config/parallel_corridors.yaml) -- one row
 // per (corridor, member) in parallel_corridors_py, grouped here into
 // per-corridor member lists for the "Parallel Corridor" filter in the
-// Multi-Station Comparison section below. `members` keeps every member
+// Parallel Corridor Calibration section below. `members` keeps every member
 // (site- or segid-based) with its resolved SEGID, for the unified
 // Model Volume/SFAC/CFAC/Target table below; siteMembers stays separate
 // since that's what narrows the station multi-select/barbell to a bare
@@ -1408,7 +1425,9 @@ parallelCorridors = Array.from(
 // merged in server-side (see report/preprocess/assignhwy.py's
 // load_sfac_cfac()).
 sfacCfacBySegid = {
-  const rows = transpose(sfac_cfac_py).filter(d => d.SEGID && d.SEGID !== "nan");
+  const rows = transpose(sfac_cfac_py).filter(
+    d => d.SEGID && d.SEGID !== "nan" && d.calib_run === globalCalibRun
+  );
   const bySegid = d3.group(rows, d => d.SEGID);
   const modeNonZero = (links, field) => {
     const nonZero = links.map(d => +d[field]).filter(v => v !== 0);
@@ -1742,9 +1761,9 @@ filteredStations = daily_data
 }
 ```
 
-#### Multi-Station Comparison
+#### Parallel Corridor Calibration
 
-Compare the three constant reference values -- HPMS AADT, Modeled Volume, and Target (Cal. Period Tue-Thu Avg) -- across multiple stations at once. Narrow the station list with the filters below, then use the multi-select to choose which stations to display.
+Compare competing/parallel facilities (config/parallel_corridors.yaml) that split the same travel demand, so SFAC/CFAC can be tuned to balance modeled volume between them. Pick a Parallel Corridor below to see its stations' HPMS AADT, Modeled Volume, and Target (Cal. Period Tue-Thu Avg), then use the multi-select to choose which of its stations to display; the corridor's full member list -- including any facility with no CCS station -- and its map follow below the chart.
 
 ```{ojs}
 //| label: multi-station-summary
@@ -1752,8 +1771,8 @@ Compare the three constant reference values -- HPMS AADT, Modeled Volume, and Ta
 
 // One summary row per SITE with the same three reference values plotted as
 // horizontal lines in the single-station chart below (HPMS AADT, Modeled
-// Volume, and the Cal. Period Tue-Thu Avg "target"), plus the grouping
-// fields the filters below narrow on -- so both charts agree.
+// Volume, and the Cal. Period Tue-Thu Avg "target"), plus FTCLASS for the
+// corridor-members table further down.
 stationSummaryAll = {
   const bySite = d3.group(daily_data, d => d.SITE);
   return Array.from(bySite, ([SITE, rows]) => {
@@ -1772,8 +1791,6 @@ stationSummaryAll = {
     return {
       SITE,
       FTCLASS: ref.FTCLASS,
-      ATYPENAME: ref.ATYPENAME,
-      COUNTY_NAME: ref.COUNTY_NAME,
       HPMS_AADT: ref.HPMS_AADT,
       MODEL_VOL: ref.MODEL_VOL,
       HAS_MODEL_DATA: ref.HAS_MODEL_DATA,
@@ -1781,44 +1798,11 @@ stationSummaryAll = {
     };
   });
 }
-
-// Local sort orders for the three filters below -- mirrors the orders used
-// by the single-station Group/Filter controls and the VMT dashboard's
-// legend ordering elsewhere on this page.
-multiSortOrders = ({
-  "FTCLASS": ['Freeway', 'Expressway', 'Principal Arterial', 'Minor Arterial', 'Collector'],
-  "ATYPENAME": ['Urban', 'Suburban', 'Transition', 'Rural'],
-  "COUNTY_NAME": ['Box Elder', 'Weber', 'Davis', 'Salt Lake', 'Utah']
-})
-
-function multiSortedOptions(field) {
-  const vals = Array.from(new Set(stationSummaryAll.map(d => d[field])))
-    .filter(v => v != null && v !== "0" && v !== "");
-  const order = multiSortOrders[field];
-  return order
-    ? vals.sort((a, b) => (order.indexOf(a) === -1 ? 999 : order.indexOf(a)) - (order.indexOf(b) === -1 ? 999 : order.indexOf(b)))
-    : vals.sort();
-}
 ```
 
 ```{ojs}
 //| echo: false
 //| panel: input
-
-viewof multiFilterFtclass = Inputs.select(
-  ["All"].concat(multiSortedOptions("FTCLASS")),
-  { label: "Functional Class:", value: "All" }
-)
-
-viewof multiFilterAtype = Inputs.select(
-  ["All"].concat(multiSortedOptions("ATYPENAME")),
-  { label: "Area Type:", value: "All" }
-)
-
-viewof multiFilterCounty = Inputs.select(
-  ["All"].concat(multiSortedOptions("COUNTY_NAME")),
-  { label: "County:", value: "All" }
-)
 
 // config/parallel_corridors.yaml groupings -- picking one narrows the
 // station list to that corridor's site-based members only (a bare-SEGID
@@ -1835,18 +1819,15 @@ selectedCorridorInfo = multiFilterCorridor === "All"
   ? null
   : parallelCorridors.find(c => c.id === multiFilterCorridor)
 
-// Stations left after the filters above are applied -- the option list
+// Stations left after the filter above is applied -- the option list
 // (and default selection) for the multi-select below.
 allStations = stationSummaryAll
-  .filter(d => multiFilterFtclass === "All" || d.FTCLASS === multiFilterFtclass)
-  .filter(d => multiFilterAtype === "All" || d.ATYPENAME === multiFilterAtype)
-  .filter(d => multiFilterCounty === "All" || d.COUNTY_NAME === multiFilterCounty)
   .filter(d => !selectedCorridorInfo || selectedCorridorInfo.siteMembers.includes(d.SITE))
   .map(d => d.SITE)
   .sort()
 
 // Remembers the multi-select pick across recomputation of allStations (e.g.
-// switching globalCalibRun or one of the filters above) -- same
+// switching globalCalibRun or the corridor filter above) -- same
 // mutable-plus-resync pattern as lastSelectedStation below.
 mutable lastSelectedStationsMulti = null
 
@@ -2058,7 +2039,7 @@ selectedCorridorInfo
   : ""
 ```
 
-##### Station Locations
+##### Station & Segment Locations
 
 ```{ojs}
 //| label: multi-station-map
@@ -2066,13 +2047,26 @@ selectedCorridorInfo
 
 {
   const selected = new Set(selectedStationsMulti);
-  const features = daily_stations_geo.features.filter(f => selected.has(String(f.properties.SITE)));
+  const stationFeatures = daily_stations_geo.features.filter(f => selected.has(String(f.properties.SITE)));
 
-  if (features.length === 0) {
+  // When a Parallel Corridor is selected, also draw each member's facility
+  // segment -- a bare-segid member (e.g. the "I-15 and Beck Street"
+  // corridor, which has no station members at all) has no point of its own
+  // above, so without this it would never appear on this map.
+  const corridorSegIds = new Set(
+    (selectedCorridorInfo?.members ?? []).map(m => m.SEGID).filter(Boolean)
+  );
+  const segmentFeatures = corridor_segments_geo.features.filter(
+    f => corridorSegIds.has(String(f.properties.SEGID))
+  );
+
+  if (stationFeatures.length === 0 && segmentFeatures.length === 0) {
     return html`<div style="padding: 24px; text-align:center; color:#888;">Select one or more stations above to see them on the map.</div>`;
   }
 
-  const fc = { type: "FeatureCollection", features };
+  const stationsFc = { type: "FeatureCollection", features: stationFeatures };
+  const segmentsFc = { type: "FeatureCollection", features: segmentFeatures };
+  const combinedFc = { type: "FeatureCollection", features: [...segmentFeatures, ...stationFeatures] };
 
   const container = document.createElement("div");
   container.style.height = "420px";
@@ -2098,7 +2092,22 @@ selectedCorridorInfo
 
   map.on("load", () => {
     loaded = true;
-    map.addSource("multi-stations", { type: "geojson", data: fc });
+
+    // Segments drawn first so the station circles/labels sit on top.
+    map.addSource("multi-segments", { type: "geojson", data: segmentsFc });
+    map.addLayer({
+      id: "multi-segments-line",
+      type: "line",
+      source: "multi-segments",
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": themeModel,
+        "line-width": 4,
+        "line-opacity": 0.85
+      }
+    });
+
+    map.addSource("multi-stations", { type: "geojson", data: stationsFc });
 
     map.addLayer({
       id: "multi-stations-circle",
@@ -2143,15 +2152,25 @@ selectedCorridorInfo
     map.on("mouseenter", "multi-stations-circle", () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "multi-stations-circle", () => { map.getCanvas().style.cursor = ""; });
 
+    map.on("click", "multi-segments-line", (e) => {
+      if (!e.features.length) return;
+      const segid = e.features[0].properties.SEGID;
+      new maplibregl.Popup().setLngLat(e.lngLat).setHTML(
+        `<strong>Segment ${segid}</strong>`
+      ).addTo(map);
+    });
+    map.on("mouseenter", "multi-segments-line", () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "multi-segments-line", () => { map.getCanvas().style.cursor = ""; });
+
     map.resize();
-    const bounds = geojsonBounds(fc);
+    const bounds = geojsonBounds(combinedFc);
     if (bounds) map.fitBounds(bounds, { padding: 60, maxZoom: 14 });
   });
 
   const resizeObserver = new ResizeObserver(() => {
     if (!loaded) return;
     map.resize();
-    const bounds = geojsonBounds(fc);
+    const bounds = geojsonBounds(combinedFc);
     if (bounds) map.fitBounds(bounds, { padding: 60, maxZoom: 14 });
   });
   resizeObserver.observe(container);
