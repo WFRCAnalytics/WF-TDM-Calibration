@@ -1220,15 +1220,6 @@ map_display = {
 ```
 
 
-### Station Level Daily Volume Comparison
-
-The interactive chart below displays the 2023 daily traffic volume trend for a selected Continuous Count Station (CCS).
-
-* **Black Line**: Daily CCS Volume
-* **Green Dashed**: HPMS AADT
-* **Blue Dashed**: Modeled Volume
-* **Shaded Area**: Calibration Period (Sept 1 - Nov 15)
-
 ```{python}
 # | label: ccs-daily-prep
 # | echo: false
@@ -1446,7 +1437,7 @@ sfacCfacBySegid = {
 }
 ```
 
-#### Corridor Volume Profile
+### Corridor Volume Profile
 
 Target (Cal. Period Tue-Thu Avg) vs. Modeled daily volume at every CCS station along each of the region's major corridors, plotted against milepost so the profile reads along the corridor's length -- a quick way to spot where the model over- or under-assigns relative to observed counts, and whether that error drifts with distance along the route (e.g. a SFAC/CFAC change at one point shifting volume downstream). Uses the same Target/Model values as the sections below, just regrouped by corridor instead of by station.
 
@@ -1663,7 +1654,7 @@ corridorProfileData = CORRIDOR_ROUTE_DEFS.map(def => ({
 }
 ```
 
-#### Parallel Corridor Calibration
+### Parallel Corridor Calibration
 
 Compare competing/parallel facilities (config/parallel_corridors.yaml) that split the same travel demand, so SFAC/CFAC can be tuned to balance modeled volume between them. Pick a Parallel Corridor below to see its stations' HPMS AADT, Modeled Volume, and Target (Cal. Period Tue-Thu Avg), then use the multi-select to choose which of its stations to display; the map alongside the chart shows those same stations, plus any member segment with no CCS station, and the corridor's full member list follows below.
 
@@ -2111,7 +2102,15 @@ selectedCorridorInfo
   : ""
 ```
 
-#### Single-Station Detail
+### Single-Station Detail
+
+The interactive chart below displays the 2023 daily traffic volume trend for a selected Continuous Count Station (CCS).
+
+* **Black Line**: Daily CCS Volume
+* **Dark Grey Dashed**: HPMS AADT (reference)
+* **Blue Line**: Target (Cal. Period Tue-Thu Avg)
+* **Orange Line**: Modeled Volume
+* **Shaded Area**: Calibration Period (Sept 1 - Nov 15)
 
 ```{ojs}
 //| echo: false
