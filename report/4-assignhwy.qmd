@@ -1615,7 +1615,7 @@ filteredStations = daily_data
     : 1000;
 
   // ─── The Plot ────────────────────────────────────────────────────────────────
-  const thumbSize = 200;
+  const thumbSize = 400;
   const chartWidth = Math.min(width, 960) - (width > 600 ? thumbSize + 12 : 0);
   const chart = Plot.plot({
     width: chartWidth,
@@ -1731,7 +1731,7 @@ filteredStations = daily_data
     container: mapContainer,
     style: UGRC_BASEMAP_STYLE,
     center: stationFeature ? stationFeature.geometry.coordinates : [-111.8910, 40.7608],
-    zoom: stationFeature ? 11 : 8,
+    zoom: stationFeature ? 10 : 8,
     interactive: false,
     attributionControl: false
   });
@@ -2037,8 +2037,8 @@ allStations = stationSummaryAll
   // Target, since Target is necessarily even further right than Model
   // here).
   const plotWidthPx = Math.min(width, 900);
-  const innerWidthPx = plotWidthPx - 90 /* marginLeft */ - 20 /* default marginRight */;
-  const minLabelValue = (55 /* approx "-xx.x%" label width + gap, in px */ / innerWidthPx) * maxVol;
+  const innerWidthPx = plotWidthPx - 160 /* marginLeft */ - 20 /* default marginRight */;
+  const minLabelValue = (110 /* approx "-xx.x%" label width + gap, in px, at the doubled font size below */ / innerWidthPx) * maxVol;
   const barbellRows = summary
     .filter(d => d.HAS_MODEL_DATA)
     .map(d => ({ ...d, pctDiff: d.TargetVol ? (d.MODEL_VOL - d.TargetVol) / d.TargetVol : null }))
@@ -2057,13 +2057,13 @@ allStations = stationSummaryAll
     d => yearForSite(d.SITE)
   );
   const yearBadge = overrideSites.size > 0
-    ? html`<div style="margin-bottom:8px;">${Array.from(overrideSites, ([yr, rows]) => html`<div style="display:inline-block; margin-right:8px; padding:4px 10px; background:#ffc107; color:#3d2e00; border-radius:4px; font-weight:700; font-size:12px; letter-spacing:0.3px;">⚠ USING ${yr} DATA: ${rows.map(d => d.SITE).join(", ")}</div>`)}</div>`
+    ? html`<div style="margin-bottom:8px;">${Array.from(overrideSites, ([yr, rows]) => html`<div style="display:inline-block; margin-right:8px; padding:4px 10px; background:#ffc107; color:#3d2e00; border-radius:4px; font-weight:700; font-size:24px; letter-spacing:0.3px;">⚠ USING ${yr} DATA: ${rows.map(d => d.SITE).join(", ")}</div>`)}</div>`
     : "";
 
   // Manual legend -- the barbell connects Target and Modeled Volume only;
   // HPMS AADT is drawn as a separate hollow diamond so it reads as a
   // reference value, not a third barbell endpoint.
-  const legend = html`<div style="display:flex; gap:18px; align-items:center; font-size:12px; margin-bottom:8px; flex-wrap:wrap;">
+  const legend = html`<div style="display:flex; gap:18px; align-items:center; font-size:24px; margin-bottom:8px; flex-wrap:wrap;">
     <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${palette.target};margin-right:5px;vertical-align:middle;"></span>Target (Cal. Tue-Thu Avg)</span>
     <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${palette.model};margin-right:5px;vertical-align:middle;"></span>Modeled Volume</span>
     <span><span style="display:inline-block;width:10px;height:10px;border:2px solid ${palette.hpms};background:white;transform:rotate(45deg);margin-right:7px;vertical-align:middle;"></span>HPMS AADT (reference)</span>
@@ -2074,10 +2074,10 @@ allStations = stationSummaryAll
   const plot = Plot.plot({
     width: plotWidthPx,
     height: plotHeight,
-    marginBottom: 40,
-    marginLeft: 90,
+    marginBottom: 70,
+    marginLeft: 160,
     style: {
-      fontSize: "12px",
+      fontSize: "24px",
       fontFamily: "system-ui, -apple-system, sans-serif",
       backgroundColor: "white"
     },
@@ -2120,13 +2120,13 @@ allStations = stationSummaryAll
       // otherwise be crossed by the HPMS AADT diamond or the grid.
       Plot.text(labelsRight, {
         x: "MODEL_VOL", y: "SITE", text: d => d3.format("+.1%")(d.pctDiff),
-        dx: 10, textAnchor: "start", fontSize: 11, fontWeight: 600,
+        dx: 20, textAnchor: "start", fontSize: 22, fontWeight: 600,
         fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral,
         stroke: "white", strokeWidth: 4, paintOrder: "stroke"
       }),
       Plot.text(labelsLeft, {
         x: "MODEL_VOL", y: "SITE", text: d => d3.format("+.1%")(d.pctDiff),
-        dx: -10, textAnchor: "end", fontSize: 11, fontWeight: 600,
+        dx: -20, textAnchor: "end", fontSize: 22, fontWeight: 600,
         fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral,
         stroke: "white", strokeWidth: 4, paintOrder: "stroke"
       }),
@@ -2135,7 +2135,7 @@ allStations = stationSummaryAll
       // of flipping all the way across to the Target side.
       Plot.text(labelsLeftClamped, {
         x: "MODEL_VOL", y: "SITE", text: d => d3.format("+.1%")(d.pctDiff),
-        dx: 4, textAnchor: "start", fontSize: 11, fontWeight: 600,
+        dx: 8, textAnchor: "start", fontSize: 22, fontWeight: 600,
         fill: d => Math.abs(d.pctDiff) > 0.1 ? themeDanger : themeNeutral,
         stroke: "white", strokeWidth: 4, paintOrder: "stroke"
       })
