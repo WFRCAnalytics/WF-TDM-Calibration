@@ -1,3 +1,8 @@
+# WFRC Analytics brand — the single source of truth for every hex code.
+# Quarto turns each palette entry into the Sass variable $brand-<name> and the
+# CSS variable --brand-<name>. The theme SCSS only maps roles (surface, line,
+# heading...) onto these names and never writes a hex code of its own.
+
 meta:
   name:
     short: WFRC
@@ -21,12 +26,24 @@ meta:
 
 logo:
   images:
-    horizontal-color: "assets/logo/horizontal/WFRC_logo_horizontal_color_transparent.png"
-    horizontal-white: "assets/logo/horizontal/WFRC_logo_horizontal_white_transparent.png"
-    stacked-color: "assets/logo/stacked/WFRC_logo_stacked_color_transparent.png"
-    stacked-white: "assets/logo/stacked/WFRC_logo_stacked_white_transparent.png"
-    abbreviated-color: "assets/logo/abbreviated/WFRC_logo_abbreviated_color_transparent.png"
-    abbreviated-white: "assets/logo/abbreviated/WFRC_logo_abbreviated_white_transparent.png"
+    horizontal-color:
+      path: "assets/logo/horizontal/WFRC_logo_horizontal_color_transparent.png"
+      alt: "Wasatch Front Regional Council"
+    horizontal-white:
+      path: "assets/logo/horizontal/WFRC_logo_horizontal_white_transparent.png"
+      alt: "Wasatch Front Regional Council"
+    stacked-color:
+      path: "assets/logo/stacked/WFRC_logo_stacked_color_transparent.png"
+      alt: "Wasatch Front Regional Council"
+    stacked-white:
+      path: "assets/logo/stacked/WFRC_logo_stacked_white_transparent.png"
+      alt: "Wasatch Front Regional Council"
+    abbreviated-color:
+      path: "assets/logo/abbreviated/WFRC_logo_abbreviated_color_transparent.png"
+      alt: "Wasatch Front Regional Council"
+    abbreviated-white:
+      path: "assets/logo/abbreviated/WFRC_logo_abbreviated_white_transparent.png"
+      alt: "Wasatch Front Regional Council"
   large:
     light: horizontal-color
     dark: horizontal-white
@@ -38,60 +55,147 @@ logo:
     dark: abbreviated-white
 
 typography:
+  # Fonts load from Google Fonts. For offline builds or no third-party requests, point
+  # project.brand at brand-offline.yml instead (same brand, bundled font files; HTML and Typst only).
   fonts:
     - family: Poppins
       source: google
-      weight: [300, 400, 500, 600, 700]
+      weight: [400, 500, 600]
       style: [normal, italic]
     - family: Inter
       source: google
-      weight: [300, 400, 500, 600, 700]
-      style: [normal, italic]
+      weight: [400, 500, 600, 700]
+      style: [normal]
     - family: Fira Code
       source: google
-      weight: [400, 500, 700]
-      style: [normal, italic]
+      weight: [400, 500]
+      style: [normal]
   base:
     family: Poppins
     weight: 400
     size: 16px
-    line-height: 1.5
+    line-height: 1.6
   headings:
     family: Inter
     weight: 700
     style: normal
     line-height: 1.2
     color:
-      light: wfrc-blue # dark navy — high contrast on white
-      dark: "#8fcfe3" # lightened wfrc-secondary-blue — high contrast on dark bg
+      light: wfrc-navy
+      dark: wfrc-ice
   monospace:
     family: Fira Code
     weight: 400
-    size: 0.9em
+    size: 0.88em
   monospace-inline:
-    color: wfrc-blue
-    background-color: "#e6ebf1" # matches $code-bg in wfrc-light.scss
+    color:
+      light: wfrc-navy
+      dark: wfrc-sky-pale
+    background-color:
+      light: wfrc-code
+      dark: wfrc-night-code
+  monospace-block:
+    color:
+      light: wfrc-ink
+      dark: wfrc-snow
+    background-color:
+      light: wfrc-code
+      dark: wfrc-night-code
+    line-height: 1.6
   link:
-    color: wfrc-secondary-blue
+    color:
+      light: wfrc-navy
+      dark: wfrc-sky
     decoration: underline
 
 color:
   palette:
-    # Primary WFRC Colors
-    wfrc-blue: "#023c5b"
-    wfrc-secondary-blue: "#52b6d5"
-    wfrc-yellow: "#f8b93e"
-    wfrc-gray: "#7f7a76"
+    # ── Core WFRC brand (live-site tokens) ────────────────────────────────────
+    wfrc-navy: "#00395B"        # primary; headings, links, navbar text, footer
+    wfrc-mid-blue: "#2C6788"    # secondary headings, mid color blocks
+    wfrc-bright-blue: "#0093C5" # rules, focus rings, large fills only (3.5:1 on white)
+    wfrc-action: "#00799F"      # buttons and interactive fills (5.0:1 on white)
+    wfrc-brick: "#C85327"       # accent; non-text fills and large type
+    wfrc-brick-deep: "#B4461F"  # accent that holds small white text (5.5:1)
+    wfrc-gold: "#FEBC46"        # highlight
+    wfrc-gray: "#7F7A76"
+    wfrc-taupe: "#92816F"
 
-    # Core Palette
-    blue: "#036fa8"
-    purple: "#553c8f"
-    red: "#d32f00"
-    orange: "#ea7b00"
-    yellow: "#eab500"
-    green: "#007426"
+    # ── Light surfaces and ink ────────────────────────────────────────────────
+    wfrc-paper: "#FFFFFF"
+    wfrc-band: "#F4F2EF"        # alternate section band (taupe tint from the live site)
+    wfrc-mist: "#EAF0F4"        # raised surface, tab panes
+    wfrc-card: "#E8F5FA"        # card surface: bright blue 9% over white; apart from the page and wfrc-band
+    wfrc-hairline: "#D9E0E5"
+    wfrc-code: "#EEF2F5"
+    wfrc-ink: "#16232C"
+    wfrc-ink-soft: "#4F5E69"
 
-    # RTP (Regional Transportation Plan) Colors
+    # ── Dark surfaces and ink ─────────────────────────────────────────────────
+    wfrc-night: "#0A1F2E"
+    wfrc-night-band: "#0E2738"
+    wfrc-night-surface: "#122E46"
+    wfrc-night-raised: "#17384F"
+    wfrc-night-card: "#17384F"  # card surface on dark; apart from the page and wfrc-night-band
+    wfrc-night-card-line: "#2F6286"  # card border on dark (light mode mixes bright blue 24% into the hairline)
+    wfrc-night-line: "#264A63"
+    wfrc-night-code: "#0F2B40"
+    wfrc-night-block: "#14405E" # navy color block on dark
+    wfrc-night-mid: "#1E5170"
+    wfrc-night-teal: "#0E5A7C"
+    wfrc-night-band-blue: "#0F4C6E"
+    wfrc-night-brick: "#8F3A1C"   # brick-deep block on dark; white text 7.4:1
+    wfrc-night-ink: "#00253C"     # text on the sky fill (buttons), 8.6:1
+    wfrc-snow: "#E8EEF2"
+    wfrc-snow-soft: "#A3B8C6"
+
+    # ── Dark-mode tints of the brand hues ─────────────────────────────────────
+    wfrc-sky: "#5CC4E8"
+    wfrc-sky-pale: "#A6E0F3"
+    wfrc-sky-mid: "#8FCBE6"
+    wfrc-ice: "#BFE6F5"
+    wfrc-brick-light: "#F0916B"
+    wfrc-brick-bright: "#E06A3A"
+
+    # ── Callout hues (light / dark) ───────────────────────────────────────────
+    wfrc-note: "#2C6788"
+    wfrc-note-light: "#6DB3D6"
+    wfrc-tip: "#4A8A34"
+    wfrc-tip-light: "#8CC96B"
+    wfrc-warning-bar: "#C28A00"
+    wfrc-warning-bar-light: "#F2C14E"
+    wfrc-caution: "#8A3F6B"
+    wfrc-caution-light: "#D58AB5"
+
+    # ── Categorical chart colors (validated: lightness, chroma, color-vision) ─
+    # Use in this order and never cycle past five. Gold is below 3:1 on white,
+    # so always label series directly.
+    chart-1: "#1479B8"
+    chart-2: "#D2582A"
+    chart-3: "#8A5FB0"
+    chart-4: "#D6A21E"
+    chart-5: "#1FA0A6"
+    chart-1-dark: "#3A8FD6"
+    chart-2-dark: "#E06A3A"
+    chart-3-dark: "#9C7ACB"
+    chart-4-dark: "#C78F25"
+    chart-5-dark: "#28A4AA"
+
+    # ── Bootstrap color names (picked up by Quarto and by tools that read brand.yml)
+    blue: chart-1
+    indigo: "#585377"
+    purple: chart-3
+    pink: "#9D4879"
+    red: wfrc-brick-deep
+    orange: chart-2
+    yellow: chart-4
+    green: wfrc-tip
+    teal: chart-5
+    cyan: "#24949A"
+    white: wfrc-paper
+    black: wfrc-ink
+
+    # ── RTP (Regional Transportation Plan) map colors ─────────────────────────
     rtp-fuschia: "#9d4879"
     rtp-maroon: "#6f2d3d"
     rtp-red: "#c23c33"
@@ -103,7 +207,7 @@ color:
     rtp-blue: "#3f748e"
     rtp-purple: "#585377"
 
-    # Wasatch Choice Center Colors
+    # ── Wasatch Choice map colors ─────────────────────────────────────────────
     wc-metro: "#a62966"
     wc-urban: "#e65937"
     wc-city: "#f2a03e"
@@ -112,62 +216,58 @@ color:
     wc-open-space: "#a3bb93"
     wc-employment: "#f4c9cd"
     wc-industrial: "#ded2e8"
-
-    # Wasatch Choice Transit/Line Colors
     wc-roadways: "#a3423c"
     wc-brt: "#24949a"
     wc-light-rail: "#3762ad"
     wc-commuter-rail: "#24316d"
     wc-trails: "#799f4c"
 
-    # Unified Plan Colors
+    # ── Unified Plan map colors ───────────────────────────────────────────────
     up-primary-blue: "#083e5f"
     up-secondary-blue: "#5a85c4"
     up-gray: "#d3d4d5"
 
-    # Neutral/Standard colors
-    white: "#ffffff"
-    black: "#151515" # Slightly softened black
   foreground:
-    light: black
-    dark: white
+    light: wfrc-ink
+    dark: wfrc-snow
   background:
-    light: white
-    dark: "#081b26" # Deep navy; intentionally richer than a pure darkening of wfrc-blue
+    light: wfrc-paper
+    dark: wfrc-night
 
-  # Primary brand colors
-  primary: wfrc-blue
-  secondary: wfrc-secondary-blue
+  primary:
+    light: wfrc-navy
+    dark: wfrc-sky
+  secondary:
+    light: wfrc-mid-blue
+    dark: wfrc-sky-mid
   tertiary: wfrc-gray
-
-  # Semantic colors
-  success: rtp-green
-  info: rtp-blue
-  warning: wfrc-yellow
-  danger: rtp-red
-  light: white
-  dark: wfrc-gray
+  success:
+    light: wfrc-tip
+    dark: wfrc-tip-light
+  info:
+    light: wfrc-action
+    dark: wfrc-sky
+  warning: wfrc-gold
+  danger:
+    light: wfrc-brick-deep
+    dark: wfrc-brick-light
+  light:
+    light: wfrc-band
+    dark: wfrc-night-surface
+  dark:
+    light: wfrc-navy
+    dark: wfrc-night-raised
 
 defaults:
-  # Use these only when you can’t achieve the desired look with the above primitives.
-  bootstrap: # Additional SCSS you can feed to Bootstrap-based contexts (Quarto/Shiny)
+  bootstrap:
     defaults:
-      # Example of mapping brand colors to Bootstrap variables
-      primary: $brand-wfrc-blue
-      secondary: $brand-wfrc-secondary-blue
-      success: $brand-rtp-green
-      info: $brand-rtp-turquoise
-      warning: $brand-wfrc-yellow
-      danger: $brand-rtp-red
-    rules: |
-      // Keep components clean; avoid over-styling.
-      a { text-underline-offset: 2px; }
-  quarto:
-    format: {} # Add per-format overrides only when necessary
-  shiny:
-    theme:
-      defaults:
-        navbar-bg: $brand-wfrc-blue
-      rules: |
-        // Example: rounded cards and subtle borders
-        .card { border-radius: .75rem; }
+      # Shape language: pill actions, 10px cards, 6px controls.
+      btn-border-radius: 50rem
+      btn-border-radius-sm: 50rem
+      btn-border-radius-lg: 50rem
+      btn-font-weight: 600
+      card-border-radius: 10px
+      border-radius: 6px
+      border-radius-sm: 4px
+      border-radius-lg: 10px
+      headings-font-weight: 700

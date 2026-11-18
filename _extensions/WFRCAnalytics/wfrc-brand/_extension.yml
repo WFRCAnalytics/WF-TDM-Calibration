@@ -1,19 +1,27 @@
 title: wfrc-brand
 author: Pukar Bhandari
-version: 0.0.12
+version: 1.0.9
 quarto-required: ">=1.8.0"
 contributes:
+  shortcodes:
+    - shortcodes/year.lua
   # ── FORMAT CONTRIBUTIONS ───────────────────────────────────────────────────
-  # contributes.formats.html resolves paths relative to the extension folder.
-  # These are org-wide HTML rendering defaults applied to every WFRC website.
+  # contributes.formats.* resolves paths relative to the extension folder.
+  # Theme layers, low to high priority:
+  #   wfrc.scss           shared structure (no color)
+  #   wfrc-light|dark     role map: brand.yml palette name per role
+  #   wfrc-overrides      every Quarto component rule, written once
+  #   brand               brand.yml last, so $brand-* variables exist in the
+  #                       layers above and brand colors/fonts always win
   formats:
     html:
-      # Layout defaults — override per-document if needed (e.g. page-layout: article)
       axe: true
+      link-external-newwindow: true
+      include-after-body: assets/js/a11y-fixes.html
       page-layout: full
       toc: true
-      toc-expand: 2  # show ## + ### by default instead of Quarto's default depth-1-until-scrolled
-      smooth-scroll: true  # animate the jump on TOC/anchor clicks
+      toc-expand: 2
+      smooth-scroll: true
       number-sections: true
       number-depth: 2
       html-math-method: katex
@@ -21,20 +29,63 @@ contributes:
       code-tools: true
       grid:
         sidebar-width: 350px
-      # Theme, highlighting, and color-scheme switching
       theme:
         light:
-          - cosmo
           - assets/theme/wfrc.scss
           - assets/theme/wfrc-light.scss
+          - assets/theme/wfrc-overrides.scss
+          - brand
         dark:
           - assets/theme/wfrc.scss
           - assets/theme/wfrc-dark.scss
+          - assets/theme/wfrc-overrides.scss
+          - brand
       highlight-style:
-        light: github
-        dark: dracula
+        light: assets/theme/wfrc-light.theme
+        dark: assets/theme/wfrc-dark.theme
       respect-user-color-scheme: true
+    dashboard:
+      respect-user-color-scheme: true
+      link-external-newwindow: true
+      include-after-body: assets/js/a11y-fixes.html
+      logo-alt: "Wasatch Front Regional Council"
+      theme:
+        light:
+          - assets/theme/wfrc.scss
+          - assets/theme/wfrc-light.scss
+          - assets/theme/wfrc-overrides.scss
+          - brand
+        dark:
+          - assets/theme/wfrc.scss
+          - assets/theme/wfrc-dark.scss
+          - assets/theme/wfrc-overrides.scss
+          - brand
+      highlight-style:
+        light: assets/theme/wfrc-light.theme
+        dark: assets/theme/wfrc-dark.theme
+    revealjs:
+      theme:
+        - default
+        - assets/theme/wfrc-revealjs.scss
+        - brand
+      slide-number: true
+      hash-type: number
+      transition: fade
+      transition-speed: fast
+      controls: true
+      width: 1280
+      height: 720
+      margin: 0.08
+      footer: "Wasatch Front Regional Council"
     typst:
+      papersize: us-letter
+      # Quarto draws the brand logo at the top left of every page (0.75 in down, about 0.85 in tall),
+      # so the top margin has to clear it or the body text runs under the logo from page 2 on.
+      margin:
+        x: 1in
+        top: 1.8in
+        bottom: 1in
+      fontsize: 10.5pt
       toc: true
       number-sections: true
       number-depth: 2

@@ -134,8 +134,14 @@ format:
     css: styles.css
     # Restated explicitly (not just relying on the extension's own defaults)
     # since testing showed page-layout was resolving to "article" here
-    # rather than the extension's declared "full".
+    # rather than the extension's declared "full". Same reason toc/
+    # toc-expand are restated below -- wfrc-brand's _extension.yml declares
+    # both, but this project deliberately doesn't import that extension's
+    # format contributions (see the note above website.sidebar), so nothing
+    # from there actually lands unless copied in here by hand.
     page-layout: full
+    toc: true
+    toc-expand: 2
     # Quarto splits this value across several grid margin tracks rather than
     # using it as the docked sidebar's literal rendered width (measured via
     # headless-browser bounding box: rendered width = 25.5px + 0.8 * this

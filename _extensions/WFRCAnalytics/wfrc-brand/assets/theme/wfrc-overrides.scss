@@ -1,0 +1,882 @@
+/*-- scss:rules --*/
+
+// =============================================================================
+// WFRC component overrides — the supplementary file for everything Quarto
+// renders that brand.yml and Bootstrap variables cannot express.
+//
+// Written ONCE for both modes. Colors are Sass role variables ($wfrc-*) set in
+// wfrc-light.scss / wfrc-dark.scss, so this file never mentions light or dark
+// except for the few rules inside `@if $wfrc-is-dark`.
+//
+// Sections
+//   1  Role tokens as CSS variables (for OJS, custom CSS, plotly)
+//   2  Typography
+//   3  Navbar, announcement, dropdowns
+//   4  Buttons and chips
+//   5  Cards (listings, dashboards, bslib)
+//   6  Callouts
+//   7  Code (blocks, inline, filename, output, copy button)
+//   8  Tabsets, tables, blockquotes, details
+//   9  TOC, sidebar, breadcrumbs, pagination, title block
+//  10  Footer with ridge
+//  11  Dashboard (value boxes, sidebar layout, nav)
+//  12  Inputs (panel-input, OJS, WebR)
+//  13  Landing-page utility classes (.wfrc-*)
+//  14  Responsive rules
+// =============================================================================
+
+// ── 1  Role tokens as CSS variables ──────────────────────────────────────────
+:root {
+  --wfrc-bg: #{$wfrc-bg};
+  --wfrc-bg-alt: #{$wfrc-bg-alt};
+  --wfrc-surface: #{$wfrc-surface};
+  --wfrc-surface-2: #{$wfrc-surface-2};
+  --wfrc-ink: #{$wfrc-ink};
+  --wfrc-ink-2: #{$wfrc-ink-2};
+  --wfrc-line: #{$wfrc-line};
+  --wfrc-h1: #{$wfrc-h1};
+  --wfrc-h2: #{$wfrc-h2};
+  --wfrc-link: #{$wfrc-link};
+  --wfrc-action: #{$wfrc-action};
+  --wfrc-accent: #{$wfrc-accent};
+  --wfrc-gold: #{$wfrc-gold};
+  --wfrc-rule: #{$wfrc-rule};
+  --wfrc-chart-1: #{$wfrc-chart-1};
+  --wfrc-chart-2: #{$wfrc-chart-2};
+  --wfrc-chart-3: #{$wfrc-chart-3};
+  --wfrc-chart-4: #{$wfrc-chart-4};
+  --wfrc-chart-5: #{$wfrc-chart-5};
+  --wfrc-shadow: #{$wfrc-shadow};
+}
+
+// Scrollbars and native controls follow the mode instead of the browser default (a bright default
+// scrollbar on the dark page, or a heavy one with arrow buttons on the light page).
+// Chrome, Edge and Safari: a slim pill thumb on a transparent track, no arrow buttons. Chrome ignores
+// these pseudo-elements once `scrollbar-width` or `scrollbar-color` is set, so those two standard
+// properties are only given to browsers without them (Firefox).
+:root {
+  @if $wfrc-is-dark { color-scheme: dark; } @else { color-scheme: light; }
+}
+$wfrc-scroll-thumb: mix($wfrc-ink-2, $wfrc-bg, 55%);
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+::-webkit-scrollbar-thumb {
+  background: $wfrc-scroll-thumb;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  min-height: 36px;
+  min-width: 36px;
+}
+::-webkit-scrollbar-thumb:hover { background: $wfrc-ink-2; background-clip: padding-box; }
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: #{$wfrc-scroll-thumb} transparent; }
+}
+
+// Smooth scrolling for in-page links (contents, anchors, Back to top) in plain CSS, and only for people
+// who have not asked for reduced motion. Quarto's `smooth-scroll` option loads zenscroll instead, a UMD
+// script that throws "Mismatched anonymous define() module" on any page where RequireJS is present
+// (Plotly figures, notebook widgets), so wfrc-shared.yml leaves that option off.
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+// Where a link lands: a small gap above the heading (zenscroll left 9px). Visitors who asked for reduced
+// motion jump instantly, and after an upward jump Quarto's headroom navbar pins itself over the top of
+// the page, so they get room for it.
+:target { scroll-margin-top: 0.55rem; }
+@media (prefers-reduced-motion: reduce) {
+  :target { scroll-margin-top: 4.5rem; }
+}
+
+// ── 2  Typography ────────────────────────────────────────────────────────────
+h1, .h1, .title { color: $wfrc-h1; }
+h2, .h2, h3, .h3, h4, .h4, h5, .h5, h6, .h6 { color: $wfrc-h2; }
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 { text-wrap: balance; letter-spacing: -0.01em; }
+.title { font-size: 2.25rem; line-height: 1.1; }
+.subtitle { font-size: 1.15rem; color: $wfrc-ink-2; }
+a { text-underline-offset: 2px; }
+.header-section-number { color: $wfrc-ink-2; font-weight: 600; }
+hr { border-color: $wfrc-line; opacity: 1; }
+:focus-visible { outline: 3px solid $wfrc-focus; outline-offset: 2px; }
+
+// ── 3  Navbar, announcement, dropdowns ───────────────────────────────────────
+.navbar {
+  border-bottom: 1px solid $wfrc-line;
+  box-shadow: none;
+  z-index: 1030;
+  font-family: $headings-font-family;
+
+  .navbar-logo { max-height: 38px; width: auto; }
+  .navbar-logo ~ .navbar-title {
+    border-left: 1px solid $wfrc-line;
+    padding-left: 14px;
+    margin-left: 14px;
+  }
+}
+.navbar-title {
+  font-family: $headings-font-family;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.navbar-nav .nav-link {
+  font-family: $headings-font-family;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  margin: 0 6px;
+  padding: 6px 2px !important;
+  border-bottom: 2px solid transparent;
+
+  &:hover, &:focus, &.active, &.show {
+    border-bottom-color: $wfrc-focus;
+  }
+}
+.navbar .quarto-navbar-tools .quarto-navbar-tools-item,
+.navbar .quarto-color-scheme-toggle { color: $wfrc-h1; }
+.dropdown-menu {
+  border-radius: 8px;
+  box-shadow: $wfrc-shadow;
+  font-family: $headings-font-family;
+  padding: 6px;
+
+  .dropdown-item {
+    border-radius: 5px;
+    font-size: 0.875rem;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: $wfrc-ink;
+
+    &:hover, &:focus { background: $wfrc-surface-2; color: $wfrc-h1; }
+  }
+}
+// Announcement: a quiet surface with a 4px colored edge for the type, same in both modes.
+#quarto-announcement.alert {
+  border-radius: 0;
+  border: 0;
+  border-left: 4px solid $wfrc-rule;
+  background: $wfrc-surface-2;
+  color: $wfrc-ink;
+  font-size: 0.9rem;
+
+  &.alert-primary, &.alert-info    { border-left-color: $wfrc-rule; }
+  &.alert-success   { border-left-color: $wfrc-c-tip; }
+  &.alert-warning   { border-left-color: $wfrc-gold; }
+  &.alert-danger    { border-left-color: $wfrc-c-important; }
+  &.alert-secondary, &.alert-light, &.alert-dark { border-left-color: $wfrc-ink-2; }
+  a { color: $wfrc-link; }
+
+  // The dismiss control is a bare icon in Quarto. A 24px square target (WCAG 2.2) with the same
+  // layout height as before (negative block margin), a hover surface and a focus ring; a11y-fixes.html
+  // makes it a keyboard-operable button with a name.
+  .quarto-announcement-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin: -0.3rem 0 -0.3rem 0.5rem;
+    border-radius: 6px;
+    color: $wfrc-ink-2;
+    transition: background-color 0.15s ease, color 0.15s ease;
+
+    &:hover { background: $wfrc-surface; color: $wfrc-h1; }
+    &:focus-visible { outline: 2px solid $wfrc-focus; outline-offset: 1px; }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #quarto-announcement .quarto-announcement-action { transition: none; }
+}
+
+// ── 4  Buttons and chips ─────────────────────────────────────────────────────
+.btn { font-family: $headings-font-family; letter-spacing: 0.01em; }
+.btn-primary {
+  --bs-btn-color: #{$wfrc-action-ink};
+  --bs-btn-bg: #{$wfrc-action};
+  --bs-btn-border-color: #{$wfrc-action};
+  --bs-btn-hover-color: #{$wfrc-action-ink};
+  --bs-btn-hover-bg: #{$wfrc-action-hover};
+  --bs-btn-hover-border-color: #{$wfrc-action-hover};
+  --bs-btn-active-color: #{$wfrc-action-ink};
+  --bs-btn-active-bg: #{$wfrc-action-hover};
+  --bs-btn-active-border-color: #{$wfrc-action-hover};
+  --bs-btn-disabled-bg: #{$wfrc-action};
+  --bs-btn-disabled-border-color: #{$wfrc-action};
+}
+.btn-outline-primary {
+  --bs-btn-color: #{$wfrc-action};
+  --bs-btn-border-color: #{$wfrc-action};
+  --bs-btn-hover-color: #{$wfrc-action-ink};
+  --bs-btn-hover-bg: #{$wfrc-action};
+  --bs-btn-hover-border-color: #{$wfrc-action};
+  --bs-btn-active-color: #{$wfrc-action-ink};
+  --bs-btn-active-bg: #{$wfrc-action};
+}
+.quarto-category, .badge.rounded-pill {
+  border-radius: 999px;
+  border: 1px solid $wfrc-line;
+  background: $wfrc-surface-2;
+  color: $wfrc-h1;
+  font-family: $headings-font-family;
+  font-weight: 600;
+  font-size: 0.75rem;
+  padding: 2px 10px;
+  text-decoration: none;
+
+  // Hover changes the border only: a filled hover would put the (fixed) link text on the action color.
+  &:hover { border-color: $wfrc-action; }
+}
+// Category chips sit on tinted surfaces; Quarto's muted grey and its opacity both fail AA.
+body .listing-category,
+body .quarto-category > a { color: var(--bs-body-color) !important; }
+body .quarto-category { opacity: 1 !important; }
+
+// ── 5  Cards ─────────────────────────────────────────────────────────────────
+// Card surface: a light blue (dark: raised navy) that stays distinct from both the page and
+// .wfrc-band-alt. Sites can reuse the two variables for their own cards.
+:root, body { --wfrc-card-bg: #{$wfrc-card}; --wfrc-card-line: #{$wfrc-card-line}; }
+.card {
+  border-radius: 10px;
+  border: 1px solid $wfrc-card-line;
+  background: $wfrc-card;
+  color: $wfrc-ink;
+  box-shadow: $wfrc-shadow;
+  overflow: hidden;
+
+  .card-header {
+    font-family: $headings-font-family;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: $wfrc-h1;
+    background: $wfrc-card;
+    border-bottom: 1px solid $wfrc-card-line;
+  }
+  .card-title, .listing-title { font-family: $headings-font-family; color: $wfrc-h1; }
+  .card-img-top { border-radius: 0; }
+  .listing-date, .listing-author, .listing-reading-time { color: $wfrc-ink-2; }
+}
+// Listing cards (type: grid): banner image on top, lift on hover. See "Card banners" in the README.
+.quarto-grid-item.card {
+  background: $wfrc-card;
+  border-color: $wfrc-card-line;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    border-color: $wfrc-action;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 57, 91, 0.18);
+    @if $wfrc-is-dark { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); }
+  }
+  .card-img-top { object-fit: cover; border-radius: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quarto-grid-item.card { transition: none; &:hover { transform: none; } }
+}
+// The action blue is 4.4:1 on the light card surface; outline buttons inside cards use the link color.
+.card .btn-outline-primary {
+  --bs-btn-color: #{$wfrc-link};
+  --bs-btn-border-color: #{$wfrc-link};
+  --bs-btn-hover-bg: #{$wfrc-link};
+  --bs-btn-hover-border-color: #{$wfrc-link};
+  --bs-btn-hover-color: #{$wfrc-bg};
+  --bs-btn-active-bg: #{$wfrc-link};
+  --bs-btn-active-color: #{$wfrc-bg};
+}
+// Table listings: titles inherit the heading scale; keep them at body size.
+.quarto-listing-table .listing-title,
+.quarto-listing-table h3,
+.quarto-listing-table td a { font-size: 1rem; line-height: 1.4; margin: 0; }
+
+// ── 6  Callouts: left bar, tinted title strip, Quarto icons ──────────────────
+// Spec: 4px bar in the type color; fill is a 9% tint over the page, the title strip 16%;
+// 8px radius on the right, square on the left; the icon is a filled circle in the type color
+// with the glyph cut out in the page color. Glyphs are alpha masks, so one rule colors all five.
+$wfrc-callout-glyphs: (
+  note:      "%3Ccircle cx='8' cy='3.6' r='1.5'/%3E%3Crect x='6.7' y='6.6' width='2.6' height='7' rx='1.1'/%3E",
+  tip:       "%3Cpath d='M2.6 8.6l3.7 3.7 7.1-8' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E",
+  important: "%3Crect x='6.7' y='2' width='2.6' height='7.6' rx='1.2'/%3E%3Ccircle cx='8' cy='12.7' r='1.5'/%3E",
+  warning:   "%3Cpath fill-rule='evenodd' d='M8 2.1Q8.5 2.1 8.8 2.7L14.9 13.1Q15.3 13.9 14.4 13.9H1.6Q0.7 13.9 1.1 13.1L7.2 2.7Q7.5 2.1 8 2.1Z M7.15 5.8H8.85V10H7.15Z M8 10.9A1.05 1.05 0 1 0 8 13A1.05 1.05 0 1 0 8 10.9Z'/%3E",
+  caution:   "%3Cpath d='M3.6 3.6l8.8 8.8M12.4 3.6l-8.8 8.8' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round'/%3E"
+);
+.callout {
+  box-shadow: none;
+  font-size: 0.93rem;
+  overflow: hidden;
+  margin: 1.25rem 0;
+
+  .callout-title-container { font-family: $headings-font-family; font-weight: 700; font-size: 0.9rem; color: $wfrc-ink; }
+  .callout-body-container { color: $wfrc-ink; }
+  .callout-body-container > :last-child { margin-bottom: 0; }
+}
+.callout.callout-style-default {
+  border-left-width: 4px;
+  border-radius: 0 8px 8px 0;
+
+  > .callout-header { padding: 8px 14px; align-items: center; color: $wfrc-ink; }
+  .callout-icon-container { padding: 0 0.6em 0 0; display: flex; align-items: center; }
+  .callout-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 1.35em;
+    height: 1.35em;
+    border-radius: 50%;
+  }
+  .callout-icon::before {
+    background-image: none !important;
+    width: 0.85em;
+    height: 0.85em;
+    -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+            mask-position: center;
+    -webkit-mask-size: contain;
+            mask-size: contain;
+  }
+  .callout-body-container.callout-body { padding: 10px 14px; }
+  &.callout-titled > .callout-header + .callout-collapse > .callout-body-container,
+  &.callout-titled > .callout-body-container { padding-top: 10px; }
+
+  @each $kind, $color in (note: $wfrc-c-note, tip: $wfrc-c-tip, important: $wfrc-c-important, warning: $wfrc-c-warning, caution: $wfrc-c-caution) {
+    &.callout-#{$kind} {
+      border-left-color: $color;
+      background: mix($color, $wfrc-bg, 9%);
+
+      > .callout-header { background: mix($color, $wfrc-bg, 16%); }
+      .callout-icon { background: $color; }
+      .callout-icon::before {
+        background-color: $wfrc-bg;
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E#{map-get($wfrc-callout-glyphs, $kind)}%3C/svg%3E");
+                mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E#{map-get($wfrc-callout-glyphs, $kind)}%3C/svg%3E");
+      }
+    }
+  }
+}
+
+// ── 7  Code ──────────────────────────────────────────────────────────────────
+// Fira Code ligatures on: != >= <= == => -> <- |> render as single glyphs. They are explicit here so a
+// site rule or Bootstrap default cannot switch them off. To read code strictly as typed, add
+// `code, pre { font-variant-ligatures: none; font-feature-settings: "calt" 0; }` to your site CSS.
+code, pre, kbd, samp { font-variant-ligatures: normal; font-feature-settings: "calt" 1, "liga" 1; }
+div.sourceCode, pre.sourceCode, div.cell-output pre, pre:not(.sourceCode) {
+  background-color: $wfrc-code-bg;
+  color: $wfrc-code-ink;
+  border: 0;
+  border-radius: 6px;
+}
+div.sourceCode { background-color: $wfrc-code-bg !important; } // beats Quarto's alpha mixing against body-bg
+pre > code { color: inherit; }
+code span.co, code span.do, code span.an, code span.cv { font-style: italic; }
+p code:not(.sourceCode), li code:not(.sourceCode), td code:not(.sourceCode), h1 code, h2 code, h3 code {
+  color: $wfrc-code-inline;
+  background: $wfrc-code-bg;
+  border: 1px solid $wfrc-line;
+  border-radius: 4px;
+  padding: 0.08em 0.35em;
+}
+.code-with-filename .code-with-filename-file,
+.quarto-dark .code-with-filename .code-with-filename-file { // Quarto's dark rule (#555) is this specific
+  font-family: $font-family-monospace;
+  font-size: 0.75rem;
+  color: $wfrc-ink-2;
+  background: $wfrc-code-bg;
+  border: 0;
+  border-bottom: 1px solid $wfrc-line;
+  border-radius: 6px 6px 0 0;
+  pre { background: transparent; }
+}
+// Copy button. Quarto draws the icon only while the code block is hovered, so a bordered button
+// shows as an empty rectangle at rest and the icon pops in. Here the icon is always drawn (an alpha
+// mask, so it takes the text color) and the whole button fades in, as one square control, when the
+// block is hovered or the button has keyboard focus. On touch screens, which cannot hover, it stays
+// visible but quiet.
+$wfrc-icon-copy: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z'/%3E%3Cpath d='M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z'/%3E%3C/svg%3E";
+$wfrc-icon-check: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z' stroke='%23000' stroke-width='.6'/%3E%3C/svg%3E";
+.code-copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  margin: 6px 6px 0 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: $wfrc-ink-2;
+  opacity: 0;
+  transform: scale(0.92);
+  transition: opacity 0.16s ease, transform 0.16s ease, background-color 0.16s ease,
+              border-color 0.16s ease, color 0.16s ease;
+
+  > .bi::before {
+    display: block !important;
+    content: "";
+    width: 1rem;
+    height: 1rem;
+    vertical-align: 0;
+    background: currentColor !important;
+    -webkit-mask: url("#{$wfrc-icon-copy}") center / contain no-repeat;
+            mask: url("#{$wfrc-icon-copy}") center / contain no-repeat;
+  }
+  &.code-copy-button-checked > .bi::before {
+    -webkit-mask-image: url("#{$wfrc-icon-check}");
+            mask-image: url("#{$wfrc-icon-check}");
+  }
+
+  &:hover { color: $wfrc-h1; background: $wfrc-surface-2; border-color: $wfrc-line; }
+  &:focus-visible { outline: 2px solid $wfrc-focus; outline-offset: 2px; }
+  &.code-copy-button-checked { color: $wfrc-c-tip; }
+}
+div.code-copy-outer-scaffold:hover > .code-copy-button,
+.code-copy-button:focus-visible,
+.code-copy-button.code-copy-button-checked {
+  opacity: 1;
+  transform: none;
+  background: $wfrc-surface;
+  border-color: $wfrc-line;
+}
+div.code-copy-outer-scaffold:hover > .code-copy-button:hover { background: $wfrc-surface-2; }
+// The "Copied!" tooltip (Bootstrap): same roles as the other controls, readable in both modes.
+.tooltip {
+  --bs-tooltip-opacity: 1;
+  --bs-tooltip-border-radius: 8px;
+  --bs-tooltip-padding-x: 0.65rem;
+  --bs-tooltip-padding-y: 0.35rem;
+  --bs-tooltip-font-size: 0.75rem;
+  font-family: $headings-font-family;
+  font-weight: 600;
+}
+@media (hover: none) {
+  .code-copy-button { opacity: 0.85; transform: none; background: $wfrc-surface; border-color: $wfrc-line; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .code-copy-button { transition: none; transform: none; }
+}
+
+// ── 8  Tabsets, tables, blockquotes, details ─────────────────────────────────
+// The active tab and its pane share one surface so they read as a single object.
+.panel-tabset {
+  .nav-tabs {
+    border-bottom: 1px solid $wfrc-line;
+    .nav-link {
+      border-radius: 6px 6px 0 0;
+      border: 1px solid transparent;
+      font-family: $headings-font-family;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: $wfrc-ink-2;
+
+      &:hover, &:focus { border-color: transparent transparent $wfrc-line; color: $wfrc-h1; }
+      &.active {
+        color: $wfrc-h1;
+        background: $wfrc-surface-2;
+        border-color: $wfrc-line $wfrc-line $wfrc-surface-2;
+      }
+    }
+  }
+  .tab-content {
+    background: $wfrc-surface-2;
+    border: 1px solid $wfrc-line;
+    border-top: 0;
+    border-radius: 0 0 6px 6px;
+    padding: 0.75rem 1rem 1rem;
+  }
+}
+.table, table {
+  --bs-table-bg: transparent;
+  color: $wfrc-ink;
+
+  > thead > tr > th, thead th {
+    font-family: $headings-font-family;
+    font-weight: 600;
+    color: $wfrc-h1;
+    border-bottom: 2px solid $wfrc-rule;
+  }
+  > :not(caption) > * > * { border-color: $wfrc-line; }
+}
+caption, .table-caption, figcaption, .figure-caption { color: $wfrc-ink-2; font-size: 0.85rem; }
+.blockquote, blockquote {
+  color: $wfrc-ink-2;
+  border-left: 4px solid $wfrc-rule;
+  padding-left: 1rem;
+  font-style: italic;
+}
+details > summary { color: $wfrc-h1; font-family: $headings-font-family; font-weight: 600; cursor: pointer; }
+.quarto-figure img, figure img { border-radius: 4px; }
+
+// ── 9  TOC, sidebar, breadcrumbs, pagination, title block ────────────────────
+#TOC, .sidebar nav[role=doc-toc] {
+  .nav-link { color: $wfrc-ink-2; font-size: 0.875rem; &:hover { color: $wfrc-h1; } }
+  .nav-link.active { color: $wfrc-h1; font-weight: 600; border-left-color: $wfrc-rule; }
+}
+#quarto-margin-sidebar .sidebar-title, nav[role=doc-toc] h2 { font-family: $headings-font-family; font-size: 0.78rem; color: $wfrc-ink-2; text-transform: none; letter-spacing: 0; }
+.sidebar-navigation {
+  .sidebar-item-text, .sidebar-link { color: $wfrc-ink; }
+  .sidebar-link, .sidebar-item-toggle {
+    border-radius: 6px;
+  }
+  .sidebar-link:hover { background: $wfrc-surface-2; color: $wfrc-h1; }
+  .sidebar-link.active, .active > .sidebar-link {
+    background: $wfrc-surface-2;
+    color: $wfrc-h1;
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 $wfrc-rule;
+  }
+  .sidebar-title, .menu-text.sidebar-section-title { color: $wfrc-ink-2; font-family: $headings-font-family; }
+}
+.breadcrumb .breadcrumb-item a, .quarto-title-breadcrumbs .breadcrumb-item a, .quarto-title-breadcrumbs .breadcrumb li:last-of-type a { color: $wfrc-ink-2; &:hover { color: $wfrc-h1; } }
+.breadcrumb-item.active, .breadcrumb-item + .breadcrumb-item::before { color: $wfrc-ink-2; }
+.page-link {
+  color: $wfrc-h1;
+  background: $wfrc-surface;
+  border-color: $wfrc-line;
+  &:hover { background: $wfrc-action; border-color: $wfrc-action; color: $wfrc-action-ink; }
+}
+.quarto-title-banner {
+  background-color: $wfrc-block-navy !important;
+  color: #fff;
+
+  .title, .subtitle, .quarto-title-author-name, .quarto-title-affiliation, .quarto-title-meta-heading, .quarto-title-meta-contents, .description { color: #fff !important; }
+  a { color: $wfrc-footer-link; }
+}
+.quarto-title-meta-heading { font-family: $headings-font-family; font-size: 0.72rem; }
+
+// "Back to top" (website.back-to-top-navigation, on by default in wfrc-shared.yml): Quarto shows it
+// fixed at the bottom center once the page has scrolled. A pill in the card surface with a hairline,
+// like the other controls, instead of Quarto's white box with a heavy grey shadow.
+@keyframes wfrc-rise {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+#quarto-back-to-top {
+  font: 600 0.8rem/1 $headings-font-family;
+  color: $wfrc-link;
+  background: $wfrc-surface;
+  border: 1px solid $wfrc-line;
+  border-radius: 999px;
+  box-shadow: $wfrc-shadow;
+  padding: 0.6rem 1.05rem;
+  cursor: pointer;
+  text-decoration: none;
+  animation: wfrc-rise 0.2s ease-out;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+  .bi { margin-right: 0.35rem; }
+  &:hover { color: $wfrc-h1; background: $wfrc-surface-2; border-color: $wfrc-rule; text-decoration: none; }
+  &:focus-visible { outline: 2px solid $wfrc-focus; outline-offset: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #quarto-back-to-top { animation: none; transition: none; }
+}
+
+// ── 10  Footer with a ridge line ─────────────────────────────────────────────
+// The ridge is a CSS mask filled with the footer color, so one rule serves both modes.
+// It is traced from the wfrc.utah.gov footer skyline by scripts/trace-ridge.py (snow patches
+// filled in); re-run it with a new screenshot and --write to change the shape.
+// The viewBox height (120) must match the ::before height below.
+// ridge:begin (generated, do not edit by hand)
+$wfrc-ridge-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M0 120V69.9L24.6 79.9L38.3 82L56.4 93.7L72.2 109.5L80.9 111.9L106.2 96L127.2 75.9L157.5 69.7L177.7 57.2L199.4 51.2L213.1 50.6L229 54.9L247.1 35.2L262.3 44.6L278.9 42.4L299.1 60.6L312.8 60L335.9 67.1L358.3 88L365.6 90.4L381.5 80.6L396.6 84.3L409.6 74.5L422.6 69.4L447.2 41.2L455.9 42.2L468.2 50.6L473.2 51.4L488.4 29.2L495.6 24.3L505.7 22.8L532.5 31.9L563.5 6.2L592.4 6.5L607.6 1L653.8 37.8L696.4 60.6L718.1 85.7L741.2 94.2L756.4 87.4L774.5 84.8L808.4 54.2L823.6 47.3L830.8 49.7L845.3 63.9L851.8 66.6L870.6 59.9L905.2 64.9L924.7 54.4L931.2 57.1L945 70.2L950 69.9L960.1 62.2L965.9 61L988.3 73.2L999.2 76.5L1012.9 76.2L1029.5 66.6L1035.3 65.7L1064.2 79.6L1078.6 82L1096.7 93.7L1111.9 109L1119.1 112L1126.3 110L1145.8 96.6L1166.8 76.3L1200 69.7V120z'/%3E%3C/svg%3E");
+// ridge:end
+footer.footer {
+  position: relative;
+  margin-top: 4rem;
+  border-top: 0;
+  background: $wfrc-footer-bg;
+  color: $wfrc-footer-ink;
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -119px;
+    height: 120px;
+    background: $wfrc-footer-bg;
+    pointer-events: none;
+    -webkit-mask: $wfrc-ridge-mask bottom / 100% 100% no-repeat;
+            mask: $wfrc-ridge-mask bottom / 100% 100% no-repeat;
+  }
+  .nav-footer { padding-block: 1.25rem; }
+  .nav-footer a, .nav-footer .nav-link { color: $wfrc-footer-link; text-decoration: none; &:hover { color: #fff; text-decoration: underline; } }
+  .nav-footer i, .nav-footer-center .bi { color: $wfrc-footer-link !important; &:hover { color: #fff !important; } }
+}
+
+// ── 11  Dashboard ────────────────────────────────────────────────────────────
+.bslib-value-box {
+  border-radius: 10px;
+  box-shadow: none;
+  border: 0;
+
+  .value-box-title { font-family: $headings-font-family; font-size: 0.85rem; font-weight: 500; }
+  .value-box-value { font-family: $headings-font-family; font-weight: 700; font-variant-numeric: tabular-nums; }
+}
+// Quarto's dashboard SCSS colors value boxes with .quarto-dashboard .card.valuebox.bslib-card.bg-*
+// (five classes). One extra class here wins, so boxes stay flat navy / mid-blue / teal / brick
+// in both modes instead of taking the (light, in dark mode) semantic color.
+.quarto-dashboard .card.valuebox.bslib-card.bslib-value-box {
+  &.bg-primary   { background-color: $wfrc-block-navy !important; }
+  &.bg-secondary { background-color: $wfrc-block-mid !important; }
+  &.bg-info      { background-color: $wfrc-block-teal !important; }
+  &.bg-danger    { background-color: $wfrc-block-brick !important; }
+  &.bg-success   { background-color: $wfrc-c-tip !important; }
+  &.bg-warning   { background-color: $wfrc-gold !important; }
+  &.bg-primary, &.bg-secondary, &.bg-info, &.bg-danger, &.bg-success { color: #fff !important; }
+  &.bg-warning { color: $wfrc-gold-ink !important; }
+  .value-box-title, .value-box-value, .value-box-showcase { color: inherit !important; }
+}
+.bslib-sidebar-layout > .sidebar {
+  background: $wfrc-bg-alt;
+  border-color: $wfrc-line;
+  color: $wfrc-ink;
+}
+.quarto-dashboard {
+  .navbar { border-bottom: 1px solid $wfrc-line; }
+  .card { box-shadow: none; }
+  .card-toolbar, .card-footer { background: $wfrc-card; border-color: $wfrc-card-line; color: $wfrc-ink-2; }
+}
+
+// Observable Plot (OJS) charts take the heading font so they match the page.
+svg[class^="plot-"], figure[class^="plot-"], div[class^="plot-"] { font-family: $headings-font-family !important; font-size: 12px !important; }
+svg[class^="plot-"] { background: transparent !important; max-width: 100%; height: auto; }
+figure[class^="plot-"] { max-width: 100%; overflow-x: auto; }
+svg[class^="plot-"] text { fill: currentColor; }
+// A chart that sets its own text colour (style: {color: "#023c5b"}) would be unreadable in dark mode; text follows the page.
+svg[class^="plot-"] { color: inherit !important; }
+// Plot paints its tooltip box white (an inline fill) whatever the page is, so in dark mode the light text
+// above lands on white. The box takes the page colour instead; the text and outline already follow the theme.
+svg[class^="plot-"] g[pointer-events="none"] path { fill: var(--wfrc-bg) !important; }
+
+// ── 12  Inputs ───────────────────────────────────────────────────────────────
+.panel-input, .quarto-input-panel {
+  background: $wfrc-surface-2;
+  color: $wfrc-ink;
+  border: 1px solid $wfrc-line;
+  border-radius: 8px;
+}
+.form-control, .form-select, .input-group-text {
+  border-radius: 6px;
+  background-color: $wfrc-surface;
+  border-color: $wfrc-line;
+  color: $wfrc-ink;
+}
+.form-label, label { font-family: $headings-font-family; font-weight: 600; font-size: 0.85rem; color: $wfrc-h1; }
+form.oi-3a86ea, [class^="oi-"] label { color: $wfrc-h1; }
+
+// Quarto's dashboard header emits one logo link per mode and hides only the <img> inside the unused
+// one, leaving a link with no accessible name. Hide the whole link instead.
+#quarto-dashboard-header .navbar-brand-container {
+  @if $wfrc-is-dark { > a:has(> img.light-content) { display: none; } }
+  @else { > a:has(> img.dark-content) { display: none; } }
+}
+
+@if $wfrc-is-dark {
+  // WebR / CodeMirror cells
+  .cm-content { background-color: $wfrc-surface !important; }
+  .cm-activeLine { background-color: $wfrc-surface-2 !important; }
+  .cm-selectionLayer { z-index: 1 !important; }
+  .cm-selectionBackground { background-color: $wfrc-action !important; opacity: 0.3 !important; }
+  .tok-comment { color: $wfrc-ink-2 !important; }
+  // Highlight themes bold constants; keep them regular to match light mode
+  code span.cn { font-weight: normal; }
+}
+
+// ── 13  Landing-page utility classes ─────────────────────────────────────────
+// Use with Pandoc divs, e.g.  ::: {.wfrc-hero .column-screen} ... :::
+// Full-bleed sections need Quarto's .column-screen; the padding below lines the
+// content up with the page grid again.
+
+$wfrc-inner: max(20px, calc((100vw - 1100px) / 2));
+
+.wfrc-hero {
+  position: relative;
+  color: #fff;
+  padding: 4.5rem $wfrc-inner 5rem;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 420' preserveAspectRatio='xMidYMid slice'%3E%3Cg fill='none' stroke='white' stroke-opacity='.10' stroke-width='1.5'%3E%3Cpath d='M-20 300C180 240 300 360 520 290S860 210 1220 290'/%3E%3Cpath d='M-20 266C180 206 300 330 520 258S860 182 1220 254'/%3E%3Cpath d='M-20 232C180 172 300 300 520 226S860 154 1220 218'/%3E%3Cpath d='M-20 198C180 138 300 270 520 194S860 126 1220 182'/%3E%3Cpath d='M-20 164C180 104 300 240 520 162S860 98 1220 146'/%3E%3Cpath d='M-20 130C180 70 300 210 520 130S860 70 1220 110'/%3E%3C/g%3E%3C/svg%3E") center / cover no-repeat,
+    linear-gradient(135deg, $brand-wfrc-navy 0%, mix($brand-wfrc-navy, $brand-wfrc-mid-blue, 60%) 55%, $brand-wfrc-mid-blue 100%);
+
+  h1, h2, h3, .title { color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.25); }
+  h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); font-weight: 600; max-width: 16ch; border: 0; }
+  p { max-width: 56ch; font-size: 1.05rem; }
+  a:not(.btn) { color: #fff; }
+  em, strong.accent, .accent { color: $wfrc-gold; font-style: normal; }
+  .btn { box-shadow: 0 2.4px 10.4px rgba(0, 0, 0, 0.25); }
+  .btn-light { --bs-btn-bg: #fff; --bs-btn-color: #{$brand-wfrc-navy}; --bs-btn-border-color: #fff; --bs-btn-hover-bg: #{$wfrc-gold}; --bs-btn-hover-border-color: #{$wfrc-gold}; --bs-btn-hover-color: #{$brand-wfrc-navy}; }
+  .btn-outline-light { --bs-btn-color: #fff; --bs-btn-border-color: #fff; --bs-btn-hover-bg: #fff; --bs-btn-hover-border-color: #fff; --bs-btn-hover-color: #{$brand-wfrc-navy}; --bs-btn-active-bg: #fff; --bs-btn-active-color: #{$brand-wfrc-navy}; box-shadow: none; }
+}
+
+.wfrc-band {
+  background: $wfrc-band-blue;
+  color: #fff;
+  padding: 3.5rem $wfrc-inner;
+
+  h2, h3, h4 { color: #fff; margin-top: 0; }
+  a:not(.btn) { color: #fff; }
+}
+.wfrc-band h2, .wfrc-hero h1, .wfrc-hero h2 { border-bottom: 0; }
+.wfrc-band-alt { background: $wfrc-bg-alt; padding: 3.5rem $wfrc-inner; }
+
+// A row of flat color blocks, as on wfrc.utah.gov. Put one .wfrc-block per grid cell.
+.wfrc-blocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-bottom: 1.75rem; }
+.wfrc-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1.75rem;
+  border-radius: 10px;
+  color: #fff;
+  background: $wfrc-block-navy;
+
+  h3, h4 { color: #fff; margin: 0; }
+  p { margin: 0; font-size: 0.92rem; flex: 1; }
+  a:not(.btn) { color: #fff; }
+  &.mid   { background: $wfrc-block-mid; }
+  &.teal  { background: $wfrc-block-teal; }
+  &.brick { background: $wfrc-block-brick; }
+  .btn { --bs-btn-bg: #fff; --bs-btn-color: #{$brand-wfrc-navy}; --bs-btn-border-color: #fff; --bs-btn-hover-bg: #{$wfrc-gold}; --bs-btn-hover-border-color: #{$wfrc-gold}; --bs-btn-hover-color: #{$brand-wfrc-navy}; --bs-btn-font-size: 0.85rem; }
+}
+
+// Key numbers in one bordered strip: ::: {.wfrc-keyfacts} then one div per fact
+.wfrc-keyfacts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  border: 1px solid $wfrc-line;
+  border-radius: 10px;
+  background: $wfrc-surface;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+
+  > div { padding: 0.9rem 1.1rem; border-right: 1px solid $wfrc-line; font-size: 0.8rem; color: $wfrc-ink-2; }
+  > div:last-child { border-right: 0; }
+  strong, b { display: block; font-family: $headings-font-family; font-size: 1.5rem; color: $wfrc-h1; line-height: 1.2; }
+}
+
+// Dated update list: ::: {.wfrc-updates} with one "[Oct 21]{.wfrc-date} Title" paragraph per row
+.wfrc-updates > p, .wfrc-updates > li {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid $wfrc-line;
+  font-family: $headings-font-family;
+  font-weight: 600;
+  color: $wfrc-h1;
+  list-style: none;
+}
+.wfrc-date {
+  flex: none;
+  min-width: 3.6rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  background: $wfrc-block-brick;
+  color: #fff;
+  text-align: center;
+  font-family: $headings-font-family;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.wfrc-chip { display: inline-block; font: 600 0.75rem/1.4 $headings-font-family; padding: 2px 10px; border-radius: 999px; border: 1px solid $wfrc-line; background: $wfrc-surface-2; color: $wfrc-h1; }
+.wfrc-hero .wfrc-chip { background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.3); color: #fff; }
+
+// Status chips, promoted from the wfrcanalytics.github.io site: add a state to .wfrc-chip.
+//   [Live]{.wfrc-chip .chip-live}  [Internal]{.wfrc-chip .chip-internal}  [Archived]{.wfrc-chip .chip-archived}
+.wfrc-chip.chip-live { background: mix($wfrc-action, $wfrc-bg, 16%); border-color: $wfrc-action; }
+.wfrc-chip.chip-internal { background: mix($wfrc-gold, $wfrc-bg, 30%); border-color: $wfrc-c-warning; }
+.wfrc-chip.chip-archived { font-style: italic; background: transparent; border-style: dashed; }
+
+// A large number inside a color block: <span class="wfrc-stat-num">19</span> in a .wfrc-block.
+.wfrc-stat-num {
+  display: block;
+  font-family: $headings-font-family;
+  font-weight: 700;
+  font-size: clamp(2.2rem, 4vw, 3rem);
+  line-height: 1.05;
+  color: #fff;
+}
+
+// Table listings (type: table) as one rounded card with a tinted header row.
+.quarto-listing-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid $wfrc-line;
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 0.92rem;
+
+  thead th {
+    background: $wfrc-bg-alt;
+    border-bottom: 2px solid $wfrc-rule;
+    padding: 0.75rem 1rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  tbody td { padding: 0.8rem 1rem; vertical-align: top; border-top: 1px solid $wfrc-line; }
+  tbody tr:first-child td { border-top: 0; }
+  tbody tr:hover td { background: $wfrc-bg-alt; }
+  .listing-title { font-weight: 600; }
+  .listing-categories { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+}
+
+// "How to cite" or any callout-like aside: ::: {.wfrc-cite}
+.wfrc-cite {
+  background: $wfrc-bg-alt;
+  border-left: 4px solid $wfrc-rule;
+  border-radius: 0 8px 8px 0;
+  padding: 0.7rem 1rem;
+  p { margin: 0; }
+}
+
+// Screenshots on cards and detail pages: crop to the top of the page, with a hairline border.
+.wfrc-shot { display: block; width: 100%; max-width: 900px; border: 1px solid $wfrc-line; border-radius: 10px; margin-bottom: 1rem; }
+.quarto-grid-item .card-img-top.wfrc-shot-top, .wfrc-shot-top .card-img-top { object-position: top center; }
+
+// The repo-actions dropdown is the last navbar item; open it right-aligned or it runs off the screen.
+.quarto-navbar-tools .dropdown-menu { --bs-position: end; right: 0; left: auto; }
+
+// ── 14  Responsive rules ─────────────────────────────────────────────────────
+.aa-DetachedOverlay { position: absolute; }
+
+// Phones: markdown tables and plots scroll inside their own box instead of widening the page.
+@media screen and (max-width: 767.98px) {
+  main table.table, main table.caption-top { display: block; max-width: 100%; overflow-x: auto; }
+}
+
+@media screen and (max-width: 991.98px) {
+  .about-entity .about-links { flex-direction: row !important; justify-content: center !important; }
+  .nav-footer {
+    flex-direction: row;
+    &-center { order: 1 !important; flex-basis: 100%; margin: 0 0 -1.2em 0; }
+    &-right { order: 2 !important; flex-basis: 100%; text-align: center; }
+    &-left { order: 3 !important; flex-basis: 100%; text-align: center; }
+  }
+  .navbar-title { font-size: 0.85rem; }
+
+  // The collapsed navbar is ONE row: menu button, logo and title, then the tools. Quarto lets the row
+  // wrap, so with the GitHub menu, the mode toggle and search the tools dropped to a second row and
+  // the logo's link shrank until the logo was clipped ("WFR"). The logo and the tools never shrink;
+  // only the title does, and it ends in an ellipsis.
+  .navbar > .navbar-container { flex-wrap: nowrap; }
+  .navbar-brand-container { min-width: 0; }
+  .navbar-brand-container > a.navbar-brand-logo { flex: none; overflow: visible; }
+  .navbar-brand-container .navbar-logo { max-height: 30px; width: auto; }
+  .navbar-brand-container > a.navbar-brand:not(.navbar-brand-logo) { min-width: 0; margin-right: 0; overflow: hidden; }
+  .navbar-brand-container .navbar-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .navbar .quarto-navbar-tools { flex: none; white-space: nowrap; font-size: 1.2rem; text-align: left; }
+  .navbar #quarto-search { flex: none; }
+}
+// Phones: a little tighter type so more of a long site title fits.
+@media screen and (max-width: 480px) {
+  .navbar-title { font-size: 0.78rem; letter-spacing: 0.04em; }
+}

@@ -1,0 +1,64 @@
+<script>
+// Accessibility fixes for things Quarto and its libraries render but cannot configure.
+// Included on every page through wfrc-shared.yml (format.html.include-after-body).
+(function () {
+  function fix(root) {
+    // Listing banners are decorative; Quarto drops an empty `image-alt`.
+    root.querySelectorAll('img.thumbnail-image:not([alt])').forEach(function (img) {
+      img.setAttribute('alt', '');
+    });
+    // Quarto only sets `title` on the color-scheme toggle: add an accessible name and a clearer tooltip.
+    root.querySelectorAll('.quarto-color-scheme-toggle:not([aria-label])').forEach(function (a) {
+      a.setAttribute('aria-label', 'Toggle light and dark mode');
+      a.setAttribute('title', 'Toggle light / dark');
+    });
+    // Collapsible callouts put aria-expanded on a plain div: make it a real, keyboard-operable button.
+    root.querySelectorAll('.callout-header[aria-expanded]:not([role])').forEach(function (h) {
+      h.setAttribute('role', 'button');
+      h.setAttribute('tabindex', '0');
+      h.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); h.click(); }
+      });
+    });
+    // The announcement's dismiss control is a bare <i> with a click handler: give it a role, a name
+    // and keyboard operation (Enter and Space).
+    root.querySelectorAll('#quarto-announcement .quarto-announcement-action:not([role])').forEach(function (i) {
+      i.setAttribute('role', 'button');
+      i.setAttribute('tabindex', '0');
+      i.setAttribute('aria-label', 'Dismiss announcement');
+      i.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); i.click(); }
+      });
+    });
+    // Quarto's "Back to top" is an <a role="button"> without an href, so the keyboard cannot reach it.
+    root.querySelectorAll('#quarto-back-to-top:not([tabindex])').forEach(function (a) {
+      a.setAttribute('tabindex', '0');
+      a.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.scrollTo(0, 0); }
+      });
+    });
+    // Observable Plot labels bare <g> marks; aria-label is not allowed on a role-less element.
+    root.querySelectorAll('[class^="plot-"] g[aria-label]:not([role])').forEach(function (g) {
+      g.removeAttribute('aria-label');
+    });
+    // Scrollable regions must be reachable by keyboard.
+    root.querySelectorAll('pre, div.sourceCode, .card, .card-body, .table-striped, table, .cell-output-display').forEach(function (el) {
+      if (el.hasAttribute('tabindex') || el.matches('a, button, input, select, textarea')) return;
+      var o = getComputedStyle(el);
+      var scrolls = /(auto|scroll)/.test(o.overflowX + o.overflowY) &&
+        (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1);
+      if (scrolls) el.setAttribute('tabindex', '0');
+    });
+  }
+  var queued = false;
+  function schedule() {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(function () { queued = false; fix(document); });
+  }
+  fix(document);
+  new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+  window.addEventListener('resize', schedule);
+  window.addEventListener('load', function () { setTimeout(schedule, 800); setTimeout(schedule, 2500); });
+})();
+</script>

@@ -1,301 +1,104 @@
 /*-- scss:defaults --*/
 
-// Import WFRC brand colors and fonts
-@import "wfrc-colors";
-@import "wfrc-fonts";
+// =============================================================================
+// LIGHT MODE — role map. Every value is a brand.yml palette name; no hex codes.
+// brand.yml (loaded last in the theme list) supplies $primary, $body-bg,
+// $body-color, headings, links and fonts. This file adds the roles brand.yml
+// has no field for.
+// =============================================================================
 
-// ===== LIGHT MODE SCSS DEFAULTS =====
-// brand.yml already handles via its Bootstrap variable mapping:
-//   primary, secondary, body-color, body-bg, link-color, link-decoration,
-//   success/info/warning/danger, all font families/sizes/weights/line-heights,
-//   headings-color, monospace-inline code-color/code-bg.
-// Only declare what brand.yml cannot express.
+$wfrc-is-dark: false;
 
-// Body secondary color (brand.yml has no equivalent mapping)
-$body-secondary: $wfrc-gray;
+// Surfaces and ink
+$wfrc-bg:           $brand-wfrc-paper;
+$wfrc-bg-alt:       $brand-wfrc-band;
+$wfrc-surface:      $brand-wfrc-paper;
+$wfrc-surface-2:    $brand-wfrc-mist;
+$wfrc-ink:          $brand-wfrc-ink;
+$wfrc-ink-2:        $brand-wfrc-ink-soft;
+$wfrc-line:         $brand-wfrc-hairline;
+$wfrc-card:         $brand-wfrc-card;
+$wfrc-card-line:    mix($brand-wfrc-bright-blue, $brand-wfrc-hairline, 24%);
 
-// Link hover states (brand.yml only handles link.color, not hover)
-$link-hover-color: darken($wfrc-secondary-blue, 10%);
-$link-hover-decoration: none;
+// Type and interaction
+$wfrc-h1:           $brand-wfrc-navy;
+$wfrc-h2:           $brand-wfrc-mid-blue;
+$wfrc-link:         $brand-wfrc-navy;
+$wfrc-link-hover:   $brand-wfrc-action;
+$wfrc-action:       $brand-wfrc-action;
+$wfrc-action-ink:   $brand-wfrc-paper;
+$wfrc-action-hover: $brand-wfrc-navy;
+$wfrc-focus:        $brand-wfrc-bright-blue;
+$wfrc-rule:         $brand-wfrc-bright-blue;
 
-// Code — inline and block share the same bg for visual consistency.
-// !important in CSS rules below bypasses Quarto's $code-block-bg-alpha mixing.
-$code-color: $wfrc-blue; // dark navy — readable on light bg
-$code-bg: #e6ebf1; // soft blue-gray
-$code-block-bg: #e6ebf1; // same as $code-bg
-$code-block-border: lighten($wfrc-gray, 30%);
+// Accents and color blocks
+$wfrc-accent:       $brand-wfrc-brick;
+$wfrc-gold:         $brand-wfrc-gold;
+$wfrc-gold-ink:     $brand-wfrc-navy;
+$wfrc-band-blue:    $brand-wfrc-bright-blue;
+$wfrc-block-navy:   $brand-wfrc-navy;
+$wfrc-block-mid:    $brand-wfrc-mid-blue;
+$wfrc-block-teal:   $brand-wfrc-action;
+$wfrc-block-brick:  $brand-wfrc-brick-deep;
+$wfrc-footer-bg:    $brand-wfrc-navy;
+$wfrc-footer-ink:   $brand-wfrc-snow;
+$wfrc-footer-link:  $brand-wfrc-ice;
 
-// Tables
-$table-border-color: lighten($wfrc-blue, 60%);
-$table-group-separator-color: lighten($wfrc-blue, 70%);
-$table-caption-color: $body-secondary;
+// Code
+$wfrc-code-bg:      $brand-wfrc-code;
+$wfrc-code-ink:     $brand-wfrc-ink;
+$wfrc-code-inline:  $brand-wfrc-navy;
 
-// Table of contents
-$toc-color: $wfrc-secondary-blue;
-$toc-active-border: $toc-color;
-$toc-inactive-border: lighten($toc-color, 50%);
+// Callouts
+$wfrc-c-note:       $brand-wfrc-note;
+$wfrc-c-tip:        $brand-wfrc-tip;
+$wfrc-c-important:  $brand-wfrc-brick-deep;
+$wfrc-c-warning:    $brand-wfrc-warning-bar;
+$wfrc-c-caution:    $brand-wfrc-caution;
 
-// Navbar (brand.yml primary/background don't directly map to these Bootstrap navbar vars)
-$navbar-bg: $white;
-$navbar-fg: $wfrc-blue;
+// Charts (read by OJS and by the R, Python helpers through brand.yml)
+$wfrc-chart-1:      $brand-chart-1;
+$wfrc-chart-2:      $brand-chart-2;
+$wfrc-chart-3:      $brand-chart-3;
+$wfrc-chart-4:      $brand-chart-4;
+$wfrc-chart-5:      $brand-chart-5;
 
-// Footer
-$footer-fg: $wfrc-blue;
-$footer-bg: $white;
+$wfrc-shadow:       0 2px 10px rgba(0, 57, 91, 0.10);
 
-// Gray scale adjustment
-$gray-200: lighten($wfrc-blue, 70%);
-
-/*-- scss:rules --*/
-
-// Light mode specific styles
-
-// !important bypasses Quarto's $code-block-bg-alpha mixing
-// (which blends $code-block-bg against body-bg before emitting CSS).
-div.sourceCode,
-pre.sourceCode {
-    background-color: #e6ebf1 !important;
-    border: none;
-    // border: 1px solid $code-block-border;
-    border-radius: 4px;
-}
-
-// Code with filename
-.code-with-filename .code-with-filename-file {
-    color: $code-color;
-    background-color: $code-bg;
-    border: none;
-    // border: 1px solid $code-block-border;
-    border-bottom: none;
-
-    pre {
-        background-color: $code-bg;
-    }
-}
-
-// Inline code
-p code:not(.sourceCode),
-li code:not(.sourceCode),
-td code:not(.sourceCode) {
-    color: $code-color;
-    background-color: $code-bg;
-    border: 1px solid lighten($wfrc-blue, 50%);
-    padding: 0.1em 0.3em;
-    border-radius: 3px;
-}
-
-// Blockquotes
-.blockquote {
-    color: lighten($wfrc-blue, 15%);
-    font-style: italic;
-    border-left: 3px solid $wfrc-secondary-blue;
-    padding-left: 1em;
-}
-
-// Pagination
-.page-link {
-    color: $wfrc-blue;
-
-    &:hover {
-        color: $white;
-        background-color: $wfrc-blue;
-        border-color: $wfrc-blue;
-    }
-}
-
-// Categories
-.quarto-category {
-    background-color: $wfrc-blue;
-    color: $white;
-    border-color: $wfrc-blue;
-
-    &:hover {
-        background-color: $white;
-        color: $wfrc-blue;
-        border-color: $wfrc-blue;
-    }
-}
-
-// Navbar title
-.navbar-title {
-    color: $wfrc-blue;
-
-    &:hover {
-        border-bottom: 1px solid $wfrc-blue !important;
-    }
-}
-
-// Navbar links — primary wfrc-blue in light mode.
-// font/size/case handled in wfrc.scss shared rules.
-.navbar-nav .nav-link {
-    color: $wfrc-blue !important;
-
-    &:hover {
-        color: darken($wfrc-blue, 10%) !important;
-        border-bottom: 1px solid $wfrc-blue !important;
-    }
-}
-
-// Dropdown caret — Bootstrap compiles --bs-navbar-color as rgba($navbar-fg, α)
-// under .navbar-light, which outspecifics our .navbar override. The ::after
-// pseudo-element uses border-top:solid (currentColor). Setting color AND
-// border-top-color directly on the pseudo-element bypasses the custom-property
-// resolution chain entirely.
-.navbar-nav .nav-link.dropdown-toggle::after,
-.navbar-nav .nav-item .dropdown-toggle::after {
-    color: $wfrc-blue !important;
-    border-top-color: $wfrc-blue !important;
-}
-
-// Dropdown menu items — broad selector catches navbar menus and tools dropdowns
-.dropdown-menu .dropdown-item {
-    &:hover {
-        background-color: $wfrc-secondary-blue !important;
-        color: $white !important;
-    }
-}
-
-// Listing cards
-.card {
-    background: $white;
-    box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.1);
-    border: 1px solid lighten($wfrc-gray, 30%);
-}
-
-// Title banner
-.quarto-title-banner {
-    background-color: $wfrc-blue !important;
-
-    .title,
-    .subtitle,
-    .quarto-title-author-name,
-    .quarto-title-affiliation {
-        color: $white !important;
-    }
-}
-
-// Buttons
-.btn-primary {
-    background-color: $wfrc-blue;
-    border-color: $wfrc-blue;
-    color: $white;
-
-    &:hover {
-        background-color: darken($wfrc-blue, 10%);
-        border-color: darken($wfrc-blue, 10%);
-    }
-}
-
-.btn-secondary {
-    background-color: $wfrc-secondary-blue;
-    border-color: $wfrc-secondary-blue;
-    color: $white;
-
-    &:hover {
-        background-color: darken($wfrc-secondary-blue, 10%);
-        border-color: darken($wfrc-secondary-blue, 10%);
-    }
-}
-
-// Footer links
-.nav-footer a {
-    color: $wfrc-secondary-blue;
-
-    &:hover {
-        color: darken($wfrc-secondary-blue, 10%);
-    }
-}
-
-// Social icons
-.nav-footer-center i,
-.about-links .about-link i,
-.link-dark.me-1 i {
-    color: $wfrc-secondary-blue !important;
-
-    &:hover {
-        color: darken($wfrc-secondary-blue, 10%) !important;
-    }
-}
-
-// Name highlight
-.name-highlight {
-    color: $wfrc-blue !important;
-    // background-color: $brand-wfrc-blue !important;
-    // padding: 0.1em 0.4em;
-    // border-radius: 3px;
-}
-
-// Headings use brand color
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-.h1,
-.h2,
-.h3,
-.h4,
-.h5,
-.h6 {
-    font-family: $headings-font-family;
-    color: $headings-color;
-    font-weight: $headings-font-weight;
-    line-height: $headings-line-height;
-}
-
-// Links
-a {
-    text-decoration: $link-text-decoration;
-    text-underline-offset: $link-text-underline-offset;
-}
-
-// Active tab's own border — themed on all sides, for consistency with dark
-// mode's equivalent rule (Bootstrap's default active-tab rule only sets
-// background-color/border-bottom-color, leaving top/left/right at the
-// base .nav-link's transparent border).
-.panel-tabset .nav-tabs .nav-link.active {
-    border-color: lighten($wfrc-blue, 60%); // #92d8fd
-}
-
-// Tab-content pane and the row's own underline (.nav-tabs) — NOT the bare
-// .nav-link selector: only the active tab (above) should ever show an
-// individual border. Inactive tabs stay borderless (Bootstrap's own
-// transparent default) until hover, below.
-.panel-tabset .nav-tabs,
-.panel-tabset .tab-content {
-    border-color: lighten($wfrc-blue, 60%); // #92d8fd
-}
-
-// border-bottom shorthand (style + width + color), not border-bottom-color
-// alone — restores style: solid and width: 1px explicitly rather than
-// assuming they're already correct.
-.panel-tabset .nav-tabs {
-    border-bottom: 1px solid lighten($wfrc-blue, 60%); // #92d8fd
-}
-
-// Bootstrap's own hover/focus rule sets border-color to $gray-200 $gray-200
-// $nav-tabs-border-color (top / left-right / bottom). $gray-200 is already
-// remapped above, so top/left/right theme automatically; $nav-tabs-border-color
-// itself is never remapped, so the bottom side alone stays at Bootstrap's raw
-// default (confirmed via getComputedStyle — the "already themed, no fix
-// needed" assumption for light mode was wrong). :not(.active) keeps this
-// from winning the specificity tie against the active-tab rule above.
-.panel-tabset .nav-tabs .nav-link:not(.active):hover,
-.panel-tabset .nav-tabs .nav-link:not(.active):focus {
-    border-bottom-color: lighten($wfrc-blue, 60%); // #92d8fd
-}
-
-// Subtle contrast between the tabset (active tab + content pane) and the
-// page background.
-.panel-tabset .tab-content {
-    background-color: darken($white, 5%); // #f2f2f2
-}
-
-// background-color and border-bottom-color must move together — Bootstrap's
-// default active-tab rule ties both to the same variable, so changing only
-// the background reintroduces the header/content seam.
-.panel-tabset .nav-tabs .nav-link.active {
-    background-color: darken($white, 5%); // #f2f2f2
-    border-bottom-color: darken($white, 5%); // #f2f2f2
-}
+// Bootstrap variables that follow the roles (!default so brand.yml can still win)
+$link-hover-color:          $wfrc-link-hover !default;
+$body-emphasis-color:       $wfrc-ink !default;
+$body-secondary-color:      $wfrc-ink-2 !default;
+$text-muted:                $wfrc-ink-2 !default;
+$body-tertiary-bg:          $wfrc-bg-alt !default;
+$border-color:              $wfrc-line !default;
+$navbar-bg:                 $wfrc-bg !default;
+$navbar-fg:                 $wfrc-h1 !default;
+$navbar-hl:                 $wfrc-h1 !default;
+$footer-bg:                 $wfrc-footer-bg !default;
+$footer-fg:                 $wfrc-footer-ink !default;
+$card-bg:                   $wfrc-card !default;
+$card-cap-bg:               $wfrc-card !default;
+$card-border-color:         $wfrc-card-line !default;
+$code-color:                $wfrc-code-inline !default;
+$code-bg:                   $wfrc-code-bg !default;
+$code-block-bg:             $wfrc-code-bg !default;
+$table-border-color:        $wfrc-line !default;
+$table-group-separator-color: $wfrc-line !default;
+$table-hover-bg:            $wfrc-surface-2 !default;
+$toc-color:                 $wfrc-h1 !default;
+$toc-active-border:         $wfrc-rule !default;
+$toc-inactive-border:       $wfrc-line !default;
+$sidebar-bg:                $wfrc-bg !default;
+$dropdown-bg:               $wfrc-surface !default;
+$dropdown-border-color:     $wfrc-line !default;
+$dropdown-link-hover-bg:    $wfrc-surface-2 !default;
+$dropdown-link-hover-color: $wfrc-h1 !default;
+$input-bg:                  $wfrc-surface !default;
+$input-border-color:        $wfrc-line !default;
+$nav-tabs-link-active-bg:   $wfrc-surface-2 !default;
+$callout-color-note:        $wfrc-c-note !default;
+$callout-color-tip:         $wfrc-c-tip !default;
+$callout-color-important:   $wfrc-c-important !default;
+$callout-color-warning:     $wfrc-c-warning !default;
+$callout-color-caution:     $wfrc-c-caution !default;

@@ -1446,383 +1446,9 @@ sfacCfacBySegid = {
 }
 ```
 
-#### Single-Station Detail
-
-```{ojs}
-//| echo: false
-//| panel: input
-
-// ─── Block 2: Sidebar Controls ───────────────────────────────────────────────
-viewof groupVar = Inputs.select(
-  new Map([
-    ["Functional Class", "FTCLASS"],
-    ["County", "COUNTY_NAME"],
-    ["Area Type", "ATYPENAME"]
-  ]),
-  {label: "1. Group By:", value: "FTCLASS"}
-)
-
-viewof filterVal = Inputs.select(
-  ["All"].concat(uniqueGroups),
-  {label: "2. Filter Group:", value: "All"}
-)
-
-// Remembers the picked station across recomputation of filteredStations
-// (e.g. switching globalCalibRun) so the dropdown doesn't silently reset to
-// its first option -- same mutable-plus-resync pattern as vmtActiveTab
-// further down. Initialized to null so the very first render falls through
-// to filteredStations[0] below, matching the prior no-value default.
-mutable lastSelectedStation = null
-
-viewof selectedStation = {
-  const select = Inputs.select(
-    filteredStations,
-    {
-      label: "3. Select Station:",
-      value: filteredStations.includes(lastSelectedStation) ? lastSelectedStation : filteredStations[0],
-      format: d => {
-        const desc = siteInfo.get(d)?.SITE_DESCRIPTION;
-        return desc && desc !== "0" ? `${d} — ${desc}` : d;
-      }
-    }
-  );
-  // Sync every user pick back into the mutable so it survives the next
-  // time this cell reruns (e.g. a calib run switch rebuilds filteredStations
-  // and, with it, this select from scratch).
-  select.addEventListener("input", () => {
-    mutable lastSelectedStation = select.value;
-  });
-  return select;
-}
-```
-
-```{ojs}
-//| echo: false
-
-// Location detail card for the currently selected station -- expands on the
-// dropdown label above with route/milepost/county so a reader unfamiliar
-// with CCS site codes can place the station without leaving the page.
-{
-  const info = siteInfo.get(selectedStation);
-  const hasDetail = info && info.SITE_DESCRIPTION && info.SITE_DESCRIPTION !== "0";
-
-  // High-visibility flag for a station using a non-default year (see
-  // yearForSite()/ccs_year_overrides.csv, e.g. -316 has no usable 2023
-  // coverage so it uses 2024 instead) -- easy to miss otherwise, since
-  // nothing else about the chart calls out that it's showing a different
-  // year than every other station.
-  const overrideYear = yearForSite(selectedStation);
-  const yearBadge = overrideYear !== ccs_default_year_py
-    ? html`<div style="display:inline-block; margin-bottom:8px; padding:4px 10px; background:#ffc107; color:#3d2e00; border-radius:4px; font-weight:700; font-size:12px; letter-spacing:0.3px;">⚠ USING ${overrideYear} DATA</div><br>`
-    : "";
-
-  if (!hasDetail) {
-    return html`<div>${yearBadge}<div style="margin: -8px 0 12px 0; padding: 8px 12px; background: #f4f4f6; border-left: 3px solid ${themeNeutral}; border-radius: 4px; font-size: 13px; color: #666;">No location details available for station ${selectedStation}.</div></div>`;
-  }
-
-  const route = info.ROUTE_NAME && info.ROUTE_NAME !== "0" ? info.ROUTE_NAME : null;
-  const mp = info.MILEPOST ? `MP ${Number(info.MILEPOST).toFixed(2)}` : null;
-  const county = info.COUNTY_NAME && info.COUNTY_NAME !== "0" ? `${info.COUNTY_NAME} County` : null;
-  const meta = [route, mp, county].filter(Boolean).join("  ·  ");
-
-  // HAS_MODEL_DATA is false for a station whose matched segment has no
-  // model output (e.g. just outside the model's core-county reporting
-  // area) -- flag it here since the chart below silently omits the
-  // Modeled Volume line/legend entry for these stations.
-  const noModelNote = info.HAS_MODEL_DATA === false
-    ? html`<br><span style="color:${themeDanger}; font-size:11px;">⚠ No modeled volume for this station's segment (outside the model's core reporting area) -- chart below omits the Modeled Volume line.</span>`
-    : "";
-
-  return html`<div>${yearBadge}<div style="margin: -8px 0 12px 0; padding: 8px 12px; background: #f4f4f6; border-left: 3px solid ${themeAccent}; border-radius: 4px; font-size: 13px;">
-    <strong>${info.SITE_DESCRIPTION}</strong>${meta ? html`<br><span style="color: #555;">${meta}</span>` : ""}${noModelNote}
-  </div></div>`;
-}
-```
-
-```{ojs}
-//| label: ccs-daily-viz
-//| echo: false
-
-// Define Custom Sort Orders
-sortOrders = ({
-  "FTCLASS": ['Freeway', 'Expressway', 'Principal Arterial', 'Minor Arterial', 'Collector'],
-  "ATYPENAME": ['Urban', 'Suburban', 'Transition', 'Rural'],
-  "COUNTY_NAME": ['Box Elder', 'Weber', 'Davis', 'Salt Lake', 'Utah']
-})
-
-// Calculate unique groups with custom sorting
-uniqueGroups = {
-  // Get unique values
-  const vals = daily_data.map(d => d[groupVar]).filter((v, i, a) => a.indexOf(v) === i);
-
-  // Get the specific sort order for the selected variable
-  const order = sortOrders[groupVar];
-
-  if (order) {
-    // Sort based on the index in the 'order' array
-    return vals.sort((a, b) => {
-      const idxA = order.indexOf(a);
-      const idxB = order.indexOf(b);
-      // Items found in the list get their index; items not found get pushed to the end (999)
-      return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
-    });
-  } else {
-    // Fallback to alphabetical if no order is defined
-    return vals.sort();
-  }
-}
-
-filteredStations = daily_data
-  .filter(d => filterVal === "All" || d[groupVar] === filterVal)
-  .map(d => d.SITE)
-  .filter((v, i, a) => a.indexOf(v) === i)
-  .sort()
-
-{
-  // ─── Local Processing ────────────────────────────────────────────────────────
-  // We use 'const' here so these variables don't conflict with other parts of the report
-  const stationData = daily_data.filter(d => d.SITE === selectedStation);
-  const refs = stationData.length > 0 ? stationData[0] : {HPMS_AADT: 0, MODEL_VOL: 0, HAS_MODEL_DATA: false};
-  const stationHasData = stationData.length > 0;
-
-  // Tue/Wed/Thu average within the calibration period -- the subset of days
-  // typically used as the "representative weekday" ground truth for
-  // calibration, since it excludes weekend and Mon/Fri shoulder effects.
-  // The window (and the chart's whole x-axis, below) follows
-  // yearForSite(selectedStation) -- ccs_year_overrides.csv, e.g. -316 has no
-  // usable 2023 coverage so it uses 2024 instead -- rather than inferring
-  // the year from whichever rows happen to be present.
-  const year = yearForSite(selectedStation);
-  const calStart = new Date(year, 8, 1);
-  const calEnd = new Date(year, 10, 15);
-  const calTueThuRows = stationData.filter(d => {
-    const dow = d.Date.getDay();
-    return d.Date >= calStart && d.Date <= calEnd && dow >= 2 && dow <= 4;
-  });
-  const calTueThuAvg = calTueThuRows.length > 0 ? d3.mean(calTueThuRows, d => d.DAILY_VOL) : 0;
-
-  // ─── Configuration ───────────────────────────────────────────────────────────
-  const palette = {
-    ccs:       themeNeutral, // Slate
-    hpms:      "#3d3a37",    // Dark grey -- deliberately not themeTarget, so it doesn't compete with Cal. Tue-Thu Avg below for the "target" blue
-    model:     themeModel,   // Orange
-    cal:       themeAccent,  // Violet (calibration period shading/label only)
-    calTueThu: themeTarget   // Blue -- this is the actual target line now, in place of HPMS AADT
-  };
-
-  const yMaxVol = stationHasData
-    ? Math.max(d3.max(stationData, d => d.DAILY_VOL), refs.HPMS_AADT, refs.MODEL_VOL, calTueThuAvg) * 1.1
-    : 1000;
-
-  // ─── The Plot ────────────────────────────────────────────────────────────────
-  const thumbSize = 400;
-  const chartWidth = Math.min(width, 960) - (width > 600 ? thumbSize + 12 : 0);
-  const chart = Plot.plot({
-    width: chartWidth,
-    height: 450,
-    marginLeft: 60,
-    marginBottom: 40,
-    style: {
-      fontSize: "12px",
-      fontFamily: "system-ui, -apple-system, sans-serif",
-      backgroundColor: "white"
-    },
-
-    color: {
-      domain: ["Daily CCS Volume", "HPMS AADT", "Modeled Volume", "Target (Cal. Period Tue-Thu Avg)"],
-      range: [palette.ccs, palette.hpms, palette.model, palette.calTueThu],
-      legend: true
-    },
-
-    x: {
-      label: null,
-      tickFormat: "%B",
-      domain: [new Date(year, 0, 1), new Date(year, 11, 31)]
-    },
-
-    y: {
-      label: "Daily Volume",
-      grid: true,
-      domain: [0, yMaxVol],
-      tickFormat: "s"
-    },
-
-    marks: [
-      // 1. Calibration Period
-      Plot.rectX([{start: calStart, end: calEnd}], {
-        x1: "start", x2: "end",
-        y1: 0, y2: yMaxVol,
-        fill: palette.cal,
-        fillOpacity: 0.08
-      }),
-      Plot.text([{x: new Date(year, 9, 8), y: yMaxVol}], {
-        x: "x", y: "y",
-        text: d => "Calibration Period",
-        fill: palette.cal,
-        dy: 15,
-        fontWeight: "bold",
-        fontSize: 11
-      }),
-
-      // 2. Reference Lines
-      Plot.ruleY([refs.HPMS_AADT], {
-        stroke: () => "HPMS AADT",
-        strokeWidth: 2,
-        strokeDasharray: "2 2"
-      }),
-      // Target drawn first, wider (6px) and solid; Modeled Volume second,
-      // thinner (4px) and solid -- when the two coincide, the Target line's
-      // extra width still shows as a visible edge around the Model line on
-      // top, so both stay distinguishable.
-      Plot.ruleY([calTueThuAvg], {
-        stroke: () => "Target (Cal. Period Tue-Thu Avg)",
-        strokeWidth: 6
-      }),
-      // Omit the Modeled Volume line entirely (rather than draw it at 0)
-      // when this station's segment has no model output -- see the
-      // location-detail card above for the explanatory note.
-      ...(refs.HAS_MODEL_DATA ? [Plot.ruleY([refs.MODEL_VOL], {
-        stroke: () => "Modeled Volume",
-        strokeWidth: 4
-      })] : []),
-
-      // 3. Main Data Line
-      Plot.line(stationData, {
-        x: "Date",
-        y: "DAILY_VOL",
-        stroke: () => "Daily CCS Volume",
-        strokeWidth: 1.0
-      }),
-
-      // 4. Tooltip
-      Plot.tip(stationData, Plot.pointerX({
-        x: "Date",
-        y: "DAILY_VOL",
-        title: d => `📅 ${d.Date.toLocaleDateString()}\n🚗 CCS: ${d.DAILY_VOL.toLocaleString()}\n📏 HPMS: ${Math.round(refs.HPMS_AADT).toLocaleString()}\n🔵 Model: ${refs.HAS_MODEL_DATA ? Math.round(refs.MODEL_VOL).toLocaleString() : "N/A (not modeled)"}\n🟢 Cal. Tue-Thu Avg: ${Math.round(calTueThuAvg).toLocaleString()}`
-      }))
-    ]
-  });
-
-  // ─── Thumbnail Location Map ──────────────────────────────────────────────────
-  // A small, non-interactive (interactive: false) static-style map next to
-  // the chart, just showing where this station sits -- not meant for
-  // exploration, so no zoom/pan controls or attribution clutter like the
-  // full interactive maps elsewhere on this page.
-  const mapContainer = document.createElement("div");
-  mapContainer.style.width = `${thumbSize}px`;
-  mapContainer.style.height = `${thumbSize}px`;
-  mapContainer.style.borderRadius = "8px";
-  mapContainer.style.border = "1px solid #ccc";
-  mapContainer.style.flexShrink = "0";
-
-  const stationFeature = daily_stations_geo.features.find(
-    f => String(f.properties.SITE) === selectedStation
-  );
-
-  // Every other station -- not pre-filtered by distance; at this thumbnail's
-  // zoom level, only the ones actually near the selected station fall
-  // inside the visible map extent anyway.
-  const otherStationsFc = {
-    type: "FeatureCollection",
-    features: daily_stations_geo.features.filter(f => String(f.properties.SITE) !== selectedStation)
-  };
-
-  const thumbMap = new maplibregl.Map({
-    container: mapContainer,
-    style: UGRC_BASEMAP_STYLE,
-    center: stationFeature ? stationFeature.geometry.coordinates : [-111.8910, 40.7608],
-    zoom: stationFeature ? 10 : 8,
-    interactive: false,
-    attributionControl: false
-  });
-
-  if (stationFeature) {
-    thumbMap.on("load", () => {
-      // mapContainer is constructed detached from the document (it's only
-      // attached once the html`` template below is inserted), so MapLibre
-      // measures a stale/zero size at construction time and centers wrong
-      // until explicitly told to re-measure and recenter here.
-      thumbMap.resize();
-      thumbMap.setCenter(stationFeature.geometry.coordinates);
-
-      // Other nearby stations drawn first (so the selected station's own
-      // circle/label sit on top), in a different color so it's obvious
-      // which dot is the one this chart is about.
-      thumbMap.addSource("thumb-other-stations", { type: "geojson", data: otherStationsFc });
-      thumbMap.addLayer({
-        id: "thumb-other-stations-circle",
-        type: "circle",
-        source: "thumb-other-stations",
-        paint: {
-          "circle-radius": 5,
-          "circle-color": themeModel,
-          "circle-stroke-color": "#1e1e1e",
-          "circle-stroke-width": 1,
-          "circle-opacity": 0.85
-        }
-      });
-      thumbMap.addLayer({
-        id: "thumb-other-stations-label",
-        type: "symbol",
-        source: "thumb-other-stations",
-        layout: {
-          "text-field": ["get", "SITE"],
-          "text-font": ["Noto Sans Bold"],
-          "text-size": 9,
-          "text-offset": [0, 1],
-          "text-anchor": "top"
-        },
-        paint: {
-          "text-color": "#1e1e1e",
-          "text-halo-color": "white",
-          "text-halo-width": 1.2
-        }
-      });
-
-      thumbMap.addSource("thumb-station", { type: "geojson", data: stationFeature });
-      thumbMap.addLayer({
-        id: "thumb-station-circle",
-        type: "circle",
-        source: "thumb-station",
-        paint: {
-          "circle-radius": 7,
-          "circle-color": themeTarget,
-          "circle-stroke-color": "#1e1e1e",
-          "circle-stroke-width": 1.5
-        }
-      });
-      thumbMap.addLayer({
-        id: "thumb-station-label",
-        type: "symbol",
-        source: "thumb-station",
-        layout: {
-          "text-field": ["get", "SITE"],
-          "text-font": ["Noto Sans Bold"],
-          "text-size": 11,
-          "text-offset": [0, 1.2],
-          "text-anchor": "top"
-        },
-        paint: {
-          "text-color": "#1e1e1e",
-          "text-halo-color": "white",
-          "text-halo-width": 1.5
-        }
-      });
-    });
-  }
-
-  invalidation.then(() => thumbMap.remove());
-
-  return html`<div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
-    <div style="flex:1; min-width:300px;">${chart}</div>
-    ${mapContainer}
-  </div>`;
-}
-```
-
 #### Corridor Volume Profile
 
-Target (Cal. Period Tue-Thu Avg) vs. Modeled daily volume at every CCS station along each of the region's major corridors, plotted against milepost so the profile reads along the corridor's length -- a quick way to spot where the model over- or under-assigns relative to observed counts, and whether that error drifts with distance along the route (e.g. a SFAC/CFAC change at one point shifting volume downstream). Uses the same Target/Model values as the sections above (`stationSummaryAll`), just regrouped by corridor instead of by station.
+Target (Cal. Period Tue-Thu Avg) vs. Modeled daily volume at every CCS station along each of the region's major corridors, plotted against milepost so the profile reads along the corridor's length -- a quick way to spot where the model over- or under-assigns relative to observed counts, and whether that error drifts with distance along the route (e.g. a SFAC/CFAC change at one point shifting volume downstream). Uses the same Target/Model values as the sections below, just regrouped by corridor instead of by station.
 
 ```{ojs}
 //| label: corridor-profile-data
@@ -1838,10 +1464,10 @@ Target (Cal. Period Tue-Thu Avg) vs. Modeled daily volume at every CCS station a
 // as everything else.
 CORRIDOR_ROUTE_DEFS = [
   { label: "I-15", routeNames: ["I-15"], span2: true },
+  { label: "US-89", routeNames: ["US-89"], span2: true },
   { label: "I-215", routeNames: ["I-215"] },
   { label: "I-80", routeNames: ["I-80"] },
   { label: "US-6", routeNames: ["US-6"] },
-  { label: "US-89", routeNames: ["US-89"], span2: true },
   { label: "US-189", routeNames: ["US-189"] },
   { label: "I-84", routeNames: ["I-84"] },
   { label: "Legacy Parkway (SR-67)", routeNames: ["SR-67"] },
@@ -1888,6 +1514,50 @@ corridorProfileData = CORRIDOR_ROUTE_DEFS.map(def => ({
   // that's identical to colWidth anyway (nothing left to span into).
   const fullWidth = Math.min(900, width);
 
+  // Approximate cross-street label for a station's axis annotation, from
+  // its own SITE_DESCRIPTION (e.g. "I 15 680 South, Orem MP 270.152" ->
+  // "680 S, Orem") -- strips a leading route token and a trailing MP/FC
+  // suffix, then abbreviates common direction/street words so the rotated
+  // label takes less horizontal room. Heuristic, not a real street-network
+  // lookup (there's no cross-street dataset in this report), so an
+  // unusually-formatted description just comes through lightly trimmed
+  // instead of cleanly parsed.
+  const STREET_ABBREV = [
+    [/\bNorth\b/gi, "N"], [/\bSouth\b/gi, "S"], [/\bEast\b/gi, "E"], [/\bWest\b/gi, "W"],
+    [/\bStreet\b/gi, "St"], [/\bAvenue\b/gi, "Ave"], [/\bBoulevard\b/gi, "Blvd"],
+    [/\bHighway\b/gi, "Hwy"], [/\bRoad\b/gi, "Rd"], [/\bCanyon\b/gi, "Cyn"],
+    [/\bInterchange\b/gi, "Int"], [/\bJunction\b/gi, "Jct"], [/\bMountain\b/gi, "Mtn"],
+    [/\bMiles?\b/gi, "mi"], [/\bCenter\b/gi, "Ctr"]
+  ];
+  function crossStreetLabel(desc) {
+    if (!desc || desc === "0") return "";
+    let s = desc
+      .replace(/^(I|US|SR)[\s-]?\d+\s+/i, "")
+      .replace(/\s+MP\s*[\d.]+.*$/i, "")
+      .replace(/\s+FC\s*\d+\s*$/i, "")
+      .replace(/\s*,\s*$/, "")
+      .trim();
+    if (!s) s = desc.trim();
+    for (const [pattern, short] of STREET_ABBREV) s = s.replace(pattern, short);
+    s = s.replace(/\s+/g, " ").trim();
+
+    const MAX = 24;
+    // Most non-interstate descriptions are "<address>, <City>" (e.g. US-89's
+    // "1086 S State St, SLC") -- a bare street number/name alone doesn't say
+    // where along the route you are, so the city is the part worth keeping;
+    // truncate the address instead of blindly chopping the whole string
+    // (which, left-to-right, would cut the city off the end every time).
+    const parts = s.split(",").map(p => p.trim()).filter(Boolean);
+    if (parts.length > 1) {
+      const city = parts[parts.length - 1];
+      const addr = parts.slice(0, -1).join(", ");
+      const budget = MAX - city.length - 2; // ", " between them
+      if (addr.length <= budget) return `${addr}, ${city}`;
+      return budget > 3 ? `${addr.slice(0, budget - 1)}…, ${city}` : city.slice(0, MAX);
+    }
+    return s.length > MAX ? s.slice(0, MAX - 2) + "…" : s;
+  }
+
   function corridorPanel(corridor) {
     const stations = corridor.stations;
     const panelWidth = corridor.span2 ? fullWidth : colWidth;
@@ -1908,11 +1578,28 @@ corridorProfileData = CORRIDOR_ROUTE_DEFS.map(def => ({
       d3.max(modeled, d => d.MODEL_VOL) ?? 0
     ) || 1000) * 1.15;
 
+    // Approximate county-line crossings -- a vertical rule at the midpoint
+    // between two consecutive (by milepost) stations whose COUNTY_NAME
+    // differs. This is NOT the real county-boundary milepost (no county
+    // polygon is intersected with the route here) -- it only says the line
+    // falls somewhere between those two stations.
+    const countyBoundaries = [];
+    for (let i = 1; i < stations.length; i++) {
+      const a = stations[i - 1], b = stations[i];
+      if (a.COUNTY_NAME && b.COUNTY_NAME && a.COUNTY_NAME !== b.COUNTY_NAME) {
+        countyBoundaries.push({
+          MILEPOST: (a.MILEPOST + b.MILEPOST) / 2,
+          label: `${a.COUNTY_NAME} → ${b.COUNTY_NAME}`
+        });
+      }
+    }
+
     const plot = Plot.plot({
       width: panelWidth,
-      height: 280,
+      height: 390,
       marginLeft: 55,
       marginBottom: 35,
+      marginTop: 115,
       style: {
         fontSize: "11px",
         fontFamily: "system-ui, -apple-system, sans-serif",
@@ -1921,6 +1608,27 @@ corridorProfileData = CORRIDOR_ROUTE_DEFS.map(def => ({
       x: { label: "Milepost", grid: true },
       y: { label: "Daily Volume", grid: true, domain: [0, maxVol], tickFormat: "s" },
       marks: [
+        // County-line crossings, drawn first so the data lines/dots sit on
+        // top of them.
+        Plot.ruleX(countyBoundaries, {
+          x: "MILEPOST", y1: 0, y2: maxVol,
+          stroke: themeNeutral, strokeWidth: 1, strokeDasharray: "3 3", strokeOpacity: 0.6
+        }),
+        Plot.text(countyBoundaries, {
+          x: "MILEPOST", y: () => maxVol, text: "label",
+          dy: -4, dx: 3, textAnchor: "start", rotate: -90,
+          fontSize: 13.5, fill: themeNeutral
+        }),
+
+        // Approximate cross-street labels (see crossStreetLabel() above)
+        // fanned out above the plot, one per station -- a heuristic
+        // reading of each station's own SITE_DESCRIPTION, not a real
+        // cross-street network, so expect the odd rough-looking label.
+        Plot.text(stations, {
+          x: "MILEPOST", y: () => maxVol, text: d => crossStreetLabel(d.SITE_DESCRIPTION),
+          dy: -4, textAnchor: "start", rotate: -60, fontSize: 10.5, fill: "#999"
+        }),
+
         Plot.line(stations, { x: "MILEPOST", y: "TargetVol", stroke: palette.target, strokeWidth: 2 }),
         Plot.dot(stations, {
           x: "MILEPOST", y: "TargetVol",
@@ -1942,7 +1650,11 @@ corridorProfileData = CORRIDOR_ROUTE_DEFS.map(def => ({
     </div>`;
   }
 
-  return html`<div style="width:100%;">
+  // max-width matches the same 900px cap baked into colWidth/fullWidth
+  // above -- without it, the grid itself stretches to the full (uncapped)
+  // page width on a wide screen while each chart's own SVG stays capped at
+  // 900px, leaving a growing dead gap on the right of every panel.
+  return html`<div style="width:100%; max-width:900px;">
     ${legend}
     <div style="display:grid; grid-template-columns:repeat(${columns}, 1fr); gap:16px;">
       ${corridorProfileData.map(corridorPanel)}
@@ -2080,7 +1792,7 @@ allStations = stationSummaryAll
   // Manual legend -- the barbell connects Target and Modeled Volume only;
   // HPMS AADT is drawn as a separate hollow diamond so it reads as a
   // reference value, not a third barbell endpoint.
-  const legend = html`<div style="display:flex; gap:18px; align-items:center; font-size:24px; margin-bottom:8px; flex-wrap:wrap;">
+  const legend = html`<div style="display:flex; gap:18px; align-items:center; font-size:14px; margin-bottom:8px; flex-wrap:wrap;">
     <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${palette.target};margin-right:5px;vertical-align:middle;"></span>Target (Cal. Tue-Thu Avg)</span>
     <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${palette.model};margin-right:5px;vertical-align:middle;"></span>Modeled Volume</span>
     <span><span style="display:inline-block;width:10px;height:10px;border:2px solid ${palette.hpms};background:white;transform:rotate(45deg);margin-right:7px;vertical-align:middle;"></span>HPMS AADT (reference)</span>
@@ -2366,33 +2078,452 @@ selectedCorridorInfo
       const rows = selectedCorridorInfo.members.map(m => {
         const segRow = m.SEGID ? sfacCfacBySegid.get(m.SEGID) : null;
         const siteRow = m.SITE ? stationSummaryAll.find(d => d.SITE === m.SITE) : null;
+        const modelVolume = segRow?.DY_VOL ?? siteRow?.MODEL_VOL ?? null;
+        const target = m.SITE ? siteRow?.TargetVol ?? null : null;
         return {
-          Member: m.SITE ?? m.SEGID,
+          Facility: m.SITE ?? m.SEGID,
           Role: m.role ?? "",
           STREET: segRow?.STREET ?? "",
           FTCLASS: segRow?.FTCLASS ?? siteRow?.FTCLASS ?? "",
-          ModelVolume: segRow?.DY_VOL ?? siteRow?.MODEL_VOL ?? null,
           SFAC: segRow?.SFAC ?? null,
           CFAC: segRow?.CFAC ?? null,
-          Target: m.SITE ? siteRow?.TargetVol ?? null : null
+          ModelVolume: modelVolume,
+          Target: target,
+          Ratio: modelVolume != null && target ? modelVolume / target : null
         };
       });
       return html`<div style="margin-top:8px;">
-        <div style="font-size:12px; font-weight:600; margin-bottom:4px;">"${selectedCorridorInfo.label}" members:</div>
+        <div style="font-size:12px; font-weight:600; margin-bottom:4px;">"${selectedCorridorInfo.label}" facilities:</div>
         ${Inputs.table(rows, {
-          columns: ["Member", "Role", "STREET", "FTCLASS", "ModelVolume", "SFAC", "CFAC", "Target"],
-          header: { ModelVolume: "Modeled Volume", Target: "Target (CCS)" },
+          columns: ["Facility", "Role", "STREET", "FTCLASS", "SFAC", "CFAC", "ModelVolume", "Target", "Ratio"],
+          header: { ModelVolume: "Modeled Volume", Target: "Target (CCS)", Ratio: "Model/Target" },
           format: {
-            ModelVolume: d => d != null ? Math.round(d).toLocaleString() : "—",
             SFAC: d => d != null ? d.toFixed(2) : "—",
             CFAC: d => d != null ? d.toFixed(2) : "—",
-            Target: d => d != null ? Math.round(d).toLocaleString() : "—"
+            ModelVolume: d => d != null ? Math.round(d).toLocaleString() : "—",
+            Target: d => d != null ? Math.round(d).toLocaleString() : "—",
+            Ratio: d => d != null ? d.toFixed(2) : "—"
           },
           layout: "auto"
         })}
       </div>`;
     })()
   : ""
+```
+
+#### Single-Station Detail
+
+```{ojs}
+//| echo: false
+//| panel: input
+
+// ─── Block 2: Sidebar Controls ───────────────────────────────────────────────
+viewof groupVar = Inputs.select(
+  new Map([
+    ["Functional Class", "FTCLASS"],
+    ["County", "COUNTY_NAME"],
+    ["Area Type", "ATYPENAME"]
+  ]),
+  {label: "1. Group By:", value: "FTCLASS"}
+)
+
+// Remembers the filter pick -- and lets the thumbnail map's click handler
+// (below) reset it to "All" when the clicked station wouldn't otherwise be
+// in the current filter group, so a map click always lands on a selectable
+// station -- same mutable-plus-resync pattern as lastSelectedStation below.
+mutable lastFilterVal = "All"
+
+viewof filterVal = {
+  const select = Inputs.select(
+    ["All"].concat(uniqueGroups),
+    {label: "2. Filter Group:", value: ["All"].concat(uniqueGroups).includes(lastFilterVal) ? lastFilterVal : "All"}
+  );
+  select.addEventListener("input", () => {
+    mutable lastFilterVal = select.value;
+  });
+  return select;
+}
+
+// Remembers the picked station across recomputation of filteredStations
+// (e.g. switching globalCalibRun) so the dropdown doesn't silently reset to
+// its first option -- same mutable-plus-resync pattern as vmtActiveTab
+// further down. Initialized to null so the very first render falls through
+// to filteredStations[0] below, matching the prior no-value default.
+mutable lastSelectedStation = null
+
+viewof selectedStation = {
+  const select = Inputs.select(
+    filteredStations,
+    {
+      label: "3. Select Station:",
+      value: filteredStations.includes(lastSelectedStation) ? lastSelectedStation : filteredStations[0],
+      format: d => {
+        const desc = siteInfo.get(d)?.SITE_DESCRIPTION;
+        return desc && desc !== "0" ? `${d} — ${desc}` : d;
+      }
+    }
+  );
+  // Sync every user pick back into the mutable so it survives the next
+  // time this cell reruns (e.g. a calib run switch rebuilds filteredStations
+  // and, with it, this select from scratch).
+  select.addEventListener("input", () => {
+    mutable lastSelectedStation = select.value;
+  });
+  return select;
+}
+```
+
+```{ojs}
+//| echo: false
+
+// Location detail card for the currently selected station -- expands on the
+// dropdown label above with route/milepost/county so a reader unfamiliar
+// with CCS site codes can place the station without leaving the page.
+{
+  const info = siteInfo.get(selectedStation);
+  const hasDetail = info && info.SITE_DESCRIPTION && info.SITE_DESCRIPTION !== "0";
+
+  // High-visibility flag for a station using a non-default year (see
+  // yearForSite()/ccs_year_overrides.csv, e.g. -316 has no usable 2023
+  // coverage so it uses 2024 instead) -- easy to miss otherwise, since
+  // nothing else about the chart calls out that it's showing a different
+  // year than every other station.
+  const overrideYear = yearForSite(selectedStation);
+  const yearBadge = overrideYear !== ccs_default_year_py
+    ? html`<div style="display:inline-block; margin-bottom:8px; padding:4px 10px; background:#ffc107; color:#3d2e00; border-radius:4px; font-weight:700; font-size:12px; letter-spacing:0.3px;">⚠ USING ${overrideYear} DATA</div><br>`
+    : "";
+
+  if (!hasDetail) {
+    return html`<div>${yearBadge}<div style="margin: -8px 0 12px 0; padding: 8px 12px; background: #f4f4f6; border-left: 3px solid ${themeNeutral}; border-radius: 4px; font-size: 13px; color: #666;">No location details available for station ${selectedStation}.</div></div>`;
+  }
+
+  const route = info.ROUTE_NAME && info.ROUTE_NAME !== "0" ? info.ROUTE_NAME : null;
+  const mp = info.MILEPOST ? `MP ${Number(info.MILEPOST).toFixed(2)}` : null;
+  const county = info.COUNTY_NAME && info.COUNTY_NAME !== "0" ? `${info.COUNTY_NAME} County` : null;
+  const meta = [route, mp, county].filter(Boolean).join("  ·  ");
+
+  // HAS_MODEL_DATA is false for a station whose matched segment has no
+  // model output (e.g. just outside the model's core-county reporting
+  // area) -- flag it here since the chart below silently omits the
+  // Modeled Volume line/legend entry for these stations.
+  const noModelNote = info.HAS_MODEL_DATA === false
+    ? html`<br><span style="color:${themeDanger}; font-size:11px;">⚠ No modeled volume for this station's segment (outside the model's core reporting area) -- chart below omits the Modeled Volume line.</span>`
+    : "";
+
+  return html`<div>${yearBadge}<div style="margin: -8px 0 12px 0; padding: 8px 12px; background: #f4f4f6; border-left: 3px solid ${themeAccent}; border-radius: 4px; font-size: 13px;">
+    <strong>${info.SITE_DESCRIPTION}</strong>${meta ? html`<br><span style="color: #555;">${meta}</span>` : ""}${noModelNote}
+  </div></div>`;
+}
+```
+
+```{ojs}
+//| label: ccs-daily-viz
+//| echo: false
+
+// Define Custom Sort Orders
+sortOrders = ({
+  "FTCLASS": ['Freeway', 'Expressway', 'Principal Arterial', 'Minor Arterial', 'Collector'],
+  "ATYPENAME": ['Urban', 'Suburban', 'Transition', 'Rural'],
+  "COUNTY_NAME": ['Box Elder', 'Weber', 'Davis', 'Salt Lake', 'Utah']
+})
+
+// Calculate unique groups with custom sorting
+uniqueGroups = {
+  // Get unique values
+  const vals = daily_data.map(d => d[groupVar]).filter((v, i, a) => a.indexOf(v) === i);
+
+  // Get the specific sort order for the selected variable
+  const order = sortOrders[groupVar];
+
+  if (order) {
+    // Sort based on the index in the 'order' array
+    return vals.sort((a, b) => {
+      const idxA = order.indexOf(a);
+      const idxB = order.indexOf(b);
+      // Items found in the list get their index; items not found get pushed to the end (999)
+      return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+    });
+  } else {
+    // Fallback to alphabetical if no order is defined
+    return vals.sort();
+  }
+}
+
+filteredStations = daily_data
+  .filter(d => filterVal === "All" || d[groupVar] === filterVal)
+  .map(d => d.SITE)
+  .filter((v, i, a) => a.indexOf(v) === i)
+  .sort()
+
+{
+  // ─── Local Processing ────────────────────────────────────────────────────────
+  // We use 'const' here so these variables don't conflict with other parts of the report
+  const stationData = daily_data.filter(d => d.SITE === selectedStation);
+  const refs = stationData.length > 0 ? stationData[0] : {HPMS_AADT: 0, MODEL_VOL: 0, HAS_MODEL_DATA: false};
+  const stationHasData = stationData.length > 0;
+
+  // Tue/Wed/Thu average within the calibration period -- the subset of days
+  // typically used as the "representative weekday" ground truth for
+  // calibration, since it excludes weekend and Mon/Fri shoulder effects.
+  // The window (and the chart's whole x-axis, below) follows
+  // yearForSite(selectedStation) -- ccs_year_overrides.csv, e.g. -316 has no
+  // usable 2023 coverage so it uses 2024 instead -- rather than inferring
+  // the year from whichever rows happen to be present.
+  const year = yearForSite(selectedStation);
+  const calStart = new Date(year, 8, 1);
+  const calEnd = new Date(year, 10, 15);
+  const calTueThuRows = stationData.filter(d => {
+    const dow = d.Date.getDay();
+    return d.Date >= calStart && d.Date <= calEnd && dow >= 2 && dow <= 4;
+  });
+  const calTueThuAvg = calTueThuRows.length > 0 ? d3.mean(calTueThuRows, d => d.DAILY_VOL) : 0;
+
+  // ─── Configuration ───────────────────────────────────────────────────────────
+  const palette = {
+    ccs:       themeNeutral, // Slate
+    hpms:      "#3d3a37",    // Dark grey -- deliberately not themeTarget, so it doesn't compete with Cal. Tue-Thu Avg below for the "target" blue
+    model:     themeModel,   // Orange
+    cal:       themeAccent,  // Violet (calibration period shading/label only)
+    calTueThu: themeTarget   // Blue -- this is the actual target line now, in place of HPMS AADT
+  };
+
+  const yMaxVol = stationHasData
+    ? Math.max(d3.max(stationData, d => d.DAILY_VOL), refs.HPMS_AADT, refs.MODEL_VOL, calTueThuAvg) * 1.1
+    : 1000;
+
+  // ─── The Plot ────────────────────────────────────────────────────────────────
+  const thumbSize = 400;
+  const chartWidth = Math.min(width, 960) - (width > 600 ? thumbSize + 12 : 0);
+  const chart = Plot.plot({
+    width: chartWidth,
+    height: 450,
+    marginLeft: 60,
+    marginBottom: 40,
+    style: {
+      fontSize: "12px",
+      fontFamily: "system-ui, -apple-system, sans-serif",
+      backgroundColor: "white"
+    },
+
+    color: {
+      domain: ["Daily CCS Volume", "HPMS AADT", "Modeled Volume", "Target (Cal. Period Tue-Thu Avg)"],
+      range: [palette.ccs, palette.hpms, palette.model, palette.calTueThu],
+      legend: true
+    },
+
+    x: {
+      label: null,
+      tickFormat: "%B",
+      domain: [new Date(year, 0, 1), new Date(year, 11, 31)]
+    },
+
+    y: {
+      label: "Daily Volume",
+      grid: true,
+      domain: [0, yMaxVol],
+      tickFormat: "s"
+    },
+
+    marks: [
+      // 1. Calibration Period
+      Plot.rectX([{start: calStart, end: calEnd}], {
+        x1: "start", x2: "end",
+        y1: 0, y2: yMaxVol,
+        fill: palette.cal,
+        fillOpacity: 0.08
+      }),
+      Plot.text([{x: new Date(year, 9, 8), y: yMaxVol}], {
+        x: "x", y: "y",
+        text: d => "Calibration Period",
+        fill: palette.cal,
+        dy: 15,
+        fontWeight: "bold",
+        fontSize: 11
+      }),
+
+      // 2. Reference Lines
+      Plot.ruleY([refs.HPMS_AADT], {
+        stroke: () => "HPMS AADT",
+        strokeWidth: 2,
+        strokeDasharray: "2 2"
+      }),
+      // Target drawn first, wider (6px) and solid; Modeled Volume second,
+      // thinner (4px) and solid -- when the two coincide, the Target line's
+      // extra width still shows as a visible edge around the Model line on
+      // top, so both stay distinguishable.
+      Plot.ruleY([calTueThuAvg], {
+        stroke: () => "Target (Cal. Period Tue-Thu Avg)",
+        strokeWidth: 6
+      }),
+      // Omit the Modeled Volume line entirely (rather than draw it at 0)
+      // when this station's segment has no model output -- see the
+      // location-detail card above for the explanatory note.
+      ...(refs.HAS_MODEL_DATA ? [Plot.ruleY([refs.MODEL_VOL], {
+        stroke: () => "Modeled Volume",
+        strokeWidth: 4
+      })] : []),
+
+      // 3. Main Data Line
+      Plot.line(stationData, {
+        x: "Date",
+        y: "DAILY_VOL",
+        stroke: () => "Daily CCS Volume",
+        strokeWidth: 1.0
+      }),
+
+      // 4. Tooltip
+      Plot.tip(stationData, Plot.pointerX({
+        x: "Date",
+        y: "DAILY_VOL",
+        title: d => `📅 ${d.Date.toLocaleDateString()}\n🚗 CCS: ${d.DAILY_VOL.toLocaleString()}\n📏 HPMS: ${Math.round(refs.HPMS_AADT).toLocaleString()}\n🔵 Model: ${refs.HAS_MODEL_DATA ? Math.round(refs.MODEL_VOL).toLocaleString() : "N/A (not modeled)"}\n🟢 Cal. Tue-Thu Avg: ${Math.round(calTueThuAvg).toLocaleString()}`
+      }))
+    ]
+  });
+
+  // ─── Thumbnail Location Map ──────────────────────────────────────────────────
+  // A map next to the chart showing where this station sits, alongside its
+  // neighbors -- pan/zoom-able (ctrl+scroll to zoom, like the other
+  // interactive maps on this page, so scrolling the page past it doesn't
+  // accidentally zoom it instead), and clicking any station dot (this one
+  // or a neighbor) jumps the "3. Select Station" picker -- and so this
+  // whole card -- to that station.
+  const mapContainer = document.createElement("div");
+  mapContainer.style.width = `${thumbSize}px`;
+  mapContainer.style.height = `${thumbSize}px`;
+  mapContainer.style.borderRadius = "8px";
+  mapContainer.style.border = "1px solid #ccc";
+  mapContainer.style.flexShrink = "0";
+
+  const stationFeature = daily_stations_geo.features.find(
+    f => String(f.properties.SITE) === selectedStation
+  );
+
+  // Every other station -- not pre-filtered by distance; at this thumbnail's
+  // zoom level, only the ones actually near the selected station fall
+  // inside the visible map extent anyway.
+  const otherStationsFc = {
+    type: "FeatureCollection",
+    features: daily_stations_geo.features.filter(f => String(f.properties.SITE) !== selectedStation)
+  };
+
+  const thumbMap = new maplibregl.Map({
+    container: mapContainer,
+    style: UGRC_BASEMAP_STYLE,
+    center: stationFeature ? stationFeature.geometry.coordinates : [-111.8910, 40.7608],
+    zoom: stationFeature ? 10 : 8,
+    attributionControl: { customAttribution: UGRC_ATTRIBUTION }
+  });
+  thumbMap.addControl(new maplibregl.NavigationControl(), "top-left");
+  ctrlScrollZoom(thumbMap, mapContainer);
+
+  // Clicking a station dot (this one or a neighbor) re-targets the whole
+  // Single-Station Detail card to it: reset the Filter Group to "All" first
+  // (a clicked neighbor might not belong to whichever group is currently
+  // filtered down to) so the pick always lands somewhere selectable, then
+  // pick the station itself. Both go through the same mutable-plus-resync
+  // cells "2. Filter Group"/"3. Select Station" (above) already use for a
+  // user's own dropdown picks, so this reads as just another way of making
+  // the same choice.
+  function selectStationFromMap(site) {
+    if (site === selectedStation) return;
+    mutable lastFilterVal = "All";
+    mutable lastSelectedStation = site;
+  }
+  for (const layerId of ["thumb-station-circle", "thumb-other-stations-circle"]) {
+    thumbMap.on("click", layerId, (e) => {
+      if (!e.features.length) return;
+      selectStationFromMap(String(e.features[0].properties.SITE));
+    });
+    thumbMap.on("mouseenter", layerId, () => { thumbMap.getCanvas().style.cursor = "pointer"; });
+    thumbMap.on("mouseleave", layerId, () => { thumbMap.getCanvas().style.cursor = ""; });
+  }
+
+  if (stationFeature) {
+    thumbMap.on("load", () => {
+      // mapContainer is constructed detached from the document (it's only
+      // attached once the html`` template below is inserted), so MapLibre
+      // measures a stale/zero size at construction time and centers wrong
+      // until explicitly told to re-measure and recenter here.
+      thumbMap.resize();
+      thumbMap.setCenter(stationFeature.geometry.coordinates);
+
+      // Other nearby stations drawn first (so the selected station's own
+      // circle/label sit on top), in a different color so it's obvious
+      // which dot is the one this chart is about. Deliberately NOT
+      // themeTarget/themeModel (blue/orange) -- those colors mean
+      // Target/Modeled Volume everywhere else on this page, and reusing
+      // them here for "selected station" vs. "other station" (an unrelated
+      // distinction) reads as if it were that same Target/Model legend.
+      thumbMap.addSource("thumb-other-stations", { type: "geojson", data: otherStationsFc });
+      thumbMap.addLayer({
+        id: "thumb-other-stations-circle",
+        type: "circle",
+        source: "thumb-other-stations",
+        paint: {
+          "circle-radius": 5,
+          "circle-color": themeNeutral,
+          "circle-stroke-color": "#1e1e1e",
+          "circle-stroke-width": 1,
+          "circle-opacity": 0.85
+        }
+      });
+      thumbMap.addLayer({
+        id: "thumb-other-stations-label",
+        type: "symbol",
+        source: "thumb-other-stations",
+        layout: {
+          "text-field": ["get", "SITE"],
+          "text-font": ["Noto Sans Bold"],
+          "text-size": 9,
+          "text-offset": [0, 1],
+          "text-anchor": "top"
+        },
+        paint: {
+          "text-color": "#1e1e1e",
+          "text-halo-color": "white",
+          "text-halo-width": 1.2
+        }
+      });
+
+      thumbMap.addSource("thumb-station", { type: "geojson", data: stationFeature });
+      thumbMap.addLayer({
+        id: "thumb-station-circle",
+        type: "circle",
+        source: "thumb-station",
+        paint: {
+          "circle-radius": 7,
+          "circle-color": themeAccent,
+          "circle-stroke-color": "#1e1e1e",
+          "circle-stroke-width": 1.5
+        }
+      });
+      thumbMap.addLayer({
+        id: "thumb-station-label",
+        type: "symbol",
+        source: "thumb-station",
+        layout: {
+          "text-field": ["get", "SITE"],
+          "text-font": ["Noto Sans Bold"],
+          "text-size": 11,
+          "text-offset": [0, 1.2],
+          "text-anchor": "top"
+        },
+        paint: {
+          "text-color": "#1e1e1e",
+          "text-halo-color": "white",
+          "text-halo-width": 1.5
+        }
+      });
+    });
+  }
+
+  invalidation.then(() => thumbMap.remove());
+
+  return html`<div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
+    <div style="flex:1; min-width:300px;">${chart}</div>
+    ${mapContainer}
+  </div>`;
+}
 ```
 
 ## Vehicle-Miles Traveled (VMT) Validation

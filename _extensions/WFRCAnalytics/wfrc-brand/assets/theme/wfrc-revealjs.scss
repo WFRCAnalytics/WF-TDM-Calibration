@@ -1,0 +1,73 @@
+/*-- scss:defaults --*/
+
+// =============================================================================
+// WFRC slides. brand.yml (last in the theme list) sets colors, fonts and links.
+// This file adds the slide shape that brand.yml has no field for. Slides are light only:
+// Reveal.js has no color-scheme toggle.
+// =============================================================================
+
+$presentation-heading-font-weight: 700 !default;
+$presentation-title-slide-text-align: left !default;
+$presentation-h1-font-size: 2.1em !default;
+$presentation-h2-font-size: 1.5em !default;
+$presentation-h3-font-size: 1.2em !default;
+$presentation-font-size-root: 34px !default;
+$presentation-line-height: 1.4 !default;
+$presentation-block-margin: 0.8em !default;
+$link-decoration: underline !default;
+$code-block-bg: $brand-wfrc-code !default;
+$code-block-color: $brand-wfrc-ink !default;
+$code-color: $brand-wfrc-navy !default;
+$callout-color-note: $brand-wfrc-note !default;
+$callout-color-tip: $brand-wfrc-tip !default;
+$callout-color-important: $brand-wfrc-brick-deep !default;
+$callout-color-warning: $brand-wfrc-warning-bar !default;
+$callout-color-caution: $brand-wfrc-caution !default;
+
+/*-- scss:rules --*/
+
+// Section titles: navy block. Slide titles: mid-blue with a bright-blue rule.
+.reveal h1, .reveal h2, .reveal h3 { letter-spacing: -0.01em; text-wrap: balance; }
+.reveal h2 { color: $brand-wfrc-mid-blue; }
+.reveal .slides > section > h2,
+.reveal .slides > section > section > h2 {
+  padding-bottom: 0.25em;
+  border-bottom: 3px solid $brand-wfrc-bright-blue;
+}
+
+// Title slide: left bar in brick, like a color block on the live site.
+div.reveal div.slides section.quarto-title-block {
+  border-left: 0.3em solid $brand-wfrc-brick;
+  padding-left: 0.9em;
+}
+div.reveal div.slides section.quarto-title-block .subtitle { color: $brand-wfrc-ink-soft; }
+div.reveal div.slides section.quarto-title-block .author,
+div.reveal div.slides section.quarto-title-block .date { font-weight: 600; }
+
+// Callouts: Reveal's default is too small to read from the back of a room.
+.reveal .slides section div.callout { font-size: 0.9em; margin: 0.6em 0; }
+
+// Lists and emphasis
+.reveal ul li::marker, .reveal ol li::marker { color: $brand-wfrc-bright-blue; }
+.reveal strong { font-weight: 600; }
+.reveal blockquote {
+  border-left: 0.25em solid $brand-wfrc-bright-blue;
+  background: $brand-wfrc-mist;
+  box-shadow: none;
+  padding: 0.4em 0.9em;
+  width: 100%;
+}
+
+// Code
+.reveal pre { box-shadow: none; border-radius: 6px; }
+.reveal pre code { max-height: 560px; }
+
+// Tables: no vertical rules, bright-blue header rule (same as the website)
+.reveal table { border-collapse: collapse; }
+.reveal table th { border-bottom: 2px solid $brand-wfrc-bright-blue; font-weight: 600; }
+.reveal table td, .reveal table th { border-left: 0; border-right: 0; }
+
+// Footer, slide number and logo stay quiet
+.reveal .slide-number { color: $brand-wfrc-ink-soft; background: transparent; font-size: 0.55em; }
+.reveal .footer { color: $brand-wfrc-ink-soft; font-size: 0.5em; }
+.reveal .slide-logo { max-height: 56px; }
