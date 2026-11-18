@@ -2218,30 +2218,21 @@ corridorProfileData = CORRIDOR_ROUTE_DEFS.map(def => ({
 ```
 
 ```{ojs}
-//| echo: false
-//| panel: input
-
-viewof selectedCorridorProfile = Inputs.select(
-  new Map(CORRIDOR_ROUTE_DEFS.map(c => [c.label, c.label])),
-  { label: "Corridor:", value: "I-15" }
-)
-```
-
-```{ojs}
 //| label: corridor-profile-chart
 //| echo: false
 
 {
   const palette = { target: themeTarget, model: themeModel };
 
-  // One manual legend above the panel -- same convention as
-  // multi-station-chart's barbell legend, above.
+  // One manual legend above the whole grid, rather than one per panel --
+  // same convention as multi-station-chart's barbell legend, above.
   const legend = html`<div style="display:flex; gap:18px; align-items:center; font-size:12px; margin-bottom:10px; flex-wrap:wrap;">
     <span><span style="display:inline-block;width:14px;height:2px;background:${palette.target};margin-right:5px;vertical-align:middle;"></span>Target (Cal. Period Tue-Thu Avg)</span>
     <span><span style="display:inline-block;width:14px;height:2px;background:${palette.model};margin-right:5px;vertical-align:middle;"></span>Modeled Volume</span>
   </div>`;
 
-  const panelWidth = Math.min(900, width);
+  const columns = width > 900 ? 2 : 1;
+  const panelWidth = Math.min(900, width) / columns - (columns > 1 ? 16 : 0);
 
   function corridorPanel(corridor) {
     const stations = corridor.stations;
@@ -2263,7 +2254,7 @@ viewof selectedCorridorProfile = Inputs.select(
 
     const plot = Plot.plot({
       width: panelWidth,
-      height: 420,
+      height: 280,
       marginLeft: 55,
       marginBottom: 35,
       style: {
@@ -2295,11 +2286,11 @@ viewof selectedCorridorProfile = Inputs.select(
     </div>`;
   }
 
-  const corridor = corridorProfileData.find(c => c.label === selectedCorridorProfile);
-
   return html`<div style="width:100%;">
     ${legend}
-    ${corridor ? corridorPanel(corridor) : ""}
+    <div style="display:grid; grid-template-columns:repeat(${columns}, 1fr); gap:16px;">
+      ${corridorProfileData.map(corridorPanel)}
+    </div>
   </div>`;
 }
 ```
