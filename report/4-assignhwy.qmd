@@ -1830,16 +1830,28 @@ Target (Cal. Period Tue-Thu Avg) vs. Modeled daily volume at every CCS station a
 
 // Which RT_TYP/ROUTE_NAME values (from UDOT's CCS SiteData -- see
 // report/preprocess/assignhwy.py's _build_bridge()) back each named
-// corridor below. Legacy Parkway/Mountain View Corridor/Bangerter Hwy are
-// state routes, so they're matched by their SR number rather than a common
-// name.
+// corridor below. Legacy Parkway/Mountain View Corridor/Bangerter Hwy/
+// Redwood Rd are state routes, so they're matched by their SR number
+// rather than a common name. I-15 has far more stations spanning a much
+// longer milepost range than the rest, so it's flagged span2 to take up
+// both grid columns in the chart below instead of being squeezed as narrow
+// as everything else.
 CORRIDOR_ROUTE_DEFS = [
-  { label: "I-15", routeNames: ["I-15"] },
+  { label: "I-15", routeNames: ["I-15"], span2: true },
   { label: "I-215", routeNames: ["I-215"] },
   { label: "I-80", routeNames: ["I-80"] },
+  { label: "US-6", routeNames: ["US-6"] },
+  { label: "US-89", routeNames: ["US-89"], span2: true },
+  { label: "US-189", routeNames: ["US-189"] },
+  { label: "I-84", routeNames: ["I-84"] },
   { label: "Legacy Parkway (SR-67)", routeNames: ["SR-67"] },
   { label: "Mountain View Corridor (SR-85)", routeNames: ["SR-85"] },
-  { label: "Bangerter Highway (SR-154)", routeNames: ["SR-154"] }
+  { label: "Bangerter Highway (SR-154)", routeNames: ["SR-154"] },
+  { label: "Redwood Rd (SR-68)", routeNames: ["SR-68"] },
+  { label: "Orem 800 N (SR-52)", routeNames: ["SR-52"] },
+  { label: "SR-73", routeNames: ["SR-73"] },
+  { label: "Pioneer Crossing (SR-145)", routeNames: ["SR-145"] },
+  { label: "2100 N Lehi (SR-194)", routeNames: ["SR-194"] }
 ]
 
 // One row per CCS station on one of the named corridors -- stationSummaryAll
@@ -1871,12 +1883,17 @@ corridorProfileData = CORRIDOR_ROUTE_DEFS.map(def => ({
   </div>`;
 
   const columns = width > 900 ? 2 : 1;
-  const panelWidth = Math.min(900, width) / columns - (columns > 1 ? 16 : 0);
+  const colWidth = Math.min(900, width) / columns - (columns > 1 ? 16 : 0);
+  // A span2 corridor always gets the full row width -- at columns === 1
+  // that's identical to colWidth anyway (nothing left to span into).
+  const fullWidth = Math.min(900, width);
 
   function corridorPanel(corridor) {
     const stations = corridor.stations;
+    const panelWidth = corridor.span2 ? fullWidth : colWidth;
+    const gridColumn = corridor.span2 ? "span 2" : "span 1";
     if (stations.length === 0) {
-      return html`<div style="padding:16px; border:1px solid #eee; border-radius:8px;">
+      return html`<div style="grid-column:${gridColumn}; padding:16px; border:1px solid #eee; border-radius:8px;">
         <div style="font-size:13px; font-weight:600; margin-bottom:4px;">${corridor.label}</div>
         <div style="color:#888; text-align:center; padding:24px 0;">No CCS stations matched.</div>
       </div>`;
@@ -1919,7 +1936,7 @@ corridorProfileData = CORRIDOR_ROUTE_DEFS.map(def => ({
       ]
     });
 
-    return html`<div style="border:1px solid #eee; border-radius:8px; padding:8px;">
+    return html`<div style="grid-column:${gridColumn}; border:1px solid #eee; border-radius:8px; padding:8px;">
       <div style="font-size:13px; font-weight:600; margin:2px 0 4px 4px;">${corridor.label}</div>
       ${plot}
     </div>`;
