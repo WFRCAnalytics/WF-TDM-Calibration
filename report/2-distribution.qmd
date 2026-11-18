@@ -54,58 +54,17 @@ The model used the 2012 Household Travel Survey to calibrate trip lengths for in
 No target data was available for internal and external commercial vehicle calibration. CV trips were calibrated based on previous model estimation and validated relative to person work and other trip lengths.
 
 ```{python}
-# See report/preprocess/distribution.py.
-df_flat = vs.load_cached_per_run(repo_root, "mod_trips_dist_gc")
-```
-
-```{python}
-# 1. CALCULATE EXACT AVERAGES (grouped by calib_run too -- df_flat holds
-#    every calibration run's modeled data; Target is recomputed per run's
-#    subset, which is redundant but not wrong, since Trips_Tgt is identical
-#    across runs)
-avg_records = []
-for var_col, var_name in [('Dist', 'Dist'), ('GC', 'GC')]:
-    for source_col, source_name in [('Trips_Mod', 'Model'), ('Trips_Tgt', 'Target')]:
-
-        # Calculate weighted average: sum(Trips * Value) / sum(Trips)
-        grouped = df_flat.groupby(['Purpose', 'calib_run']).apply(
-            lambda x: (x[source_col] * x[var_col]).sum() / x[source_col].sum() if x[source_col].sum() > 0 else np.nan
-        ).reset_index(name='AVG_TRIP_LEN')
-
-        grouped['DataSource'] = source_name
-        grouped['Variable'] = var_name
-        avg_records.append(grouped)
-
-gcdtime_Stats = pd.concat(avg_records, ignore_index=True)
-
-# 2. CALCULATE TRIP LENGTH FREQUENCIES (TLF)
-df_flat['Dist_BIN'] = np.floor(df_flat['Dist']).astype(int)
-df_flat['GC_BIN'] = np.floor(df_flat['GC']).astype(int)
-
-tlf_records = []
-for var_col, var_name in [('Dist_BIN', 'Dist'), ('GC_BIN', 'GC')]:
-    for source_col, source_name in [('Trips_Mod', 'freqMod'), ('Trips_Tgt', 'freqTgt')]:
-
-        # Group by purpose, run, and bin, sum the trips
-        binned = df_flat.groupby(['Purpose', 'calib_run', var_col])[source_col].sum().reset_index()
-        binned.rename(columns={var_col: 'BIN', source_col: 'TRIPS'}, inplace=True)
-
-        # Calculate percentage (frequency) within each purpose x run
-        total_trips = binned.groupby(['Purpose', 'calib_run'])['TRIPS'].transform('sum')
-        binned = binned[total_trips > 0].copy()
-        if binned.empty:
-            continue
-
-        total_trips = binned.groupby(['Purpose', 'calib_run'])['TRIPS'].transform('sum')
-        binned['freq'] = binned['TRIPS'] / total_trips
-
-        binned['TLFTYPE'] = var_name
-        binned['freqSource'] = source_name
-        binned.rename(columns={'Purpose': 'TRIPPURP'}, inplace=True)
-
-        tlf_records.append(binned[['TRIPPURP', 'calib_run', 'BIN', 'freq', 'TLFTYPE', 'freqSource']])
-
-dfObsModelMerge = pd.concat(tlf_records, ignore_index=True)
+# Pre-aggregated per run at cache-build time (see
+# report/preprocess/distribution.py's load_dist_gc_avg()/load_dist_gc_tlf())
+# instead of recomputed here from the full TAZ-pair-by-purpose join -- that
+# join is ~49M rows per run, and concatenating all calibration runs' copies
+# of it (vs.load_cached_per_run()'s usual pattern) to then immediately
+# collapse down to these same two small aggregates was blowing out memory
+# on render (~390M rows combined). Both are already one row per
+# Purpose/DataSource(/BIN) x calib_run, same shape these two variables held
+# before.
+gcdtime_Stats = vs.load_cached_per_run(repo_root, "dist_gc_avg")
+dfObsModelMerge = vs.load_cached_per_run(repo_root, "dist_gc_tlf")
 ```
 
 ### Average Trip Length

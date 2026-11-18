@@ -104,6 +104,42 @@ if not Path(config_paths['geojson_file']).exists():
 ```
 
 
+```{python}
+#| output: asis
+
+# CCS data-year disclaimer -- generated from inputs/ccs_year_overrides.csv
+# itself (not hand-written) so it can't drift out of sync with that file as
+# stations get added/removed from it. See report/preprocess/assignhwy.py's
+# DEFAULT_CCS_YEAR/_build_merged_base() for the override mechanism: a
+# station with no usable Sept 1 - Nov 15 2023 coverage falls back to
+# whichever year is named here instead.
+_year_overrides = pd.read_csv("../inputs/ccs_year_overrides.csv")
+_year_overrides["SITE"] = _year_overrides["SITE"].astype(str)
+
+if not _year_overrides.empty:
+    _sites = pd.concat([
+        pd.read_csv(config_paths["path_in_ccs_locations"]),
+        pd.read_csv(config_paths["path_in_ccs_locations_supplement"]),
+    ], ignore_index=True).drop_duplicates(subset="SITE", keep="first")
+    _sites["SITE"] = _sites["SITE"].astype(str)
+
+    _override_lines = []
+    for _, _row in _year_overrides.sort_values("SITE").iterrows():
+        _desc_match = _sites.loc[_sites["SITE"] == _row["SITE"], "SITE_DESCRIPTION"]
+        _desc = _desc_match.iloc[0] if len(_desc_match) else "(no description on file)"
+        _override_lines.append(f"- **{_row['SITE']}** ({_desc}): **{int(_row['YEAR'])}**")
+
+    print(f"""
+::: {{.callout-note collapse="true"}}
+## CCS data-year note
+
+Every CCS station's Target volume throughout this page defaults to **2023** observed counts within the Sept 1 - Nov 15 calibration window. {len(_year_overrides)} station(s) had no usable 2023 coverage in that window, so they use **2024** data instead (`inputs/ccs_year_overrides.csv`):
+
+{chr(10).join(_override_lines)}
+:::
+""")
+```
+
 ## Volume Validation
 
 ### Target Traffic Counts (CCS)
@@ -1279,9 +1315,14 @@ parallel_corridors_export = pd.DataFrame(
 # (site-based members included, via site_to_segid above) -- backs the
 # Parallel Corridor Calibration section's Station & Segment Locations map, so a
 # bare-segid member (no station, e.g. the "beck" corridor's two segments)
-# still shows up there instead of being invisible.
+# still shows up there instead of being invisible. Sourced from gdf_segments
+# (the full, unfiltered shapefile), NOT gdf_network_clean -- some bare-segid
+# members use a non-"{route}_{milepost}" SEGID (e.g. "salt_lake_central"'s
+# "WFRC_8157", a WFRC-internal link id rather than a numbered state route),
+# which gdf_network_clean's MODEL_ROUTE/MODEL_MP dropna() drops entirely
+# even though the segment and its geometry are perfectly real.
 _corridor_segids = sorted({r["SEGID"] for r in _corridor_rows if r["SEGID"]})
-gdf_corridor_segments = gdf_network_clean[gdf_network_clean["SEGID"].isin(_corridor_segids)][
+gdf_corridor_segments = gdf_segments[gdf_segments["SEGID"].isin(_corridor_segids)][
     ["SEGID", "geometry"]
 ].to_crs("EPSG:4326")
 corridor_segments_export = gdf_corridor_segments.__geo_interface__

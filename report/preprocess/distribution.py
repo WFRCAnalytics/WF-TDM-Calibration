@@ -137,7 +137,21 @@ def _extract_omx_to_df(omx_path, matrix_names, val_col_name, rename_dict=None, o
 
 def load_mod_trips_dist_gc(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataFrame:
     """Modeled trips joined to observed trips (shared HTS-derived skim) plus
-    distance/generalized-cost skims, for one calibration run."""
+    distance/generalized-cost skims, for one calibration run.
+
+    Dist/GC skims are dense (every TAZ pair has a nonzero distance/
+    generalized cost, unlike the genuinely sparse trip tables), so
+    mod_dist/mod_gc are each ~118M rows on this network's ~3629 TAZs --
+    merged into df (bounded by mod_trips/obs_trips' size, ~40-50M rows) one
+    at a time with its own intermediate freed right after (`del` + a manual
+    gc.collect(), since Python's refcounting alone doesn't reliably reclaim
+    a many-GiB DataFrame fast enough before the next allocation), rather
+    than holding both ~118M-row skim frames (plus mod_trips/obs_trips/df)
+    live at once -- that peak was enough to MemoryError on this network's
+    two largest runs (C71/C72) once this function started getting called
+    twice per run (see load_dist_gc_avg()/load_dist_gc_tlf(), below)."""
+    import gc
+
     obs_trips = _extract_omx_to_df(
         repo_root / SKM_OBS_OMX,
         PURP_MATS_OBS + TRUCK_MATS_OBS + EXT_MATS_OBS,
@@ -151,23 +165,105 @@ def load_mod_trips_dist_gc(calib_run: str, outputs_dir: Path, repo_root: Path) -
         "Trips_Mod",
         rename_dict=MOD_TRIP_MAP,
     )
-    mod_dist = _extract_omx_to_df(outputs_dir / "skm_DY_Dist.omx", PURP_MATS_SKIM, "Dist")
-    mod_gc = _extract_omx_to_df(outputs_dir / "skm_DY_GC.omx", PURP_MATS_SKIM, "GC")
 
     df = pd.merge(mod_trips, obs_trips, on=["i", "j", "Purpose"], how="outer")
+    del mod_trips, obs_trips
+    gc.collect()
     df["Trips_Mod"] = df["Trips_Mod"].fillna(0)
     df["Trips_Tgt"] = df["Trips_Tgt"].fillna(0)
+    df["Skim_Purpose"] = df["Purpose"].map(lambda x: SKIM_JOIN_MAP.get(x, x)).astype("category")
 
-    df["Skim_Purpose"] = df["Purpose"].apply(lambda x: SKIM_JOIN_MAP.get(x, x))
+    # category dtype for the join key -- merging on a plain string column
+    # factorizes the full column on each side (pandas/pyarrow has to hash
+    # every value), which on mod_dist/mod_gc's ~118M rows was itself enough
+    # to fail a ~1.3GB allocation even with GBs of RAM free system-wide
+    # (fragmentation, not true exhaustion); category dtype pre-factorizes
+    # Skim_Purpose's handful of distinct values into small integer codes,
+    # so the merge only has to compare those instead of hashing full
+    # strings on a hundred-million-plus rows.
+    mod_dist = _extract_omx_to_df(outputs_dir / "skm_DY_Dist.omx", PURP_MATS_SKIM, "Dist")
     mod_dist = mod_dist.rename(columns={"Purpose": "Skim_Purpose"})
-    mod_gc = mod_gc.rename(columns={"Purpose": "Skim_Purpose"})
-
+    mod_dist["Skim_Purpose"] = mod_dist["Skim_Purpose"].astype("category")
     df = pd.merge(df, mod_dist, on=["i", "j", "Skim_Purpose"], how="left")
+    del mod_dist
+    gc.collect()
+
+    mod_gc = _extract_omx_to_df(outputs_dir / "skm_DY_GC.omx", PURP_MATS_SKIM, "GC")
+    mod_gc = mod_gc.rename(columns={"Purpose": "Skim_Purpose"})
+    mod_gc["Skim_Purpose"] = mod_gc["Skim_Purpose"].astype("category")
     df = pd.merge(df, mod_gc, on=["i", "j", "Skim_Purpose"], how="left")
+    del mod_gc
+    gc.collect()
+
     df = df.drop(columns=["Skim_Purpose"])
     df["Dist"] = df["Dist"].fillna(0)
     df["GC"] = df["GC"].fillna(0)
     return df
+
+
+def load_dist_gc_avg(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataFrame:
+    """Weighted-average Dist/GC trip length by Purpose x DataSource (Model
+    vs. Target), for one calibration run -- a small aggregate of
+    load_mod_trips_dist_gc()'s full TAZ-pair-by-purpose join (~49M rows for
+    a typical run), computed here at cache-build time instead of from the
+    raw join on every render. Replaces report/2-distribution.qmd's old
+    inline "1. CALCULATE EXACT AVERAGES" cell, which used to rebuild this
+    from vs.load_cached_per_run()'s concatenation of every run's own full
+    raw join (~390M rows combined across 8 runs) -- that's what blew out
+    memory on render; this is the only thing that join's Dist/GC columns
+    were ever actually used for."""
+    df = load_mod_trips_dist_gc(calib_run, outputs_dir, repo_root)
+    records = []
+    for var_col, var_name in [("Dist", "Dist"), ("GC", "GC")]:
+        for source_col, source_name in [("Trips_Mod", "Model"), ("Trips_Tgt", "Target")]:
+            # Vectorized weighted-average (sum(Trips*Value)/sum(Trips) per
+            # Purpose) instead of groupby().apply(<python callable>) -- apply
+            # has to materialize each group as its own sub-DataFrame to hand
+            # to the callable, which on this ~49M-row frame was itself
+            # enough to MemoryError on this network's two largest runs
+            # (C71/C72); .agg() computes both sums in one vectorized pass.
+            weighted = (df[source_col] * df[var_col]).groupby(df["Purpose"]).sum()
+            trips = df[source_col].groupby(df["Purpose"]).sum()
+            avg = (weighted / trips).where(trips > 0)
+            grouped = avg.reset_index(name="AVG_TRIP_LEN")  # index name "Purpose" -> column
+            grouped["DataSource"] = source_name
+            grouped["Variable"] = var_name
+            records.append(grouped)
+    return pd.concat(records, ignore_index=True)
+
+
+def load_dist_gc_tlf(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataFrame:
+    """Trip-length-frequency histogram (by integer Dist/GC bin) by Purpose x
+    DataSource, for one calibration run -- same rationale as
+    load_dist_gc_avg() above, replacing report/2-distribution.qmd's old
+    inline "2. CALCULATE TRIP LENGTH FREQUENCIES (TLF)" cell."""
+    df = load_mod_trips_dist_gc(calib_run, outputs_dir, repo_root).copy()
+    df["Dist_BIN"] = np.floor(df["Dist"]).astype(int)
+    df["GC_BIN"] = np.floor(df["GC"]).astype(int)
+
+    records = []
+    for var_col, var_name in [("Dist_BIN", "Dist"), ("GC_BIN", "GC")]:
+        for source_col, source_name in [("Trips_Mod", "freqMod"), ("Trips_Tgt", "freqTgt")]:
+            binned = df.groupby(["Purpose", var_col])[source_col].sum().reset_index()
+            binned.rename(columns={var_col: "BIN", source_col: "TRIPS"}, inplace=True)
+
+            total_trips = binned.groupby("Purpose")["TRIPS"].transform("sum")
+            binned = binned[total_trips > 0].copy()
+            if binned.empty:
+                continue
+
+            total_trips = binned.groupby("Purpose")["TRIPS"].transform("sum")
+            binned["freq"] = binned["TRIPS"] / total_trips
+
+            binned["TLFTYPE"] = var_name
+            binned["freqSource"] = source_name
+            binned.rename(columns={"Purpose": "TRIPPURP"}, inplace=True)
+
+            records.append(binned[["TRIPPURP", "BIN", "freq", "TLFTYPE", "freqSource"]])
+
+    if not records:
+        return pd.DataFrame(columns=["TRIPPURP", "BIN", "freq", "TLFTYPE", "freqSource"])
+    return pd.concat(records, ignore_index=True)
 
 
 def load_mod_intra(calib_run: str, outputs_dir: Path, repo_root: Path) -> pd.DataFrame:
