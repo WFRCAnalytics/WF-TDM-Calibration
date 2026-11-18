@@ -1719,11 +1719,19 @@ filteredStations = daily_data
     f => String(f.properties.SITE) === selectedStation
   );
 
+  // Every other station -- not pre-filtered by distance; at this thumbnail's
+  // zoom level, only the ones actually near the selected station fall
+  // inside the visible map extent anyway.
+  const otherStationsFc = {
+    type: "FeatureCollection",
+    features: daily_stations_geo.features.filter(f => String(f.properties.SITE) !== selectedStation)
+  };
+
   const thumbMap = new maplibregl.Map({
     container: mapContainer,
     style: UGRC_BASEMAP_STYLE,
     center: stationFeature ? stationFeature.geometry.coordinates : [-111.8910, 40.7608],
-    zoom: stationFeature ? 13 : 8,
+    zoom: stationFeature ? 11 : 8,
     interactive: false,
     attributionControl: false
   });
@@ -1737,6 +1745,40 @@ filteredStations = daily_data
       thumbMap.resize();
       thumbMap.setCenter(stationFeature.geometry.coordinates);
 
+      // Other nearby stations drawn first (so the selected station's own
+      // circle/label sit on top), in a different color so it's obvious
+      // which dot is the one this chart is about.
+      thumbMap.addSource("thumb-other-stations", { type: "geojson", data: otherStationsFc });
+      thumbMap.addLayer({
+        id: "thumb-other-stations-circle",
+        type: "circle",
+        source: "thumb-other-stations",
+        paint: {
+          "circle-radius": 5,
+          "circle-color": themeModel,
+          "circle-stroke-color": "#1e1e1e",
+          "circle-stroke-width": 1,
+          "circle-opacity": 0.85
+        }
+      });
+      thumbMap.addLayer({
+        id: "thumb-other-stations-label",
+        type: "symbol",
+        source: "thumb-other-stations",
+        layout: {
+          "text-field": ["get", "SITE"],
+          "text-font": ["Noto Sans Bold"],
+          "text-size": 9,
+          "text-offset": [0, 1],
+          "text-anchor": "top"
+        },
+        paint: {
+          "text-color": "#1e1e1e",
+          "text-halo-color": "white",
+          "text-halo-width": 1.2
+        }
+      });
+
       thumbMap.addSource("thumb-station", { type: "geojson", data: stationFeature });
       thumbMap.addLayer({
         id: "thumb-station-circle",
@@ -1747,6 +1789,23 @@ filteredStations = daily_data
           "circle-color": themeTarget,
           "circle-stroke-color": "#1e1e1e",
           "circle-stroke-width": 1.5
+        }
+      });
+      thumbMap.addLayer({
+        id: "thumb-station-label",
+        type: "symbol",
+        source: "thumb-station",
+        layout: {
+          "text-field": ["get", "SITE"],
+          "text-font": ["Noto Sans Bold"],
+          "text-size": 11,
+          "text-offset": [0, 1.2],
+          "text-anchor": "top"
+        },
+        paint: {
+          "text-color": "#1e1e1e",
+          "text-halo-color": "white",
+          "text-halo-width": 1.5
         }
       });
     });
@@ -1914,8 +1973,6 @@ stationSummaryAll = {
 }
 ```
 
-:::: {style="display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end;"}
-
 ```{ojs}
 //| echo: false
 //| panel: input
@@ -1933,43 +1990,13 @@ viewof multiFilterCorridor = Inputs.select(
 // The selected corridor's own record (for siteMembers/members below).
 selectedCorridorInfo = parallelCorridors.find(c => c.id === multiFilterCorridor) ?? null
 
-// Stations left after the filter above is applied -- the option list
-// (and default selection) for the multi-select below.
+// Every one of the selected corridor's own CCS stations -- the chart/map
+// below always compare the whole corridor, no separate station picker.
 allStations = stationSummaryAll
   .filter(d => !selectedCorridorInfo || selectedCorridorInfo.siteMembers.includes(d.SITE))
   .map(d => d.SITE)
   .sort()
-
-// Remembers the multi-select pick across recomputation of allStations (e.g.
-// switching globalCalibRun or the corridor filter above) -- same
-// mutable-plus-resync pattern as lastSelectedStation below.
-mutable lastSelectedStationsMulti = null
 ```
-
-```{ojs}
-//| echo: false
-//| panel: input
-
-viewof selectedStationsMulti = {
-  const preserved = (lastSelectedStationsMulti ?? []).filter(s => allStations.includes(s));
-  const value = preserved.length > 0 ? preserved : allStations;
-  const select = Inputs.select(allStations, {
-    multiple: Math.max(1, Math.min(allStations.length, 12)),
-    value,
-    label: "Compare Stations:",
-    format: d => {
-      const desc = siteInfo.get(d)?.SITE_DESCRIPTION;
-      return desc && desc !== "0" ? `${d} — ${desc}` : d;
-    }
-  });
-  select.addEventListener("input", () => {
-    mutable lastSelectedStationsMulti = select.value;
-  });
-  return select;
-}
-```
-
-::::
 
 :::: {style="display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start;"}
 ::: {.column style="flex:1 1 420px; min-width:0;"}
@@ -1981,16 +2008,16 @@ viewof selectedStationsMulti = {
 {
   const palette = { hpms: "#3d3a37", model: themeModel, target: themeTarget };
 
-  const summary = selectedStationsMulti
+  const summary = allStations
     .map(site => stationSummaryAll.find(d => d.SITE === site))
     .filter(Boolean);
 
   if (summary.length === 0) {
-    return html`<div style="padding: 24px; text-align:center; color:#888;">Select one or more stations above to compare.</div>`;
+    return html`<div style="padding: 24px; text-align:center; color:#888;">This corridor has no CCS stations to compare.</div>`;
   }
 
   const siteOrder = summary.map(d => d.SITE);
-  const plotHeight = Math.max(320, siteOrder.length * 40 + 60);
+  const plotHeight = Math.max(640, siteOrder.length * 80 + 60);
   // Always fix the volume axis to start at 0, rather than letting Plot
   // auto-scale to the data's min/max (the default for a dot-based chart
   // with no zero-baseline mark). Extra headroom (vs. a plain *1.05) leaves
@@ -2126,17 +2153,17 @@ viewof selectedStationsMulti = {
 
 ```{ojs}
 // Plain (non-mutable) binding holding the map's last pan/zoom plus a
-// signature of whichever station/corridor selection it was last fit to --
+// signature of whichever corridor selection it was last fit to --
 // deliberately NOT a `mutable` cell, so panning/zooming (which writes into
 // this object's properties, not reassigns it) never re-triggers OJS
 // reactivity. Without this, switching globalCalibRun alone (which
-// recomputes daily_data -> stationSummaryAll -> allStations -> a new
-// selectedStationsMulti array, even though its actual site list is
-// unchanged) re-runs the map cell below and used to always re-fit bounds --
-// same mutable-plus-resync problem vmtMapViewState (above) solves for the
-// VMT map, plus a selectionKey so this map still DOES re-fit when the
-// user's actual station/corridor pick changes. Center is [lng, lat]
-// (MapLibre convention), not Leaflet's old [lat, lng].
+// recomputes daily_data -> stationSummaryAll -> a new allStations array,
+// even though its actual site list is unchanged) re-runs the map cell
+// below and used to always re-fit bounds -- same mutable-plus-resync
+// problem vmtMapViewState (above) solves for the VMT map, plus a
+// selectionKey so this map still DOES re-fit when the user's actual
+// corridor pick changes. Center is [lng, lat] (MapLibre convention), not
+// Leaflet's old [lat, lng].
 multiMapViewState = ({center: null, zoom: null, selectionKey: null})
 ```
 
@@ -2145,7 +2172,7 @@ multiMapViewState = ({center: null, zoom: null, selectionKey: null})
 //| echo: false
 
 {
-  const selected = new Set(selectedStationsMulti);
+  const selected = new Set(allStations);
   const stationFeatures = daily_stations_geo.features.filter(f => selected.has(String(f.properties.SITE)));
 
   // When a Parallel Corridor is selected, also draw each member's facility
@@ -2160,7 +2187,7 @@ multiMapViewState = ({center: null, zoom: null, selectionKey: null})
   );
 
   if (stationFeatures.length === 0 && segmentFeatures.length === 0) {
-    return html`<div style="padding: 24px; text-align:center; color:#888;">Select one or more stations above to see them on the map.</div>`;
+    return html`<div style="padding: 24px; text-align:center; color:#888;">This corridor has no CCS stations or segments to show.</div>`;
   }
 
   const stationsFc = { type: "FeatureCollection", features: stationFeatures };
