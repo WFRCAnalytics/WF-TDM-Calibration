@@ -2181,6 +2181,129 @@ selectedCorridorInfo
 }
 ```
 
+### Corridor Volume Profile
+
+Target (Cal. Period Tue-Thu Avg) vs. Modeled daily volume at every CCS station along each of the region's major corridors, plotted against milepost so the profile reads along the corridor's length -- a quick way to spot where the model over- or under-assigns relative to observed counts, and whether that error drifts with distance along the route (e.g. a SFAC/CFAC change at one point shifting volume downstream). Uses the same Target/Model values as the sections above (`stationSummaryAll`), just regrouped by corridor instead of by station.
+
+```{ojs}
+//| label: corridor-profile-data
+//| echo: false
+
+// Which RT_TYP/ROUTE_NAME values (from UDOT's CCS SiteData -- see
+// report/preprocess/assignhwy.py's _build_bridge()) back each named
+// corridor below. Legacy Parkway/Mountain View Corridor/Bangerter Hwy are
+// state routes, so they're matched by their SR number rather than a common
+// name.
+CORRIDOR_ROUTE_DEFS = [
+  { label: "I-15", routeNames: ["I-15"] },
+  { label: "I-215", routeNames: ["I-215"] },
+  { label: "I-80", routeNames: ["I-80"] },
+  { label: "Legacy Parkway (SR-67)", routeNames: ["SR-67"] },
+  { label: "Mountain View Corridor (SR-85)", routeNames: ["SR-85"] },
+  { label: "Bangerter Highway (SR-154)", routeNames: ["SR-154"] }
+]
+
+// One row per CCS station on one of the named corridors -- stationSummaryAll
+// (above) carries FTCLASS/HPMS_AADT/MODEL_VOL/HAS_MODEL_DATA/TargetVol per
+// SITE but not MILEPOST/ROUTE_NAME, so those are merged in from siteInfo
+// (the static per-site metadata map built in the ccs-data-global cell).
+// Sorted by milepost so each profile line reads along the corridor's length.
+corridorProfileData = CORRIDOR_ROUTE_DEFS.map(def => ({
+  ...def,
+  stations: stationSummaryAll
+    .map(d => ({ ...siteInfo.get(d.SITE), ...d }))
+    .filter(d => def.routeNames.includes(d.ROUTE_NAME))
+    .sort((a, b) => a.MILEPOST - b.MILEPOST)
+}))
+```
+
+```{ojs}
+//| echo: false
+//| panel: input
+
+viewof selectedCorridorProfile = Inputs.select(
+  new Map(CORRIDOR_ROUTE_DEFS.map(c => [c.label, c.label])),
+  { label: "Corridor:", value: "I-15" }
+)
+```
+
+```{ojs}
+//| label: corridor-profile-chart
+//| echo: false
+
+{
+  const palette = { target: themeTarget, model: themeModel };
+
+  // One manual legend above the panel -- same convention as
+  // multi-station-chart's barbell legend, above.
+  const legend = html`<div style="display:flex; gap:18px; align-items:center; font-size:12px; margin-bottom:10px; flex-wrap:wrap;">
+    <span><span style="display:inline-block;width:14px;height:2px;background:${palette.target};margin-right:5px;vertical-align:middle;"></span>Target (Cal. Period Tue-Thu Avg)</span>
+    <span><span style="display:inline-block;width:14px;height:2px;background:${palette.model};margin-right:5px;vertical-align:middle;"></span>Modeled Volume</span>
+  </div>`;
+
+  const panelWidth = Math.min(900, width);
+
+  function corridorPanel(corridor) {
+    const stations = corridor.stations;
+    if (stations.length === 0) {
+      return html`<div style="padding:16px; border:1px solid #eee; border-radius:8px;">
+        <div style="font-size:13px; font-weight:600; margin-bottom:4px;">${corridor.label}</div>
+        <div style="color:#888; text-align:center; padding:24px 0;">No CCS stations matched.</div>
+      </div>`;
+    }
+
+    // Modeled Volume is omitted (not drawn at 0) for a station whose
+    // segment has no model output -- same HAS_MODEL_DATA gate used by the
+    // Single-Station Detail chart, above.
+    const modeled = stations.filter(d => d.HAS_MODEL_DATA);
+    const maxVol = (Math.max(
+      d3.max(stations, d => d.TargetVol) ?? 0,
+      d3.max(modeled, d => d.MODEL_VOL) ?? 0
+    ) || 1000) * 1.15;
+
+    const plot = Plot.plot({
+      width: panelWidth,
+      height: 420,
+      marginLeft: 55,
+      marginBottom: 35,
+      style: {
+        fontSize: "11px",
+        fontFamily: "system-ui, -apple-system, sans-serif",
+        backgroundColor: "white"
+      },
+      x: { label: "Milepost", grid: true },
+      y: { label: "Daily Volume", grid: true, domain: [0, maxVol], tickFormat: "s" },
+      marks: [
+        Plot.line(stations, { x: "MILEPOST", y: "TargetVol", stroke: palette.target, strokeWidth: 2 }),
+        Plot.dot(stations, {
+          x: "MILEPOST", y: "TargetVol",
+          r: 4, fill: palette.target, stroke: "white", strokeWidth: 1,
+          title: d => `Station ${d.SITE}${d.SITE_DESCRIPTION && d.SITE_DESCRIPTION !== "0" ? ` — ${d.SITE_DESCRIPTION}` : ""}\nMP ${d.MILEPOST.toFixed(2)}\nTarget (Cal. Tue-Thu Avg): ${Math.round(d.TargetVol).toLocaleString()}`
+        }),
+        Plot.line(modeled, { x: "MILEPOST", y: "MODEL_VOL", stroke: palette.model, strokeWidth: 2 }),
+        Plot.dot(modeled, {
+          x: "MILEPOST", y: "MODEL_VOL",
+          r: 4, fill: palette.model, stroke: "white", strokeWidth: 1,
+          title: d => `Station ${d.SITE}${d.SITE_DESCRIPTION && d.SITE_DESCRIPTION !== "0" ? ` — ${d.SITE_DESCRIPTION}` : ""}\nMP ${d.MILEPOST.toFixed(2)}\nModeled Volume: ${Math.round(d.MODEL_VOL).toLocaleString()}`
+        })
+      ]
+    });
+
+    return html`<div style="border:1px solid #eee; border-radius:8px; padding:8px;">
+      <div style="font-size:13px; font-weight:600; margin:2px 0 4px 4px;">${corridor.label}</div>
+      ${plot}
+    </div>`;
+  }
+
+  const corridor = corridorProfileData.find(c => c.label === selectedCorridorProfile);
+
+  return html`<div style="width:100%;">
+    ${legend}
+    ${corridor ? corridorPanel(corridor) : ""}
+  </div>`;
+}
+```
+
 ## Vehicle-Miles Traveled (VMT) Validation
 
 The validation results for the Highway Assignment portion of the model are shown in this section. The target data for 2023 volumes is taken from the Utah Department of Transportation (UDOT) [Average Annual Daily Traffic (AADT) History](https://drive.google.com/file/d/1rDXm0ObugGR1zXgWUuVbzWHNt-Xs1xru/view) and associated with their respective model segments. The traffic model data is taken from segment summary report for the 2023 base year model: `Summary_SEGID.csv`. Model-vs-target daily Vehicle-Miles Traveled (VMT) is compared two ways below, sharing one set of controls: an aggregate chart by geography and roadway class, and a segment-level map.
