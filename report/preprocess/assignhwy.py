@@ -191,7 +191,6 @@ def _build_bridge(repo_root: Path) -> pd.DataFrame:
 
     df_bridge = df_bridge[~df_bridge["SITE"].isin(["-680"])]
     df_bridge = df_bridge[~df_bridge["SITE"].isin(["-816", "-302"])]
-    df_bridge = df_bridge[~df_bridge["SITE"].isin(["-664"])]
     return df_bridge
 
 

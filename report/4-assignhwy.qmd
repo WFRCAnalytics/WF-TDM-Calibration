@@ -310,9 +310,6 @@ df_bridge = df_bridge[~df_bridge["SITE"].isin(["-680"])]
 
 # Manual Override: Remove Ramp/Interchange stations (-816, -302)
 df_bridge = df_bridge[~df_bridge["SITE"].isin(["-816", "-302"])]
-
-# Manual Override: Remove station -664 with odd data, only 107 AADT
-df_bridge = df_bridge[~df_bridge["SITE"].isin(["-664"])]
 ```
 
 ```{python}
