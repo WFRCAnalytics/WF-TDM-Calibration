@@ -99,3 +99,148 @@ def test_render_validation_failed_on_timeout(repo_root, monkeypatch):
     result = pp.render_validation(repo_root, framework)
     assert result["status"] == "failed"
     assert "timed out after 5s" in result["reason"]
+
+
+def _make_publish_dirs(repo_root):
+    """publish_to_git() skips a group whose paths don't exist on disk --
+    create the ones a real run would have produced, no real git repo needed
+    since subprocess.run is mocked."""
+    (repo_root / "tdm").mkdir(exist_ok=True)
+    (repo_root / "calibration_runs" / "C50.yaml").write_text("calib_run_id: C50\n")
+    (repo_root / "runs" / "C50").mkdir(parents=True)
+    (repo_root / "docs").mkdir()
+    (repo_root / "report" / "_pictures").mkdir(parents=True)
+
+
+def test_publish_to_git_skipped_when_not_configured(repo_root):
+    result = pp.publish_to_git(repo_root, "C50", framework={})
+    assert result["status"] == "skipped"
+
+
+def test_publish_to_git_skipped_when_disabled(repo_root):
+    framework = {"postprocess": {"git_publish": False}}
+    result = pp.publish_to_git(repo_root, "C50", framework)
+    assert result["status"] == "skipped"
+
+
+def test_publish_to_git_skips_groups_with_no_dirty_paths(repo_root, monkeypatch):
+    _make_publish_dirs(repo_root)
+
+    def fake_run(command, cwd, capture_output, text):
+        assert command[0] == "git"
+        if command[1] == "status":
+            return subprocess.CompletedProcess(command, returncode=0, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {command}")
+
+    monkeypatch.setattr(pp.subprocess, "run", fake_run)
+    framework = {"postprocess": {"git_publish": True}}
+    result = pp.publish_to_git(repo_root, "C50", framework)
+    assert result["status"] == "skipped"
+    assert result["reason"] == "nothing to commit"
+
+
+def test_publish_to_git_skips_groups_whose_paths_do_not_exist(repo_root, monkeypatch):
+    # repo_root already has a tdm/ dir (conftest's fixture). No docs/ or
+    # report/_pictures/ on disk, though -- that group must never reach `git
+    # status` at all.
+    (repo_root / "calibration_runs" / "C50.yaml").write_text("calib_run_id: C50\n")
+    (repo_root / "runs" / "C50").mkdir(parents=True)
+
+    seen = []
+
+    def fake_run(command, cwd, capture_output, text):
+        seen.append(command)
+        if command[1] == "status":
+            return subprocess.CompletedProcess(command, returncode=0, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {command}")
+
+    monkeypatch.setattr(pp.subprocess, "run", fake_run)
+    framework = {"postprocess": {"git_publish": True}}
+    pp.publish_to_git(repo_root, "C50", framework)
+    assert len(seen) == 2
+    assert not any("docs" in c or "report/_pictures" in c for c in seen)
+
+
+def test_publish_to_git_success_commits_each_dirty_group_and_pushes(repo_root, monkeypatch):
+    _make_publish_dirs(repo_root)
+    calls = []
+
+    def fake_run(command, cwd, capture_output, text, timeout=None):
+        calls.append(command)
+        if command[1] == "status":
+            return subprocess.CompletedProcess(command, returncode=0, stdout=" M dummy\n", stderr="")
+        if command[1] in ("add", "commit"):
+            return subprocess.CompletedProcess(command, returncode=0, stdout="", stderr="")
+        if command[1] == "push":
+            return subprocess.CompletedProcess(command, returncode=0, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {command}")
+
+    monkeypatch.setattr(pp.subprocess, "run", fake_run)
+    framework = {"postprocess": {"git_publish": True}}
+    result = pp.publish_to_git(repo_root, "C50", framework)
+
+    assert result["status"] == "success"
+    assert len(result["committed"]) == 3
+    assert any("Record tdm submodule pointer for C50" in m for m in result["committed"])
+    assert any("Add C50 calibration run outputs" in m for m in result["committed"])
+    assert any("Re-render reports with C50" in m for m in result["committed"])
+    assert calls[-1][1] == "push"
+
+
+def test_publish_to_git_failed_on_commit_error_stops_further_groups(repo_root, monkeypatch):
+    _make_publish_dirs(repo_root)
+
+    def fake_run(command, cwd, capture_output, text, timeout=None):
+        if command[1] == "status":
+            return subprocess.CompletedProcess(command, returncode=0, stdout=" M dummy\n", stderr="")
+        if command[1] == "add":
+            return subprocess.CompletedProcess(command, returncode=0, stdout="", stderr="")
+        if command[1] == "commit":
+            return subprocess.CompletedProcess(command, returncode=1, stdout="", stderr="nothing to commit boom")
+        raise AssertionError(f"unexpected git call: {command}")
+
+    monkeypatch.setattr(pp.subprocess, "run", fake_run)
+    framework = {"postprocess": {"git_publish": True}}
+    result = pp.publish_to_git(repo_root, "C50", framework)
+    assert result["status"] == "failed"
+    assert "git commit failed" in result["reason"]
+    assert result["committed"] == []
+
+
+def test_publish_to_git_failed_on_push_error(repo_root, monkeypatch):
+    _make_publish_dirs(repo_root)
+
+    def fake_run(command, cwd, capture_output, text, timeout=None):
+        if command[1] == "status":
+            return subprocess.CompletedProcess(command, returncode=0, stdout=" M dummy\n", stderr="")
+        if command[1] in ("add", "commit"):
+            return subprocess.CompletedProcess(command, returncode=0, stdout="", stderr="")
+        if command[1] == "push":
+            return subprocess.CompletedProcess(command, returncode=1, stdout="", stderr="RPC failed")
+        raise AssertionError(f"unexpected git call: {command}")
+
+    monkeypatch.setattr(pp.subprocess, "run", fake_run)
+    framework = {"postprocess": {"git_publish": True}}
+    result = pp.publish_to_git(repo_root, "C50", framework)
+    assert result["status"] == "failed"
+    assert "git push failed" in result["reason"]
+    assert len(result["committed"]) == 3
+
+
+def test_publish_to_git_failed_on_push_timeout(repo_root, monkeypatch):
+    _make_publish_dirs(repo_root)
+
+    def fake_run(command, cwd, capture_output, text, timeout=None):
+        if command[1] == "status":
+            return subprocess.CompletedProcess(command, returncode=0, stdout=" M dummy\n", stderr="")
+        if command[1] in ("add", "commit"):
+            return subprocess.CompletedProcess(command, returncode=0, stdout="", stderr="")
+        if command[1] == "push":
+            raise subprocess.TimeoutExpired(cmd=command, timeout=timeout)
+        raise AssertionError(f"unexpected git call: {command}")
+
+    monkeypatch.setattr(pp.subprocess, "run", fake_run)
+    framework = {"postprocess": {"git_publish": True}}
+    result = pp.publish_to_git(repo_root, "C50", framework)
+    assert result["status"] == "failed"
+    assert "git push timed out" in result["reason"]

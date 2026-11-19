@@ -214,7 +214,18 @@ run_metadata_schema_version: 1
 # toggle that report/config.json used to gate (see report/README.md). A
 # rendering failure is recorded on the run's metadata but never fails the
 # run itself -- outputs are already safely curated regardless.
+#
+# git_publish: when enabled, a successful run() or import_manual_run() also
+# commits+pushes the submodule pointer, the curated runs/{calib_run_id}/
+# outputs, and the re-rendered report (whichever of those actually changed)
+# to the remote -- replacing the standing habit of doing that by hand after
+# every run. Only ever stages the specific paths a run could have touched
+# (never `git add -A`), so it can't sweep in unrelated dirty state. A push
+# failure is recorded on the run's metadata but never fails the run itself
+# -- outputs are already safely committed locally regardless; re-running
+# `tdmcalib run --force` (or just `git push`) retries it.
 postprocess:
   render_validation: true
   quarto_exe: "quarto"
   timeout_seconds: 3600
+  git_publish: true

@@ -1,15 +1,18 @@
 """
-Post-run report caching and rendering.
+Post-run report caching, rendering, and git publish.
 
-Two steps run after a calibration run's outputs are curated, in order:
+Three steps run after a calibration run's outputs are curated, in order:
 build_report_cache() extracts+caches this run's per-stage report data
 (report/preprocess/), then render_validation() runs `quarto render` so
 report/*.qmd reflects the run automatically -- replacing the old manual
 "preprocess" toggle that report/config.json used to gate (see
-report/README.md). Neither ever raises: the calibration run's curated
-outputs are already safely on disk regardless of whether caching/rendering
-succeeded, so a problem in either is recorded on the run's metadata instead
-of failing the run.
+report/README.md) -- then publish_to_git() commits+pushes the curated
+outputs, submodule pointer, and re-rendered report to the remote, replacing
+the standing habit of doing that by hand after every run (see CLAUDE.md and
+the commit-push-autonomy project convention). None of the three ever raise:
+the calibration run's curated outputs are already safely on disk regardless
+of whether caching/rendering/publishing succeeded, so a problem in any of
+them is recorded on the run's metadata instead of failing the run.
 """
 
 import shutil
@@ -84,3 +87,87 @@ def render_validation(repo_root: Path, framework: dict) -> dict:
             "stderr_tail": result.stderr[-4000:],
         }
     return {"status": "success"}
+
+
+# Each group is committed separately (its own `git add` + `git commit`) so
+# that, e.g., a submodule pointer change still gets committed even if the
+# report re-render produced nothing to commit. Paths are explicit pathspecs,
+# never `git add -A`, so this never sweeps in unrelated dirty state
+# elsewhere in the working tree -- only the files this calibration run's own
+# sync-tdm/curate/render steps could plausibly have touched.
+_PUBLISH_GROUPS = [
+    (["tdm"], "Record tdm submodule pointer for {calib_run_id}"),
+    (
+        ["calibration_runs/{calib_run_id}.yaml", "runs/{calib_run_id}"],
+        "Add {calib_run_id} calibration run outputs",
+    ),
+    (["docs", "report/_pictures"], "Re-render reports with {calib_run_id}"),
+]
+
+
+def publish_to_git(repo_root: Path, calib_run_id: str, framework: dict) -> dict:
+    """
+    Commits and pushes this run's curated outputs, submodule pointer, and
+    re-rendered report to the remote -- the same three commits (submodule
+    pointer / runs+calibration_runs / docs+report pictures) a manual
+    commit-after-a-run has used, now automatic. Only commits paths relevant
+    to this calib_run_id (see _PUBLISH_GROUPS); never `git add -A`. A group
+    with nothing changed under its paths is skipped rather than producing an
+    empty commit. Returns a dict with a "status" key ("skipped", "success",
+    or "failed"); never raises -- a push failure (or nothing to push) leaves
+    the calibration run's outputs exactly as safely committed/curated as
+    they already were.
+    """
+    pub_cfg = framework.get("postprocess", {})
+    if not pub_cfg.get("git_publish", False):
+        return {"status": "skipped", "reason": "postprocess.git_publish is false"}
+
+    def _git(args):
+        return subprocess.run(
+            ["git", *args], cwd=str(repo_root), capture_output=True, text=True
+        )
+
+    committed = []
+    for raw_paths, raw_message in _PUBLISH_GROUPS:
+        paths = [p.format(calib_run_id=calib_run_id) for p in raw_paths]
+        paths = [p for p in paths if (repo_root / p).exists()]
+        if not paths:
+            continue
+        status = _git(["status", "--porcelain", "--", *paths])
+        if not status.stdout.strip():
+            continue
+        add = _git(["add", "--", *paths])
+        if add.returncode != 0:
+            return {
+                "status": "failed",
+                "reason": f"git add failed: {add.stderr.strip()}",
+                "committed": committed,
+            }
+        message = raw_message.format(calib_run_id=calib_run_id)
+        message += "\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+        commit = _git(["commit", "-m", message])
+        if commit.returncode != 0:
+            return {
+                "status": "failed",
+                "reason": f"git commit failed: {commit.stderr.strip()}",
+                "committed": committed,
+            }
+        committed.append(message)
+
+    if not committed:
+        return {"status": "skipped", "reason": "nothing to commit"}
+
+    try:
+        push = subprocess.run(
+            ["git", "push"], cwd=str(repo_root), capture_output=True, text=True, timeout=1800
+        )
+    except subprocess.TimeoutExpired:
+        return {"status": "failed", "reason": "git push timed out after 1800s", "committed": committed}
+
+    if push.returncode != 0:
+        return {
+            "status": "failed",
+            "reason": f"git push failed: {push.stderr.strip()}",
+            "committed": committed,
+        }
+    return {"status": "success", "committed": committed}

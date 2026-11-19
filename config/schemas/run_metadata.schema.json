@@ -149,6 +149,20 @@
         "reason": { "type": "string" },
         "stderr_tail": { "type": "string" }
       }
+    },
+    "git_publish": {
+      "type": "object",
+      "description": "Result of tdmcalib.postprocess.publish_to_git() committing+pushing this run's submodule pointer, curated outputs, and re-rendered report to the remote. Absent when the run itself did not succeed.",
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["skipped", "success", "failed"] },
+        "reason": { "type": "string" },
+        "committed": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Commit messages (first line) for each group that was actually committed, in order, regardless of whether the final push succeeded."
+        }
+      }
     }
   }
 }
