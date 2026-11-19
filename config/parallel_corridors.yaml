@@ -97,6 +97,7 @@ corridors:
       - site: "-306"
       - segid: "0089_335.6"
       - site: "-659"
+      - segid: "0114_002.3"
   - id: springville_north
     label: "I-15, State St (Springville)"
     members:

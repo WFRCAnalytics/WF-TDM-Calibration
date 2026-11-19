@@ -1497,7 +1497,7 @@ CORRIDOR_ROUTE_DEFS = [
   { label: "I-215", routeNames: ["I-215"] },
   { label: "I-80", routeNames: ["I-80"] },
   { label: "US-6", routeNames: ["US-6"] },
-  { label: "US-189", routeNames: ["US-189"] },
+  { label: "University Avenue (US-189)", routeNames: ["US-189"] },
   { label: "I-84", routeNames: ["I-84"] },
   { label: "Legacy Parkway (SR-67)", routeNames: ["SR-67"] },
   { label: "Mountain View Corridor (SR-85)", routeNames: ["SR-85"] },
@@ -1537,7 +1537,12 @@ corridorProfileData = CORRIDOR_ROUTE_DEFS.map(def => ({
     <span><span style="display:inline-block;width:14px;height:2px;background:${palette.model};margin-right:5px;vertical-align:middle;"></span>Modeled Volume</span>
   </div>`;
 
-  const columns = width > 900 ? 2 : 1;
+  // 2-column mode only kicks in well above the 900px chart-area cap below --
+  // at widths just over 900, a 2-column panel is squeezed to ~442px, which
+  // is too narrow for the rotated cross-street/county labels, so the
+  // breakpoint is set higher than the cap itself to give some headroom
+  // before splitting into columns.
+  const columns = width > 1200 ? 2 : 1;
   const colWidth = Math.min(900, width) / columns - (columns > 1 ? 16 : 0);
   // A span2 corridor always gets the full row width -- at columns === 1
   // that's identical to colWidth anyway (nothing left to span into).
