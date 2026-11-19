@@ -130,7 +130,7 @@ if not _year_overrides.empty:
         _override_lines.append(f"- **{_row['SITE']}** ({_desc}): **{int(_row['YEAR'])}**")
 
     print(f"""
-::: {{.callout-note collapse="true"}}
+::: {{.callout-note collapse="false"}}
 ## CCS data-year note
 
 Every CCS station's Target volume throughout this page defaults to **2023** observed counts within the Sept 1 - Nov 15 calibration window. {len(_year_overrides)} station(s) had no usable 2023 coverage in that window, so they use **2024** data instead (`inputs/ccs_year_overrides.csv`):
@@ -1658,7 +1658,7 @@ corridorProfileData = CORRIDOR_ROUTE_DEFS.map(def => ({
         // cross-street network, so expect the odd rough-looking label.
         Plot.text(stations, {
           x: "MILEPOST", y: () => maxVol, text: d => crossStreetLabel(d.SITE_DESCRIPTION),
-          dy: -4, textAnchor: "start", rotate: -60, fontSize: 10.5, fill: "#999"
+          dy: -4, textAnchor: "start", rotate: -90, fontSize: 10.5, fill: "#999"
         }),
 
         Plot.line(stations, { x: "MILEPOST", y: "TargetVol", stroke: palette.target, strokeWidth: 2 }),
