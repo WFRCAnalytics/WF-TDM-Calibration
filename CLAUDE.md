@@ -22,7 +22,7 @@ TDM version — nothing here should silently change which TDM commit is in use.
   (`tdm/Scenarios/{calib_run_id}/`, already gitignored there) — only a curated,
   size-capped subset ever gets committed, directly under `runs/{calib_run_id}/`
   (flattened, not nested in an `outputs/` subfolder), produced by `tdmcalib`'s output
-  curation (`outputs.include` in `config-runs/*.yaml` — see
+  curation (`outputs.include` in `run-configs/*.yaml` — see
   `config/framework.yaml`'s `outputs.max_file_size_mb`). This is enforced
   automatically, not just by convention: any curated file whose actual written size
   exceeds the ceiling is kept locally (so reports still render fully on the machine
@@ -54,7 +54,7 @@ TDM version — nothing here should silently change which TDM commit is in use.
 |---------------------|-------------------------------------------------------------|
 | `tdm/`              | TDM submodule — read-only from this repo's perspective       |
 | `config/`           | `tdmcalib` framework settings (`framework.yaml`, `local.yaml` — gitignored, per-machine, copy from `local.example.yaml`), JSON schemas |
-| `config-runs/` | One YAML per calibration run (`C50.yaml`, ...) — `tdm_ref`, `control_center_overrides`/`general_parameter_overrides`, `outputs.include` — see `README.md`'s tdmcalib section |
+| `run-configs/` | One YAML per calibration run (`C50.yaml`, ...) — `tdm_ref`, `control_center_overrides`/`general_parameter_overrides`, `outputs.include` — see `README.md`'s tdmcalib section |
 | `runs/`             | `tdmcalib`'s curated, committed output, one folder per calibration run (`runs/{calib_run_id}/`) — curated files sit directly in that folder (only the latest attempt's outputs are kept); `run_info/{run_id}.json` holds a permanent metadata record for every attempt, never deleted |
 | `src/tdmcalib/`     | The orchestrator (installable as the `tdmcalib` CLI) — ported from the sibling `WF-TDM-Runs` repo's `tdmruns`, flattened for a single calibration-run axis instead of run_set/scenario nesting |
 
@@ -64,9 +64,9 @@ Installed at `.venv/Scripts/tdmcalib.exe`. Full definitions in `src/tdmcalib/cli
 
 | Command | What it does |
 |---|---|
-| `sync-tdm --run <id>` | Checks out the `tdm_ref` declared in `config-runs/<id>.yaml` inside the `tdm/` submodule (fetch + `git checkout`). Refuses on a dirty submodule tree before/after. This is the sanctioned way to move the submodule checkout day to day — it's checking out a ref the calibration run's own config already declares, not the CLAUDE.md-restricted "bump the pin to a new target" action. |
+| `sync-tdm --run <id>` | Checks out the `tdm_ref` declared in `run-configs/<id>.yaml` inside the `tdm/` submodule (fetch + `git checkout`). Refuses on a dirty submodule tree before/after. This is the sanctioned way to move the submodule checkout day to day — it's checking out a ref the calibration run's own config already declares, not the CLAUDE.md-restricted "bump the pin to a new target" action. |
 | `run --run <id> [--force] [--start-at <label>] [--driver-script <path>]` | Full end-to-end run: sync TDM, render Control Center, execute the model, curate outputs into `runs/<id>/`. Replaces whatever was previously recorded for that run. `--force` re-runs even if a successful run already exists. `--start-at STEP4_05` (etc.) resumes a crashed attempt from its driver script's RESUME POINT for this one attempt only — overrides the calibration run YAML's own `start_at_label` without editing it, and is recorded on the attempt's own `run_info/{run_id}.json`. Reserve editing `start_at_label` in the YAML itself for a run that's deliberately partial by design (e.g. paired with `start_from_copy`). `--driver-script` likewise overrides the YAML's own `driver_script` for this one attempt only — the way to resume through a custom driver script variant (e.g. a resume-from-partway-through variant staged under `custom-tdm-scripts/`) without ever editing the committed `driver_script` and having to remember to revert it afterward. |
-| `run-all [--only a,b] [--force]` | Runs every calibration run under `config-runs/` sequentially; one failure doesn't stop the rest. |
+| `run-all [--only a,b] [--force]` | Runs every calibration run under `run-configs/` sequentially; one failure doesn't stop the rest. |
 | `import-manual-run --run <id> [--scenario-folder <path>]` | Curates outputs for a run executed manually outside the CLI (e.g. Cube Voyager invoked directly). Does not touch the submodule. |
 | `import-manual-run-all [--only a,b]` | Same, for every calibration run with a manual scenario folder. |
 | `prep --run <id>` | Runs the prep script only, no model execution. |
@@ -80,7 +80,7 @@ Installed at `.venv/Scripts/tdmcalib.exe`. Full definitions in `src/tdmcalib/cli
 | `report/`           | Quarto calibration reports (one file per stage, each covering every calibration run via an in-page selector), published to GitHub Pages — see `report/README.md` |
 
 `configs/` (parameter/target configs for `custom-tdm-scripts/`, distinct from
-`config-runs/`'s TDM-execution config) doesn't exist yet — create it when the
+`run-configs/`'s TDM-execution config) doesn't exist yet — create it when the
 first actual config needs it, not speculatively. See Conventions below for naming
 once it does.
 

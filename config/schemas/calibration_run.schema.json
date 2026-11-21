@@ -27,7 +27,7 @@
     },
     "input_files": {
       "type": "object",
-      "description": "Input file paths for this run, relative to the config-runs/ directory. Resolved to absolute paths by the framework before writing the Control Center -- keeps this file machine-independent.",
+      "description": "Input file paths for this run, relative to the run-configs/ directory. Resolved to absolute paths by the framework before writing the Control Center -- keeps this file machine-independent.",
       "additionalProperties": { "type": "string" }
     },
     "control_center_overrides": {
@@ -47,7 +47,7 @@
     },
     "driver_script": {
       "type": "string",
-      "description": "Path to the driver script to stage for this run. Required -- always resolved explicitly, never silently defaulted. Resolved first relative to the config-runs/ directory (a fully custom file, e.g. 'hail-mary/__HailMary_1Subfolder_c50.s' -- companion/modified step scripts are NOT auto-staged and stay in place, referenced from this file by a relative path back to their location; must reference default TDM step scripts as '..\\..\\..\\2_ModelScripts\\...', three levels up, matching the working folder's depth). If no such file exists, resolved instead as a bare filename against the TDM's own Scenarios/_default/ library (e.g. '__HailMary.s' or '__HailMary_resumable.s' -- same two-levels-up path convention, no rewriting needed)."
+      "description": "Path to the driver script to stage for this run. Required -- always resolved explicitly, never silently defaulted. Resolved first relative to the run-configs/ directory (a fully custom file, e.g. 'hail-mary/__HailMary_1Subfolder_c50.s' -- companion/modified step scripts are NOT auto-staged and stay in place, referenced from this file by a relative path back to their location; must reference default TDM step scripts as '..\\..\\..\\2_ModelScripts\\...', three levels up, matching the working folder's depth). If no such file exists, resolved instead as a bare filename against the TDM's own Scenarios/_default/ library (e.g. '__HailMary.s' or '__HailMary_resumable.s' -- same two-levels-up path convention, no rewriting needed)."
     },
     "start_at_label": {
       "type": "string",
@@ -64,11 +64,11 @@
     },
     "prep_script": {
       "type": "string",
-      "description": "Path to a Python prep script, relative to the config-runs/ directory. Run once before model execution. Receives --calib-run-dir and --calib-run-id as arguments."
+      "description": "Path to a Python prep script, relative to the run-configs/ directory. Run once before model execution. Receives --calib-run-dir and --calib-run-id as arguments."
     },
     "report_snapshot_script": {
       "type": "string",
-      "description": "Reserved for a future retirement/snapshot mechanism (not implemented by this version of tdmcalib). Path to a Python script, relative to the config-runs/ directory."
+      "description": "Reserved for a future retirement/snapshot mechanism (not implemented by this version of tdmcalib). Path to a Python script, relative to the run-configs/ directory."
     },
     "outputs": {
       "type": "object",

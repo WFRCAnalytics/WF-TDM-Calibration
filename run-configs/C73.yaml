@@ -1,5 +1,5 @@
 #========================================================================================
-# calibration_runs/C75.yaml
+# run-configs/C73.yaml
 #
 # This run declares no outputs section of its own -- it uses
 # config/framework.yaml's default outputs.include/max_file_size_mb, which is
@@ -11,37 +11,29 @@
 # copy_files list is still the best record of where the TDM actually writes
 # each file within a run's working folder).
 #========================================================================================
-calib_run_id: C75
+calib_run_id: C73
 author: ""
 description: >
-  Calibration iteration C75, base year 2023.
+  Calibration iteration C73, base year 2023.
 
-tdm_ref: "calib/sfac-cfac"
+tdm_ref: "calib/C73"
 baseline_control_center: "_ControlCenter - Base_2023.block"
 
 driver_script: "__HailMary_resumable.s"
 start_at_label: "STEP0"
-# 2026-11-20: resumed a crash (F(105) in Distribution's post-loop skim
-# transpose, see runs/C75/run_info/20261120-185007-7880.json) by temporarily
-# pointing driver_script at
-# custom-tdm-scripts/hail-mary/__HailMary_resume_at_distribution_tail.s
-# (paired with custom-tdm-scripts/distribution_tail.s) and running with
-# `tdmcalib run --run C75 --start-at STEP3_01`. That resume attempt
-# succeeded (runs/C75/run_info/20261120-220749-0f4e.json) and driver_script
-# is reverted back to the default here.
 
 control_center_overrides:
   UserName: "Bill Hereth"
   UserCompany: "WFRC"
   runId: "_"
   Run_vizTool: 1
-  # tdm_ref calib/C75 renamed the master network files to add a
+  # tdm_ref calib/C73 renamed the master network files to add a
   # "_sfac_cfac" suffix (commit a9190bff) without updating the baseline
   # Control Center block's MasterPrefix to match -- override it here rather
   # than editing tdm/.
-  MasterPrefix: "../../../custom-tdm-inputs/WFv1000_MasterNet_20260430_sfac_cfac"
-  SpdFactor: "SFAC_C75"
-  CapFactor: "CFAC_C75"
+  MasterPrefix: "WFv1000_MasterNet_20260430_sfac_cfac"
+  SpdFactor: "SFAC_C73"
+  CapFactor: "CFAC_C73"
 
 # calibFac_LT_*/calibFac_MD_*/calibFac_HV_* and the truck-cost/ramp-penalty
 # factors below are GeneralParameters.block keys (tdm/1_Inputs/0_GlobalData/),

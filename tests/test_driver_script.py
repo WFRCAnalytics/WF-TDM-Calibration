@@ -18,7 +18,7 @@ def _calib_run(**overrides):
 
 def _stage(repo_root, calib_run, run_folder):
     return ds.stage(
-        repo_root / "config-runs",
+        repo_root / "run-configs",
         repo_root / "tdm",
         "Scenarios/_default",
         calib_run,

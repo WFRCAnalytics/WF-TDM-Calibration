@@ -18,7 +18,7 @@ def find_repo_root(start: Path = None) -> Path:
 
 
 def calibration_runs_dir(repo_root: Path) -> Path:
-    return repo_root / "config-runs"
+    return repo_root / "run-configs"
 
 
 def calibration_run_file(repo_root: Path, calib_run_id: str) -> Path:

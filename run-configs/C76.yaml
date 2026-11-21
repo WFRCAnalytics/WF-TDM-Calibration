@@ -1,5 +1,5 @@
 #========================================================================================
-# config-runs/C77.yaml
+# run-configs/C76.yaml
 #
 # This run declares no outputs section of its own -- it uses
 # config/framework.yaml's default outputs.include/max_file_size_mb, which is
@@ -11,10 +11,10 @@
 # copy_files list is still the best record of where the TDM actually writes
 # each file within a run's working folder).
 #========================================================================================
-calib_run_id: C77
+calib_run_id: C76
 author: ""
 description: >
-  Calibration iteration C77, base year 2023.
+  Calibration iteration C76, base year 2023.
 
 tdm_ref: "calib/sfac-cfac"
 baseline_control_center: "_ControlCenter - Base_2023.block"
@@ -32,15 +32,18 @@ control_center_overrides:
   # Control Center block's MasterPrefix to match -- override it here rather
   # than editing tdm/.
   MasterPrefix: "../../../custom-tdm-inputs/WFv1000_MasterNet_20260430_sfac_cfac"
-  SpdFactor: "SFAC_C77"
-  CapFactor: "CFAC_C77"
-  # Starting at 8 from the outset (not 16, the baseline default) -- C75 and
-  # C76 both crashed at 16 (F(105) across all DistributeIntrastep skim
-  # workers, working theory: a resource leak accumulating across repeated
-  # DistributeIntrastep calls within one continuous Voyager process), and
-  # C76's retry at 8 completed cleanly end to end
-  # (runs/C76/run_info/20261121-031128-df25.json). Revert to the baseline
-  # (remove this override) once a real fix exists upstream.
+  SpdFactor: "SFAC_C76"
+  CapFactor: "CFAC_C76"
+  # 2026-11-21: C76's first attempt crashed mid-FB-Loop-3 (F(105) across all
+  # 15 DistributeIntrastep skim workers, same signature as C75's original
+  # crash) -- see runs/C76/run_info/20261121-011825-4b89.json. Working
+  # theory: a resource leak (handles/memory) accumulating across repeated
+  # DistributeIntrastep calls within one continuous Voyager process,
+  # eventually tripping some ceiling at a somewhat variable point. Testing
+  # whether fewer concurrent workers avoids it -- baseline default is 16
+  # (tdm/Scenarios/_default/_ControlCenter - Base_2023.block). Revert to the
+  # baseline (remove this override) if this doesn't help, or once a real fix
+  # exists.
   CoresAvailable: 8
 
 # calibFac_LT_*/calibFac_MD_*/calibFac_HV_* and the truck-cost/ramp-penalty
@@ -49,5 +52,5 @@ control_center_overrides:
 # GeneralParameters.block is shared across every calibration run's working
 # folder rather than templated per run (see src/tdmcalib/general_parameters.py).
 
-general_parameter_overrides: # keep everything same as C76, no new tuning yet
+general_parameter_overrides: # keep everything same as C75, no new tuning yet
   CALIB_MC: 0 # calibrating mode choice

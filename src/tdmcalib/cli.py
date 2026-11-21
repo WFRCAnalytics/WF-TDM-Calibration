@@ -42,7 +42,7 @@ def validate_config(ctx, calib_run_id):
     repo_root = ctx.obj["repo_root"]
     calib_run_ids = [calib_run_id] if calib_run_id else cfg.list_calibration_run_ids(repo_root)
     if not calib_run_ids:
-        click.echo("No calibration runs found under config-runs/.")
+        click.echo("No calibration runs found under run-configs/.")
         return
     framework = cfg.load_framework_config(repo_root)
     tdm_path = repo_root / framework["tdm_submodule_path"]
@@ -57,7 +57,7 @@ def validate_config(ctx, calib_run_id):
             baseline = cc.load_baseline(
                 tdm_path, framework["control_center_defaults_dir"], baseline_filename
             )
-            cr_dir = repo_root / "config-runs"
+            cr_dir = repo_root / "run-configs"
             overrides = cfg.resolved_control_center_overrides(calib_run, cr_dir)
             cc.validate_overrides(
                 baseline, overrides, f"calibration run '{crid}'.control_center_overrides"
@@ -111,7 +111,7 @@ def sync_tdm_cmd(calib_run_id):
     "start_at_label",
     default=None,
     help=(
-        "Override config-runs/<id>.yaml's start_at_label for this attempt only "
+        "Override run-configs/<id>.yaml's start_at_label for this attempt only "
         "(e.g. STEP4_05), without editing the committed config. For resuming a crashed "
         "attempt from its driver script's RESUME POINT -- for a deliberately partial run "
         "(e.g. paired with start_from_copy), declare start_at_label in the YAML instead."
@@ -122,7 +122,7 @@ def sync_tdm_cmd(calib_run_id):
     "driver_script",
     default=None,
     help=(
-        "Override config-runs/<id>.yaml's driver_script for this attempt only, without "
+        "Override run-configs/<id>.yaml's driver_script for this attempt only, without "
         "editing the committed config. Pairs with --start-at for resuming a crashed "
         "attempt through a custom driver script variant (e.g. one staged under "
         "custom-tdm-scripts/) without ever committing that variant as the run's normal "
@@ -152,7 +152,7 @@ def run_cmd(calib_run_id, force, start_at_label, driver_script):
     "--force", is_flag=True, help="Re-run even if a successful run already exists."
 )
 def run_all_cmd(only, force):
-    """Run every calibration run declared under config-runs/
+    """Run every calibration run declared under run-configs/
     sequentially. A failed run does not stop the rest."""
     repo_root = find_repo_root()
     only_list = only.split(",") if only else None
@@ -230,7 +230,7 @@ def prep_cmd(ctx, calib_run_id):
     repo_root = ctx.obj["repo_root"]
     try:
         calib_run = cfg.load_calibration_run(repo_root, calib_run_id)
-        cr_dir = repo_root / "config-runs"
+        cr_dir = repo_root / "run-configs"
         prep.run_prep_scripts(calib_run, cr_dir, calib_run_id)
     except tdmcalibError as e:
         click.echo(f"[FAIL] {calib_run_id}: {e}", err=True)

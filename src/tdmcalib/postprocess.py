@@ -98,7 +98,7 @@ def render_validation(repo_root: Path, framework: dict) -> dict:
 _PUBLISH_GROUPS = [
     (["tdm"], "Record tdm submodule pointer for {calib_run_id}"),
     (
-        ["config-runs/{calib_run_id}.yaml", "runs/{calib_run_id}"],
+        ["run-configs/{calib_run_id}.yaml", "runs/{calib_run_id}"],
         "Add {calib_run_id} calibration run outputs",
     ),
     (["docs", "report/_pictures"], "Re-render reports with {calib_run_id}"),
@@ -109,7 +109,7 @@ def publish_to_git(repo_root: Path, calib_run_id: str, framework: dict) -> dict:
     """
     Commits and pushes this run's curated outputs, submodule pointer, and
     re-rendered report to the remote -- the same three commits (submodule
-    pointer / runs+config-runs / docs+report pictures) a manual
+    pointer / runs+run-configs / docs+report pictures) a manual
     commit-after-a-run has used, now automatic. Only commits paths relevant
     to this calib_run_id (see _PUBLISH_GROUPS); never `git add -A`. A group
     with nothing changed under its paths is skipped rather than producing an

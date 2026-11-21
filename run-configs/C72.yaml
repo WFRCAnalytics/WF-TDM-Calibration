@@ -1,5 +1,5 @@
 #========================================================================================
-# calibration_runs/C72.yaml
+# run-configs/C72.yaml
 #
 # This run declares no outputs section of its own -- it uses
 # config/framework.yaml's default outputs.include/max_file_size_mb, which is

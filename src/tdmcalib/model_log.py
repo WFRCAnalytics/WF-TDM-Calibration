@@ -34,7 +34,7 @@ trailing "MODEL RUN SUCCESSFUL" line that the crash block does not. Its mere
 presence at the true tail of the file is conclusive proof of a real finish,
 regardless of how many crash+retry checkpoints came before it, so it's
 checked first and preferred whenever present. Calibration runs pinned to an
-older TDM commit that predates this line (see config-runs/C33.yaml's
+older TDM commit that predates this line (see run-configs/C33.yaml's
 tdm_ref: "unknown-historical") fall back to the older heuristic: the last
 "TOTAL MODEL RUN TIME" entry only counts as this run's outcome if nothing
 else was logged after it; otherwise the real outcome for this attempt
