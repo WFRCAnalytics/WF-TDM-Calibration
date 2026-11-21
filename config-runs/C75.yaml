@@ -1,0 +1,56 @@
+#========================================================================================
+# calibration_runs/C75.yaml
+#
+# This run declares no outputs section of its own -- it uses
+# config/framework.yaml's default outputs.include/max_file_size_mb, which is
+# built from tdm/2_ModelScripts/_Python/pp_ValidationDocumentation.py's own
+# copy_files list (the TDM's existing, working post-processing step, which
+# normally copies these same raw files into WF-TDM-Documentation -- this
+# repo's own pipeline never runs that script itself, see
+# config/framework.yaml's scenario_folder_template comment, but its
+# copy_files list is still the best record of where the TDM actually writes
+# each file within a run's working folder).
+#========================================================================================
+calib_run_id: C75
+author: ""
+description: >
+  Calibration iteration C75, base year 2023.
+
+tdm_ref: "calib/sfac-cfac"
+baseline_control_center: "_ControlCenter - Base_2023.block"
+
+driver_script: "../custom-tdm-scripts/hail-mary/__HailMary_resume_at_distribution_tail.s"
+start_at_label: "STEP0"
+# ^ driver_script temporarily points at a custom variant to resume the
+# 2026-11-20 crash (F(105) in Distribution's post-loop skim transpose, see
+# runs/C75/run_info/20261120-185007-7880.json) right after the feedback loop's
+# already-completed iterations, instead of redoing them -- see
+# custom-tdm-scripts/hail-mary/__HailMary_resume_at_distribution_tail.s and
+# custom-tdm-scripts/distribution_tail.s. MUST be run with `tdmcalib run --run C75
+# --start-at STEP3_01` (the driver aborts otherwise -- see its
+# REQUIRE_START_AT_STEP3_01 guard). Revert driver_script back to
+# "__HailMary_resumable.s" once this resume attempt completes (success or
+# fail) -- leaving it pointed at the custom variant would make any future
+# plain `tdmcalib run --run C75` silently skip the real feedback loop.
+
+control_center_overrides:
+  UserName: "Bill Hereth"
+  UserCompany: "WFRC"
+  runId: "_"
+  Run_vizTool: 1
+  # tdm_ref calib/C75 renamed the master network files to add a
+  # "_sfac_cfac" suffix (commit a9190bff) without updating the baseline
+  # Control Center block's MasterPrefix to match -- override it here rather
+  # than editing tdm/.
+  MasterPrefix: "../../../custom-tdm-inputs/WFv1000_MasterNet_20260430_sfac_cfac"
+  SpdFactor: "SFAC_C75"
+  CapFactor: "CFAC_C75"
+
+# calibFac_LT_*/calibFac_MD_*/calibFac_HV_* and the truck-cost/ramp-penalty
+# factors below are GeneralParameters.block keys (tdm/1_Inputs/0_GlobalData/),
+# not Control Center keys -- a separate override mechanism, since
+# GeneralParameters.block is shared across every calibration run's working
+# folder rather than templated per run (see src/tdmcalib/general_parameters.py).
+
+general_parameter_overrides: # keep everything same as C68, except for mode choice calibration
+  CALIB_MC: 0 # calibrating mode choice

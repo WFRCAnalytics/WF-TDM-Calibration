@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "calib_run_id": "C75",
+  "run_id": "20261120-162934-48d2",
+  "status": "failed",
+  "execution_mode": "cli",
+  "started_at": "2026-11-20T16:29:34.295780+00:00",
+  "finished_at": "2026-11-20T16:30:04.893170+00:00",
+  "framework_commit": "d838cb57e87aae851c4a0b435a4df7cc6d481a71",
+  "tdm": {
+    "requested_ref": "calib/C75",
+    "resolved_commit": "3c03fcf5b4c803937b40231920b885a3b34a343c",
+    "resolved_tag": "calib/C75",
+    "branch": null,
+    "detached_head": true,
+    "dirty": false
+  },
+  "control_center": {
+    "baseline_file": "_ControlCenter - Base_2023.block",
+    "overrides": {
+      "UserName": "Bill Hereth",
+      "UserCompany": "WFRC",
+      "runId": "_",
+      "Run_vizTool": 1,
+      "MasterPrefix": "../../../inputs/WFv1000_MasterNet_20260430_sfac_cfac",
+      "SpdFactor": "SFAC_C75",
+      "CapFactor": "CFAC_C75"
+    },
+    "rendered_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75\\_ControlCenter.block",
+    "driver_script": "Scenarios/_default/__HailMary_resumable.s",
+    "start_at_label": "STEP0",
+    "start_at_override": false
+  },
+  "scenario_folder": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75",
+  "execution": {
+    "command": [
+      "cmd.exe",
+      "/c",
+      "M:\\GitHub\\WF-TDM-Calibration\\bin\\RunModel.bat",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75\\_ControlCenter.block",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75"
+    ],
+    "exit_code": 2,
+    "log_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75\\logs\\orchestrator_invocation.log",
+    "status_source": "exit_code"
+  },
+  "outputs": {
+    "inventory_count": 23,
+    "inventory_total_bytes": 1387262,
+    "curated": []
+  },
+  "error": "No resolved model completion report in M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75\\_Log\\_RunTime.txt (see M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75\\logs\\orchestrator_invocation.log). Voyager exit code: 2.\n\nVoyager errors (TPPL0003.PRN):\nF(614): Can't find file or file conversion error: M:\\GitHub\\WF-TDM-Calibration\\inputs\\WFv1000_MasterNet_20260430_sfac_cfac.net\nF(614): OS reports: The system cannot find the file specified.\nF(641): Step 368, RUN MATRIX can not be run while ONRUNERRORGOTO processing.",
+  "general_parameters": {
+    "overrides": {
+      "CALIB_MC": 0
+    }
+  }
+}

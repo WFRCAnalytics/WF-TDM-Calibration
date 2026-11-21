@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "calib_run_id": "C75",
+  "run_id": "20261120-184812-df32",
+  "status": "failed",
+  "execution_mode": "cli",
+  "started_at": "2026-11-20T18:48:12.788313+00:00",
+  "finished_at": "2026-11-20T18:49:17.397133+00:00",
+  "framework_commit": "d838cb57e87aae851c4a0b435a4df7cc6d481a71",
+  "tdm": {
+    "requested_ref": "calib/sfac-cfac",
+    "resolved_commit": "725a1beaad4604f28c203e6e7a471d05bb54a5e3",
+    "resolved_tag": "calib/sfac-cfac",
+    "branch": null,
+    "detached_head": true,
+    "dirty": false
+  },
+  "control_center": {
+    "baseline_file": "_ControlCenter - Base_2023.block",
+    "overrides": {
+      "UserName": "Bill Hereth",
+      "UserCompany": "WFRC",
+      "runId": "_",
+      "Run_vizTool": 1,
+      "MasterPrefix": "../../../calibration_runs/inputs/WFv1000_MasterNet_20260430_sfac_cfac",
+      "SpdFactor": "SFAC_C75",
+      "CapFactor": "CFAC_C75"
+    },
+    "rendered_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75\\_ControlCenter.block",
+    "driver_script": "Scenarios/_default/__HailMary_resumable.s",
+    "start_at_label": "STEP0",
+    "start_at_override": false
+  },
+  "scenario_folder": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75",
+  "execution": {
+    "command": [
+      "cmd.exe",
+      "/c",
+      "M:\\GitHub\\WF-TDM-Calibration\\bin\\RunModel.bat",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75\\_ControlCenter.block",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75"
+    ],
+    "exit_code": 3221225477,
+    "log_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75\\logs\\orchestrator_invocation.log",
+    "status_source": "exit_code"
+  },
+  "outputs": {
+    "inventory_count": 376,
+    "inventory_total_bytes": 7155314122,
+    "curated": []
+  },
+  "error": "No resolved model completion report in M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75\\_Log\\_RunTime.txt (see M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75\\logs\\orchestrator_invocation.log). Voyager exit code: 3221225477.",
+  "general_parameters": {
+    "overrides": {
+      "CALIB_MC": 0
+    }
+  }
+}

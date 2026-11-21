@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "calib_run_id": "C75",
+  "run_id": "20261119-182030-990b",
+  "status": "failed",
+  "execution_mode": "cli",
+  "started_at": "2026-11-19T18:20:30.947948+00:00",
+  "finished_at": "2026-11-19T19:16:59.025183+00:00",
+  "framework_commit": "caec01c6f5f5f970a5a147c8ebbbf5e7385c4673",
+  "tdm": {
+    "requested_ref": "calib/C75",
+    "resolved_commit": "3c03fcf5b4c803937b40231920b885a3b34a343c",
+    "resolved_tag": "calib/C75",
+    "branch": null,
+    "detached_head": true,
+    "dirty": false
+  },
+  "control_center": {
+    "baseline_file": "_ControlCenter - Base_2023.block",
+    "overrides": {
+      "UserName": "Bill Hereth",
+      "UserCompany": "WFRC",
+      "runId": "_",
+      "Run_vizTool": 1,
+      "MasterPrefix": "WFv1000_MasterNet_20260430_sfac_cfac",
+      "SpdFactor": "SFAC_C75",
+      "CapFactor": "CFAC_C75"
+    },
+    "rendered_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75\\_ControlCenter.block",
+    "driver_script": "Scenarios/_default/__HailMary_resumable.s",
+    "start_at_label": "STEP0",
+    "start_at_override": false
+  },
+  "scenario_folder": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75",
+  "execution": {
+    "command": [
+      "cmd.exe",
+      "/c",
+      "M:\\GitHub\\WF-TDM-Calibration\\bin\\RunModel.bat",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75\\_ControlCenter.block",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75"
+    ],
+    "exit_code": 2,
+    "log_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75\\logs\\orchestrator_invocation.log",
+    "status_source": "exit_code"
+  },
+  "outputs": {
+    "inventory_count": 299,
+    "inventory_total_bytes": 6121626765,
+    "curated": []
+  },
+  "error": "No resolved model completion report in M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75\\_Log\\_RunTime.txt (see M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C75\\logs\\orchestrator_invocation.log). Voyager exit code: 2.\n\nVoyager errors (TPPL0001.PRN):\nF(237): Return code: 2 - e4fe6612-54e4-4005-a39d-15894c7050fe - Terminating condition noted on file TPPL0338.PRN:  F(105)\nF(237): Return code: 2 - d852046d-d704-41f9-bdde-1bf496bcc6a5 - Terminating condition noted on file TPPL0343.PRN:  F(105)\nF(237): Return code: 2 - 5d2d8b87-8990-4342-ab2a-96d67bd084d7 - Terminating condition noted on file TPPL0341.PRN:  F(105)\nF(237): Return code: 2 - 630c274f-1f22-4c88-909f-2fb7a47cfeb2 - Terminating condition noted on file TPPL0340.PRN:  F(105)\nF(237): Return code: 2 - 893f90ab-0128-4d84-ba86-1612998f7afe - Terminating condition noted on file TPPL0351.PRN:  F(105)\nF(237): Return code: 2 - fbc449cb-50fb-4cd7-a72d-b5a75e1ec5ac - Terminating condition noted on file TPPL0344.PRN:  F(105)\nF(237): Return code: 2 - f62178f6-4aea-42da-9f82-877fca4e82b5 - Terminating condition noted on file TPPL0342.PRN:  F(105)\nF(237): Return code: 2 - b601fdf9-6083-4eaf-b2ff-263c65943521 - Terminating condition noted on file TPPL0352.PRN:  F(105)\nF(237): Return code: 2 - 77721b13-3b1f-4ef5-8e33-f2b47eb0c217 - Terminating condition noted on file TPPL0350.PRN:  F(105)\nF(237): Return code: 2 - 912c2fb2-53dc-424f-a8fb-2732d13fe5ef - Terminating condition noted on file TPPL0348.PRN:  F(105)\nF(237): Return code: 2 - f338c1bc-c7b9-40b7-a794-d0e120396f25 - Terminating condition noted on file TPPL0347.PRN:  F(105)\nF(237): Return code: 2 - a0796e6a-dbdb-45e3-b0b9-235d1e7a37b5 - Terminating condition noted on file TPPL0345.PRN:  F(105)\nF(237): Return code: 2 - 73a803e9-feea-4f34-acc1-5d9a810a1cda - Terminating condition noted on file TPPL0349.PRN:  F(105)\nF(641): Step 368, RUN MATRIX can not be run while ONRUNERRORGOTO processing.",
+  "general_parameters": {
+    "overrides": {
+      "CALIB_MC": 0
+    }
+  }
+}
