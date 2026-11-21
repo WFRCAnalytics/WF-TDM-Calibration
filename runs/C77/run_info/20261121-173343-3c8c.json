@@ -836,5 +836,19 @@
     "overrides": {
       "CALIB_MC": 0
     }
+  },
+  "preprocess": {
+    "status": "success"
+  },
+  "postprocess": {
+    "status": "success"
+  },
+  "git_publish": {
+    "status": "failed",
+    "reason": "git push failed: remote: warning: File runs/C77/Skm_AM.omx is 72.27 MB; this is larger than GitHub's recommended maximum file size of 50.00 MB        \nremote: warning: File runs/C77/Skm_EV.omx is 71.91 MB; this is larger than GitHub's recommended maximum file size of 50.00 MB        \nremote: warning: File runs/C77/Skm_MD.omx is 72.11 MB; this is larger than GitHub's recommended maximum file size of 50.00 MB        \nremote: warning: File runs/C77/Skm_PM.omx is 73.09 MB; this is larger than GitHub's recommended maximum file size of 50.00 MB        \nremote: warning: File runs/C77/PA_AllPurp_GRAVITY.omx is 94.72 MB; this is larger than GitHub's recommended maximum file size of 50.00 MB        \nremote: error: Trace: c63a87e0147c7c95533f8ab84604ee29d0d15519d711f258205870136fd79063        \nremote: error: See https://gh.io/lfs for more information.        \nremote: error: File docs/report/4-assignhwy.html is 105.81 MB; this exceeds GitHub's file size limit of 100.00 MB        \nremote: error: GH001: Large files detected. You may want to try Git Large File Storage - https://git-lfs.github.com.        \nremote: pre-receive hook declined\nTo https://github.com/WFRCAnalytics/WF-TDM-Calibration.git\n ! [remote rejected] main -> main (pre-receive hook declined)\nerror: failed to push some refs to 'https://github.com/WFRCAnalytics/WF-TDM-Calibration.git'",
+    "committed": [
+      "Add C77 calibration run outputs\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>",
+      "Re-render reports with C77\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+    ]
   }
 }
