@@ -49,6 +49,7 @@ def build(
     general_parameter_overrides: dict = None,
     rendered_path: str = None,
     driver_script: str = None,
+    driver_script_override: bool = False,
     start_at_label: str = None,
     start_at_override: bool = False,
     seeded_from: dict = None,
@@ -79,6 +80,7 @@ def build(
         control_center["rendered_path"] = rendered_path
     if driver_script is not None:
         control_center["driver_script"] = driver_script
+        control_center["driver_script_override"] = driver_script_override
     if start_at_label is not None:
         control_center["start_at_label"] = start_at_label
         control_center["start_at_override"] = start_at_override

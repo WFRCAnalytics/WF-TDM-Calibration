@@ -226,7 +226,8 @@ def _validate_overrides(
 
 
 def run(
-    repo_root: Path, calib_run_id: str, force: bool = False, start_at_label: str = None
+    repo_root: Path, calib_run_id: str, force: bool = False, start_at_label: str = None,
+    driver_script: str = None,
 ) -> dict:
     """
     Executes one full attempt of a calibration run: resolve version, render
@@ -236,7 +237,7 @@ def run(
     unresolvable TDM ref); execution and output failures are instead
     recorded in a 'failed' run record.
 
-    start_at_label, if given, overrides calibration_runs/<id>.yaml's own
+    start_at_label, if given, overrides config-runs/<id>.yaml's own
     declared start_at_label for this attempt only -- the CLI's `--start-at`
     (see cli.py). This is the sanctioned way to resume a crashed attempt
     from its driver script's RESUME POINT (see driver_script.py): the
@@ -246,12 +247,24 @@ def run(
     .schema.json's start_at_label description for when a YAML-level value
     is still the right call -- a deliberately partial run, e.g. paired with
     start_from_copy, not an ad hoc resume).
+
+    driver_script, if given, likewise overrides config-runs/<id>.yaml's own
+    declared driver_script for this attempt only -- the CLI's
+    `--driver-script`. Resuming through a custom driver script variant (as
+    start_at_label resumes often need) no longer requires temporarily
+    editing driver_script in the committed YAML and remembering to revert
+    it afterward -- the override is attempt-scoped and recorded on this
+    attempt's own run_info/{run_id}.json (driver_script_override) instead.
     """
     framework = cfg.load_framework_config(repo_root)
     calib_run = cfg.load_calibration_run(repo_root, calib_run_id)
     declared_start_at_label = calib_run["start_at_label"]
     start_at_override = start_at_label is not None
     effective_start_at_label = start_at_label if start_at_override else declared_start_at_label
+
+    declared_driver_script = calib_run["driver_script"]
+    driver_script_override = driver_script is not None
+    effective_driver_script = driver_script if driver_script_override else declared_driver_script
 
     if not force:
         existing = md.latest_run(repo_root, calib_run_id)
@@ -261,7 +274,7 @@ def run(
     tdm_path = repo_root / framework["tdm_submodule_path"]
     requested_ref = calib_run["tdm_ref"]
     baseline_filename = calib_run["baseline_control_center"]
-    cr_dir = repo_root / "calibration_runs"
+    cr_dir = repo_root / "config-runs"
     overrides = cfg.resolved_control_center_overrides(calib_run, cr_dir)
     general_parameter_overrides = cfg.resolved_general_parameter_overrides(calib_run)
     output_spec = cfg.resolved_output_spec(framework, calib_run)
@@ -324,11 +337,15 @@ def run(
         gp.write_override_file(general_parameter_overrides, folder / gp.OVERRIDE_FILENAME)
 
     # --- stage the driver script: driver_script is required, no framework default.
-    # A copy with start_at_label swapped, not a mutation of calib_run itself, so a
-    # --start-at override never leaks into anything else read from calib_run below. ---
-    staged_calib_run = (
-        calib_run if not start_at_override else {**calib_run, "start_at_label": effective_start_at_label}
-    )
+    # A copy with start_at_label/driver_script swapped, not a mutation of calib_run
+    # itself, so a --start-at/--driver-script override never leaks into anything else
+    # read from calib_run below. ---
+    staged_overrides = {}
+    if start_at_override:
+        staged_overrides["start_at_label"] = effective_start_at_label
+    if driver_script_override:
+        staged_overrides["driver_script"] = effective_driver_script
+    staged_calib_run = {**calib_run, **staged_overrides} if staged_overrides else calib_run
     driver_script_path = ds.stage(
         cr_dir,
         tdm_path,
@@ -367,6 +384,7 @@ def run(
         scenario_folder=str(folder),
         start_at_label=effective_start_at_label,
         start_at_override=start_at_override,
+        driver_script_override=driver_script_override,
     )
 
     exit_code = invoke(
@@ -418,6 +436,7 @@ def run(
         driver_script=driver_script_path,
         start_at_label=effective_start_at_label,
         start_at_override=start_at_override,
+        driver_script_override=driver_script_override,
         seeded_from=seeded_from,
         scenario_folder=str(folder),
         command=command,
@@ -484,7 +503,7 @@ def import_manual_run(repo_root: Path, calib_run_id: str, scenario_folder: Path 
 
     requested_ref = calib_run["tdm_ref"]
     baseline_filename = calib_run["baseline_control_center"]
-    cr_dir = repo_root / "calibration_runs"
+    cr_dir = repo_root / "config-runs"
     overrides = cfg.resolved_control_center_overrides(calib_run, cr_dir)
     general_parameter_overrides = cfg.resolved_general_parameter_overrides(calib_run)
     output_spec = cfg.resolved_output_spec(framework, calib_run)
@@ -540,7 +559,7 @@ def import_manual_run(repo_root: Path, calib_run_id: str, scenario_folder: Path 
 def import_manual_run_all(repo_root: Path, only: list = None) -> list:
     """
     Runs import_manual_run() for every calibration run declared under
-    calibration_runs/, resolving each one's raw folder via
+    config-runs/, resolving each one's raw folder via
     resolved_manual_run_folder(). A run whose resolved folder doesn't
     actually hold the declared outputs.include patterns is recorded as a
     failed result rather than stopping the rest.
@@ -566,7 +585,7 @@ def import_manual_run_all(repo_root: Path, only: list = None) -> list:
 
 def run_all(repo_root: Path, only: list = None, force: bool = False) -> list:
     """
-    Runs every calibration run declared under calibration_runs/ sequentially.
+    Runs every calibration run declared under config-runs/ sequentially.
     A failed run does not stop the rest -- successful runs already on disk
     are untouched, and the function returns metadata for every attempted
     run so the caller can report a clear success/failure summary.

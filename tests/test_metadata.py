@@ -94,6 +94,43 @@ def test_build_omits_start_at_label_when_not_given():
     result = _minimal("C50", "20260101-000000-aaaa")
     assert "start_at_label" not in result["control_center"]
     assert "start_at_override" not in result["control_center"]
+    assert "driver_script" not in result["control_center"]
+    assert "driver_script_override" not in result["control_center"]
+
+
+def test_build_records_a_resumed_attempts_driver_script_and_override():
+    result = md.build(
+        schema_version=1,
+        calib_run_id="C50",
+        run_id="20260101-000000-aaaa",
+        status="success",
+        started_at="2026-01-01T00:00:00+00:00",
+        framework_commit_sha="abc123",
+        tdm_state={},
+        baseline_file="baseline.block",
+        overrides={},
+        driver_script="custom-tdm-scripts/hail-mary/__Resume.s",
+        driver_script_override=True,
+    )
+    assert result["control_center"]["driver_script"] == "custom-tdm-scripts/hail-mary/__Resume.s"
+    assert result["control_center"]["driver_script_override"] is True
+
+
+def test_build_records_a_normal_runs_driver_script_without_override():
+    result = md.build(
+        schema_version=1,
+        calib_run_id="C50",
+        run_id="20260101-000000-aaaa",
+        status="success",
+        started_at="2026-01-01T00:00:00+00:00",
+        framework_commit_sha="abc123",
+        tdm_state={},
+        baseline_file="baseline.block",
+        overrides={},
+        driver_script="__HailMary_resumable.s",
+    )
+    assert result["control_center"]["driver_script"] == "__HailMary_resumable.s"
+    assert result["control_center"]["driver_script_override"] is False
 
 
 def test_build_records_a_resumed_attempts_start_at_label_and_override():
