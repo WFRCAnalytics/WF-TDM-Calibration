@@ -1,0 +1,4 @@
+LANES,n_stations,n_with_volume,max_of_max,avg_of_max,model_cap_per_lane,pct_of_cap_at_max,pct_of_cap_at_avg
+1,2,1,423.0,423.0,968,44.0,44.0
+2,18,13,1181.0,900.0,929,127.0,97.0
+3,8,8,1168.0,928.0,890,131.0,104.0

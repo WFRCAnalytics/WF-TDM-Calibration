@@ -1,0 +1,259 @@
+<meta name="dash-one-writer">
+<title>CCS Max Hourly Volumes</title>
+<style>
+  .dash-page { font-family: var(--font-anthropic-sans); color: var(--color-fg); }
+  .dash-page h1 {
+    font-family: var(--font-anthropic-serif);
+    font-weight: 400;
+    font-size: var(--cds-font-size-title);
+    margin: 0 0 var(--cds-gap-xs) 0;
+  }
+  .dash-page .lede {
+    color: var(--color-fg-muted);
+    font-size: var(--cds-font-size-body);
+    max-width: 68ch;
+    margin: 0 0 var(--cds-gap-lg) 0;
+  }
+  .summary-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--cds-gap-sm);
+    margin-bottom: var(--cds-gap-lg);
+  }
+  .summary-strip .stat {
+    background: var(--color-panel);
+    border: 1px solid var(--color-border-line);
+    border-radius: var(--cds-radius);
+    padding: var(--cds-pad-sm) var(--cds-pad-md);
+    min-width: 7.5rem;
+  }
+  .summary-strip .stat .num {
+    font-family: var(--font-anthropic-serif);
+    font-weight: 400;
+    font-size: var(--cds-font-size-heading);
+    font-variant-numeric: tabular-nums;
+    display: block;
+  }
+  .summary-strip .stat .label {
+    font-size: var(--cds-font-size-caption);
+    color: var(--color-fg-muted);
+  }
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: var(--cds-gap-sm);
+    margin-bottom: var(--cds-gap-md);
+  }
+  .controls label {
+    display: flex;
+    align-items: center;
+    gap: var(--cds-gap-xs);
+    font-size: var(--cds-font-size-caption);
+    color: var(--color-fg-muted);
+  }
+  .ft-table-wrap, .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--color-border-line);
+    border-radius: var(--cds-radius);
+    margin-bottom: var(--cds-gap-lg);
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: var(--cds-font-size-body);
+  }
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--color-panel);
+    text-align: left;
+    font-size: var(--cds-font-size-caption);
+    color: var(--color-fg-muted);
+    font-weight: var(--cds-font-weight-medium);
+    padding: var(--cds-pad-sm);
+    border-bottom: 1px solid var(--color-border-line);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: var(--cds-pad-sm);
+    border-bottom: 1px solid var(--color-border-line);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.muted { color: var(--color-fg-muted); }
+  .ft-table-wrap table { width: auto; min-width: 100%; }
+</style>
+
+<div class="dash-page">
+  <h1>CCS Max Hourly Volumes</h1>
+  <p class="lede" data-draw="lede">—</p>
+
+  <div class="summary-strip">
+    <div class="stat"><span class="num" data-draw="n-stations">—</span><span class="label">stations</span></div>
+    <div class="stat"><span class="num" data-draw="n-with-vol">—</span><span class="label">with a volume</span></div>
+    <div class="stat"><span class="num" data-draw="n-ft-groups">—</span><span class="label">FT groups</span></div>
+  </div>
+
+  <h2 style="font-family:var(--font-anthropic-serif); font-weight:400; font-size:var(--cds-font-size-heading); margin: 0 0 var(--cds-gap-sm) 0;">By facility type</h2>
+  <div class="ft-table-wrap">
+    <table data-source="ft_summary" data-row-key="ft">
+      <thead>
+        <tr>
+          <th data-field="ft">FT</th>
+          <th data-field="ftclass">Facility class</th>
+          <th class="num" data-field="n_stations">Stations</th>
+          <th class="num" data-field="n_with_vol">With volume</th>
+          <th class="num" data-field="max_of_max">Max of max-hourly</th>
+          <th class="num" data-field="avg_of_max">Avg of max-hourly</th>
+          <th class="num" data-field="avg_cap_assumed">Avg spdcap capacity</th>
+          <th class="num" data-field="avg_pct_of_cap">Avg % of capacity</th>
+        </tr>
+      </thead>
+      <tbody data-draw="ft-rows">
+        <tr><td colspan="8">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="controls">
+    <label>Filter by facility type
+      <select class="dash-select" data-draw="ft-filter" data-source="ccs_volumes" aria-label="Facility type filter"></select>
+    </label>
+  </div>
+
+  <div class="table-wrap">
+    <table data-source="filtered" data-row-key="site">
+      <thead>
+        <tr>
+          <th data-field="site">Site</th>
+          <th data-field="description">Location</th>
+          <th data-field="county">County</th>
+          <th data-field="street">Link street</th>
+          <th data-field="ft">FT</th>
+          <th data-field="ftclass">Facility class</th>
+          <th class="num" data-field="lanes">Lanes</th>
+          <th class="num" data-field="cap_assumed">spdcap capacity</th>
+          <th class="num" data-field="max_hourly_vol">Max hourly vol</th>
+          <th class="num" data-field="pct_of_cap">% of capacity</th>
+          <th data-field="date">Date</th>
+          <th data-field="hour">Hour</th>
+        </tr>
+      </thead>
+      <tbody data-draw="rows">
+        <tr><td colspan="12">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  function hourLabel(h) {
+    if (!h) return '';
+    const hh = h.replace('H', '').slice(0, 2);
+    return hh + ':00';
+  }
+
+  dash.calc('ft_summary', {
+    inputs: ['ccs_volumes'],
+    fn: (rows) => {
+      const groups = d3.groups(rows, (r) => r.ft)
+        .sort((a, b) => d3.ascending(a[0], b[0]));
+      return groups.map(([ft, g]) => {
+        const withVol = g.filter((r) => r.max_hourly_vol != null);
+        const vols = withVol.map((r) => r.max_hourly_vol);
+        const pcts = withVol.map((r) => r.pct_of_cap);
+        return {
+          ft,
+          ftclass: g[0].ftclass,
+          n_stations: g.length,
+          n_with_vol: withVol.length,
+          max_of_max: vols.length ? d3.max(vols) : null,
+          avg_of_max: vols.length ? Math.round(d3.mean(vols)) : null,
+          avg_cap_assumed: Math.round(d3.mean(g, (r) => r.cap_assumed)),
+          avg_pct_of_cap: pcts.length ? Math.round(d3.mean(pcts)) : null,
+        };
+      });
+    },
+  });
+
+  dash.calc('filtered', {
+    inputs: ['ccs_volumes'],
+    fn: (rows) => {
+      const { ft } = dash.params();
+      return ft ? rows.filter((r) => String(r.ft) === String(ft)) : rows;
+    },
+  });
+
+  dash.draw('lede', (el) => {
+    const g = dash.data('ccs_volumes');
+    if (g.status !== 'ok') { el.textContent = '—'; return; }
+    const rows = g.data;
+    const withVol = rows.filter((r) => r.max_hourly_vol != null).length;
+    el.textContent = `Max single-lane, single-direction hourly volume for every CCS station on the filtered network (centroid connectors, ramps and HOV links excluded; 5 implausible outlier stations and 3 stations in mountainous TAZ zones (MARGINAL=1) dropped), restricted to the Sept 1 – Nov 15 2023 Tue–Thu calibration window, compared against the TDM's own spdcap-table capacity assumption (CAP1HR1LN, from Lookup_Speed_Capacity.csv by FT and lane count) for the station's matched link. Bangerter Hwy stations classed Expressway (FT 13/15) are also excluded, since Bangerter is being converted to a freeway and its current FT may not represent it well. ${withVol} of ${rows.length} stations have usable 2023 hourly-by-lane data.`;
+  });
+
+  dash.draw('n-stations', (el) => {
+    const g = dash.data('ccs_volumes');
+    el.textContent = g.status === 'ok' ? g.data.length : '—';
+  });
+
+  dash.draw('n-with-vol', (el) => {
+    const g = dash.data('ccs_volumes');
+    el.textContent = g.status === 'ok' ? g.data.filter((r) => r.max_hourly_vol != null).length : '—';
+  });
+
+  dash.draw('n-ft-groups', (el) => {
+    const g = dash.data('ft_summary');
+    el.textContent = g.status === 'ok' ? g.data.length : '—';
+  });
+
+  dash.draw('ft-rows', (el) => {
+    const g = dash.data('ft_summary');
+    if (g.status !== 'ok') { el.replaceChildren(); return; }
+    const sel = d3.select(el).selectAll('tr').data(g.data, (d) => d.ft);
+    sel.exit().remove();
+    const rows = sel.enter().append('tr').merge(sel);
+    rows.html('');
+    rows.append('td').text((d) => d.ft);
+    rows.append('td').text((d) => d.ftclass);
+    rows.append('td').attr('class', 'num').text((d) => d.n_stations);
+    rows.append('td').attr('class', 'num').text((d) => d.n_with_vol);
+    rows.append('td').attr('class', 'num').text((d) => (d.max_of_max != null ? d3.format(',')(d.max_of_max) : '—'));
+    rows.append('td').attr('class', 'num').text((d) => (d.avg_of_max != null ? d3.format(',')(d.avg_of_max) : '—'));
+    rows.append('td').attr('class', 'num').text((d) => d3.format(',')(d.avg_cap_assumed));
+    rows.append('td').attr('class', 'num').text((d) => (d.avg_pct_of_cap != null ? `${d.avg_pct_of_cap}%` : '—'));
+  });
+
+  dash.draw('ft-filter', (el) => {
+    const g = dash.data('ft_summary');
+    const opts = g.status === 'ok' ? g.data.map((d) => d.ft) : [];
+    el.replaceChildren(
+      new Option('All facility types', ''),
+      ...opts.map((ft) => new Option(`FT ${ft}`, ft))
+    );
+    el.value = dash.params().ft ?? '';
+    el.onchange = () => dash.setParams({ ft: el.value || null });
+  });
+
+  dash.draw('rows', (el) => {
+    const g = dash.data('filtered');
+    if (g.status !== 'ok') { el.replaceChildren(); return; }
+    const sel = d3.select(el).selectAll('tr').data(g.data, (d) => d.site);
+    sel.exit().remove();
+    const rows = sel.enter().append('tr').merge(sel);
+    rows.html('');
+    rows.append('td').text((d) => d.site);
+    rows.append('td').text((d) => d.description || '');
+    rows.append('td').attr('class', 'muted').text((d) => d.county || '');
+    rows.append('td').text((d) => d.street || '');
+    rows.append('td').text((d) => d.ft);
+    rows.append('td').text((d) => d.ftclass);
+    rows.append('td').attr('class', 'num').text((d) => d.lanes);
+    rows.append('td').attr('class', 'num').text((d) => d3.format(',')(d.cap_assumed));
+    rows.append('td').attr('class', 'num').text((d) => (d.max_hourly_vol != null ? d3.format(',')(d.max_hourly_vol) : '—'));
+    rows.append('td').attr('class', 'num').text((d) => (d.pct_of_cap != null ? `${Math.round(d.pct_of_cap)}%` : '—'));
+    rows.append('td').attr('class', 'muted').text((d) => d.date || '');
+    rows.append('td').attr('class', 'muted').text((d) => hourLabel(d.hour));
+  });
+</script>
