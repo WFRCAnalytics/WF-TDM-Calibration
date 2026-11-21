@@ -2740,22 +2740,33 @@ df_wide["PctDiff_MD"] = calc_pct(df_wide["Diff_MD"], df_wide["AWDT_Tgt_MD"])
 df_wide["PctDiff_HV"] = calc_pct(df_wide["Diff_HV"], df_wide["AWDT_Tgt_HV"])
 df_wide["PctDiff_MDHV"] = calc_pct(df_wide["Diff_MDHV"], df_wide["AWDT_Tgt_MDHV"])
 
-# 3. Add FTCLASS back
-#    We can get unique FTCLASS for each SEGID from the existing mod_tgt_df
-ft_lookup = mod_tgt_df[["SEGID", "FTCLASS"]].drop_duplicates()
-df_wide = pd.merge(df_wide, ft_lookup, on="SEGID", how="left")
-
-# 4. Merge with Geometry (segShp)
-#    Ensure SEGID consistency
+# 3. Static segment geometry (SEGID/CO_FIPS/geometry only) -- segShp is the
+#    same master-network shapefile for every calib_run, so this is exported
+#    once rather than merged with df_wide's per-run stats below and
+#    duplicated per run -- with 12+ runs that duplicated-geometry merge was
+#    the single biggest contributor to docs/report/4-assignhwy.html
+#    exceeding GitHub's 100MB limit. segShp itself has no FTCLASS field (it
+#    comes from mod_tgt_df, below, not this static shapefile), so FTCLASS
+#    still rides along in the per-run stats, same as before. The per-run
+#    numeric side (vol_diff_stats_py, below) is joined to this client-side
+#    in OJS by SEGID -- same pattern map_display already uses for
+#    segments_py/data_py.
 segShp["SEGID"] = segShp["SEGID"].astype(str)
 df_wide["SEGID"] = df_wide["SEGID"].astype(str)
 
-gdf_vol_diff = segShp[["SEGID", "CO_FIPS", "geometry"]].merge(
+gdf_vol_diff_geom = segShp[["SEGID", "CO_FIPS", "geometry"]].copy()
+if gdf_vol_diff_geom.crs is None:
+    gdf_vol_diff_geom.set_crs(epsg=26912, inplace=True)
+gdf_vol_diff_geom = gdf_vol_diff_geom.to_crs(epsg=4326)
+
+# 4. Add FTCLASS back (unique per SEGID from mod_tgt_df -- not available in
+#    segShp itself) and keep only the per-run numeric diffs, no geometry.
+ft_lookup = mod_tgt_df[["SEGID", "FTCLASS"]].drop_duplicates()
+vol_diff_stats_export = pd.merge(
     df_wide[
         [
             "SEGID",
             "calib_run",
-            "FTCLASS",
             "Diff_Total",
             "Diff_PCLT",
             "Diff_MD",
@@ -2768,17 +2779,16 @@ gdf_vol_diff = segShp[["SEGID", "CO_FIPS", "geometry"]].merge(
             "PctDiff_MDHV",
         ]
     ],
+    ft_lookup,
     on="SEGID",
-    how="inner",
+    how="left",
 )
 
-# 5. Reproject to WGS84 (Lat/Lon) for MapLibre
-if gdf_vol_diff.crs is None:
-    gdf_vol_diff.set_crs(epsg=26912, inplace=True)
-gdf_vol_diff = gdf_vol_diff.to_crs(epsg=4326)
-
-# 6. Pass to OJS
-ojs_define(vol_diff_geojson=gdf_vol_diff.__geo_interface__)
+# 5. Pass to OJS
+ojs_define(
+    vol_diff_geom_py=gdf_vol_diff_geom.__geo_interface__,
+    vol_diff_stats_py=vol_diff_stats_export,
+)
 ```
 
 ```{python}
@@ -3275,11 +3285,21 @@ html`<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/mapl
     return colors[bins.length];
   };
 
-  // GeoJSON Layer -- vol_diff_geojson carries every calib_run's features
-  // together (one polyline per SEGID per run), so filter to the selected
-  // run before drawing, or every run's segments would overlap on the map.
-  const runFeatures = (typeof vol_diff_geojson !== "undefined" && vol_diff_geojson && vol_diff_geojson.features)
-    ? vol_diff_geojson.features.filter(f => f.properties.calib_run === globalCalibRun)
+  // GeoJSON Layer -- vol_diff_geom_py is static segment geometry (same
+  // master network every run, exported once), joined here to the selected
+  // run's numeric diffs (vol_diff_stats_py) by SEGID, rather than drawing
+  // from a geometry+stats merge pre-duplicated per calib_run (see the
+  // Python cell that builds these for why).
+  const statsForRun = transpose(vol_diff_stats_py).filter(d => d.calib_run === globalCalibRun);
+  const statsMap = new Map(statsForRun.map(d => [String(d.SEGID), d]));
+
+  const runFeatures = (vol_diff_geom_py && vol_diff_geom_py.features)
+    ? vol_diff_geom_py.features
+        .filter(f => statsMap.has(String(f.properties.SEGID)))
+        .map(f => ({
+          ...f,
+          properties: { ...f.properties, ...statsMap.get(String(f.properties.SEGID)) }
+        }))
     : [];
 
   // Bake color/weight/opacity/popup into each feature's properties (its

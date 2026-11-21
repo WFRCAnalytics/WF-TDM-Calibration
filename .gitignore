@@ -12,20 +12,6 @@ config/local.yaml
 # comfortably under the limit and stays committed.
 data/UT_HTS_2023_Linked_Trips.csv
 
-# 2026-11-21: docs/report/4-assignhwy.html hit 109.6MB (over GitHub's 100MB
-# limit) after C75 was added as a 12th calibration run -- every successful
-# run embeds its own copy of this page's per-station/per-corridor data
-# inline (see report/4-assignhwy.qmd's ojs_define() calls), so this page's
-# size grows roughly linearly with the number of successful runs under
-# runs/ and will keep crossing the limit sooner each time one is added,
-# unlike data/UT_HTS_2023_Linked_Trips.csv above (a fixed file that's
-# simply always too big). Kept locally (so quarto preview/render still
-# shows it in full on whatever machine rendered it) but never committed --
-# the hosted site has no 4-assignhwy page until this page's data loading is
-# restructured (e.g. lazy-fetched per run instead of inlined for every run
-# at once) to actually fit, which hasn't been done yet.
-docs/report/4-assignhwy.html
-
 # Common data/analysis junk
 *.pyc
 __pycache__/
