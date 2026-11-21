@@ -1537,15 +1537,17 @@ corridorProfileData = CORRIDOR_ROUTE_DEFS.map(def => ({
     <span><span style="display:inline-block;width:14px;height:2px;background:${palette.model};margin-right:5px;vertical-align:middle;"></span>Modeled Volume</span>
   </div>`;
 
-  // 2-column mode only kicks in well above the 900px chart-area cap below --
-  // at widths just over 900, a 2-column panel is squeezed to ~442px, which
-  // is too narrow for the rotated cross-street/county labels, so the
-  // breakpoint is set higher than the cap itself to give some headroom
-  // before splitting into columns.
-  const columns = width > 1200 ? 2 : 1;
-  const colWidth = Math.min(900, width) / columns - (columns > 1 ? 16 : 0);
-  // A span2 corridor always gets the full row width -- at columns === 1
-  // that's identical to colWidth anyway (nothing left to span into).
+  // Always 2 columns, regardless of the reactive `width` -- a width-based
+  // breakpoint (2 columns only above 1200px) previously caused one panel
+  // per row to render far smaller than its neighbor on some loads (a
+  // stale/transient `width` capture race on initial page load with this
+  // many OJS cells competing for layout), and a hard refresh didn't fix
+  // it. Pinning columns removes `width` from the column-count decision
+  // entirely -- colWidth below still scales with `width`, but can no
+  // longer flip between a 1-column and 2-column layout mid-render.
+  const columns = 2;
+  const colWidth = Math.min(900, width) / columns - 16;
+  // A span2 corridor always gets the full row width.
   const fullWidth = Math.min(900, width);
 
   // Approximate cross-street label for a station's axis annotation, from
