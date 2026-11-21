@@ -1279,8 +1279,49 @@ daily_stations_export = gdf_daily_stations.__geo_interface__
 
 # Per-link Speed Factor / Capacity Factor calibration adjustments -- see
 # report/preprocess/assignhwy.py's load_sfac_cfac() and
-# config/framework.yaml's outputs.include.
-sfac_cfac_export = vs.load_cached_per_run(repo_root, "sfac_cfac")
+# config/framework.yaml's outputs.include. Only sfacCfacBySegid (below) reads
+# this, and only these 7 columns of the ~25 the curated CSV carries -- the
+# rest (A/B/LINKID/DISTANCE/FT/ATYPENAME/CO_NAME/LANES/FF_SPD/link-level
+# DY_VOL/DY_SPD/*_CAP/*_VC) never reach the page.
+#
+# load_sfac_cfac() returns one row per directional *sub-link* (e.g. one per
+# cross-street along a SEGID's corridor), but sfacCfacBySegid only ever uses
+# one row per (SEGID, calib_run) -- it groups the sub-links itself and takes
+# links[0].STREET/FTCLASS/SEG_DY_VOL plus the mode of non-zero SFAC/CFAC
+# across them. Do that same collapse here instead, so only the ~4,539
+# SEGID x 7 calib_run combinations actually used ever reach the page, not
+# all 307,365 sub-link rows behind them. _mode_nonzero replicates
+# sfacCfacBySegid's own modeNonZero exactly (first-seen value wins ties,
+# same as a stable sort by count), MINUS its "default to 1 if every value is
+# zero" fallback -- left as a bare 0 here, since sfacCfacBySegid's client-side
+# modeNonZero re-applies that same default to the lone row it now sees per
+# group (0 filtered out -> empty -> default 1), so the result is identical
+# either way without duplicating that fallback in two places.
+def _mode_nonzero(values):
+    counts: dict = {}
+    order = []
+    for v in values:
+        if v == 0:
+            continue
+        if v not in counts:
+            counts[v] = 0
+            order.append(v)
+        counts[v] += 1
+    if not order:
+        return 0.0
+    return max(order, key=lambda v: counts[v])
+
+
+sfac_cfac_export = vs.load_cached_per_run(repo_root, "sfac_cfac")[
+    ["SEGID", "STREET", "FTCLASS", "SFAC", "CFAC", "SEG_DY_VOL", "calib_run"]
+]
+sfac_cfac_export = sfac_cfac_export.groupby(["SEGID", "calib_run"], as_index=False).agg(
+    STREET=("STREET", "first"),
+    FTCLASS=("FTCLASS", "first"),
+    SFAC=("SFAC", _mode_nonzero),
+    CFAC=("CFAC", _mode_nonzero),
+    SEG_DY_VOL=("SEG_DY_VOL", "first"),
+)
 
 # Parallel-corridor groupings (config/parallel_corridors.yaml) -- flattened
 # to one row per (corridor, member). A member's SEGID is read straight from
