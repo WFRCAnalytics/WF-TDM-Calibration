@@ -42,14 +42,14 @@ config_paths = {
     "path_in_ccs_split_factors": r"data/4-assignhwy/UDOT_VehicleClassificationCounts/LT_MD_HV_Split_Factors_2025.csv",
     "path_in_ccs_reclass_ratio": r"data/4-assignhwy/UDOT_VehicleClassificationCounts/CCS_Reclass_Ratio_2025_2003.csv",
     "path_in_vmt_targets": r"data/4-assignhwy/VMT_Targets_by_SuperDistrict_FacilityType.csv",
-    "path_in_ccs_daily": r"../inputs/CCS_Observed_Counts_Raw.csv",
+    "path_in_ccs_daily": r"../data/CCS_Observed_Counts_Raw.csv",
     "path_in_ccs_locations": r"data/4-assignhwy/UDOT_VehicleClassificationCounts/SiteData.csv",
     # Site metadata for the same newly-added stations, matching path_in_ccs_counts_supplement.
     "path_in_ccs_locations_supplement": r"data/4-assignhwy/UDOT_VehicleClassificationCounts/SiteData_supplement.csv",
     "google_speeds_mag": r"data/4-assignhwy/google-api-speeds/MAG/both_time_*_2023.csv",
     "google_speeds_wfrc": r"data/4-assignhwy/google-api-speeds/WFRC/both_time_*_2023.csv",
-    "ccs_lanes1": r"../inputs/2023 Station 301-431.xlsx",
-    "ccs_lanes2": r"../inputs/2023 Station 501-733.xlsx",
+    "ccs_lanes1": r"../data/2023 Station 301-431.xlsx",
+    "ccs_lanes2": r"../data/2023 Station 501-733.xlsx",
     "path_in_screenlines": r"data/4-assignhwy/Screenlines/CVM_Screenlines_V10b.shp",
 }
 ```
@@ -107,13 +107,13 @@ if not Path(config_paths['geojson_file']).exists():
 ```{python}
 #| output: asis
 
-# CCS data-year disclaimer -- generated from inputs/ccs_year_overrides.csv
+# CCS data-year disclaimer -- generated from data/ccs_year_overrides.csv
 # itself (not hand-written) so it can't drift out of sync with that file as
 # stations get added/removed from it. See report/preprocess/assignhwy.py's
 # DEFAULT_CCS_YEAR/_build_merged_base() for the override mechanism: a
 # station with no usable Sept 1 - Nov 15 2023 coverage falls back to
 # whichever year is named here instead.
-_year_overrides = pd.read_csv("../inputs/ccs_year_overrides.csv")
+_year_overrides = pd.read_csv("../data/ccs_year_overrides.csv")
 _year_overrides["SITE"] = _year_overrides["SITE"].astype(str)
 
 if not _year_overrides.empty:
@@ -133,7 +133,7 @@ if not _year_overrides.empty:
 ::: {{.callout-note collapse="false"}}
 ## CCS data-year note
 
-Every CCS station's Target volume throughout this page defaults to **2023** observed counts within the Sept 1 - Nov 15 calibration window. {len(_year_overrides)} station(s) had no usable 2023 coverage in that window, so they use **2024** data instead (`inputs/ccs_year_overrides.csv`):
+Every CCS station's Target volume throughout this page defaults to **2023** observed counts within the Sept 1 - Nov 15 calibration window. {len(_year_overrides)} station(s) had no usable 2023 coverage in that window, so they use **2024** data instead (`data/ccs_year_overrides.csv`):
 
 {chr(10).join(_override_lines)}
 :::
@@ -1333,7 +1333,7 @@ corridor_segments_export = gdf_corridor_segments.__geo_interface__
 # override, rather than inferring it from whichever year's data happens to
 # be present for the selected station.
 ccs_year_overrides_export = pd.read_csv(
-    repo_root / "inputs" / "ccs_year_overrides.csv", dtype={"SITE": str}
+    repo_root / "data" / "ccs_year_overrides.csv", dtype={"SITE": str}
 )
 # Mirrors assignhwy.py's DEFAULT_CCS_YEAR -- kept in sync by hand, same
 # duplicated-constant convention this module already uses for other
@@ -4464,7 +4464,7 @@ gdf_polygons = gpd.read_file(config_paths['geojson_file'])
 
 ```{python}
 # NOTE: requires the GP_IVT tab from Skm_AM/MD/PM/EV.omx -- confirm
-# calibration_runs/*.yaml's matrix outputs.include entries for these
+# config-runs/*.yaml's matrix outputs.include entries for these
 # declare GP_IVT (they may only declare GP_Dist for other sections).
 
 # See report/preprocess/assignhwy.py.
