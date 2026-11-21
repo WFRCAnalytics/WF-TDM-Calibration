@@ -12,17 +12,17 @@ persisted across page
 navigation via `localStorage`.
 
 This mirrors the pattern used in [WF-TDM-Documentation](https://github.com/WFRCAnalytics/WF-TDM-Documentation)
-for TDM version validation, adapted to point at this repo's `runs/` and `inputs/`
+for TDM version validation, adapted to point at this repo's `runs/` and `data/`
 folders instead of `_large_files/`.
 
 Static reference/target data (`report/data/` and the survey/count files under
-`inputs/`) is copied in from `WF-TDM-Documentation`'s committed copy (that repo's
+`data/`) is copied in from `WF-TDM-Documentation`'s committed copy (that repo's
 `v10x/v1000/validation/data/` and `_large_files/v1000/`) and from
 `F:\SHARED\Chris\large_files_calibration\v1000\` (also the source for imported
-calibration runs like `calibration_runs/C33.yaml` — see below) if it ever needs
-refreshing. One file, `inputs/UT_HTS_2023_Linked_Trips.csv`, exceeds GitHub's 100MB
+calibration runs like `config-runs/C33.yaml` — see below) if it ever needs
+refreshing. One file, `data/UT_HTS_2023_Linked_Trips.csv`, exceeds GitHub's 100MB
 limit and isn't committed — see root `README.md`'s "Setup" section for the manual
-copy step; every other file under `inputs/` is comfortably under the limit and stays
+copy step; every other file under `data/` is comfortably under the limit and stays
 committed normally.
 
 ## How a report finds each run's output
@@ -100,7 +100,7 @@ loader that needs it recomputing it independently rather than restructuring
 
 ## Adding a new calibration run
 
-1. Add `calibration_runs/C5N.yaml` (copy an existing one as a starting point) and run
+1. Add `config-runs/C5N.yaml` (copy an existing one as a starting point) and run
    it through `tdmcalib` (see repo root `README.md`) — `tdmcalib run --run C5N` (or
    `import-manual-run` if the model was run outside the CLI) populates
    `runs/C5N/` with a curated set of model output (plus a new
@@ -131,15 +131,15 @@ re-rendered cleanly. Commit the resulting `docs/` to publish.
 
 ## Known gaps carried over from this scaffold
 
-- **`calibration_runs/C50.yaml`'s `outputs.include` has not been exercised against a
+- **`config-runs/C50.yaml`'s `outputs.include` has not been exercised against a
   live Cube run yet.** Filenames, paths, and matrix tab names are cross-checked against
-  a real archived run's converted output (see `calibration_runs/C33.yaml`) rather than
+  a real archived run's converted output (see `config-runs/C33.yaml`) rather than
   a live `tdmcalib run --run C50` — adjust after the first real run if anything
   doesn't match.
 - A handful of curated filenames carry a Cube-generated `___{runId}___` prefix on a
   live `tdmcalib` run (`RegionShares_Pk/Ok.csv`, `transit_brding_summary_node.csv`,
   `transit_rider_summary_link.csv`, `Summary_SEGID(_Detailed).csv`), but typically don't
-  on an imported archived run (e.g. `calibration_runs/C33.yaml`) — the `.qmd` files
+  on an imported archived run (e.g. `config-runs/C33.yaml`) — the `.qmd` files
   resolve these via `_validation_scripts.find_one()` with a prefix-agnostic glob (e.g.
   `"*RegionShares_Pk.csv"`) so either case matches, since the exact `runId` text depends
   on `ModelVersion`/`ScenarioName`/`RunYear` and isn't known ahead of time either way.

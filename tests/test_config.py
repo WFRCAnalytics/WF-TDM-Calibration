@@ -15,7 +15,7 @@ def _write_calib_run(repo_root, calib_run_id, data=None):
         "start_at_label": "STEP0",
         **(data or {}),
     }
-    path = repo_root / "calibration_runs" / f"{calib_run_id}.yaml"
+    path = repo_root / "config-runs" / f"{calib_run_id}.yaml"
     with open(path, "w") as f:
         yaml.safe_dump(payload, f, sort_keys=False)
     return path
@@ -30,7 +30,7 @@ def test_load_calibration_run_roundtrip(repo_root):
 
 def test_load_calibration_run_id_mismatch_raises(repo_root):
     # File named C50.yaml but declares a different calib_run_id inside.
-    path = repo_root / "calibration_runs" / "C50.yaml"
+    path = repo_root / "config-runs" / "C50.yaml"
     with open(path, "w") as f:
         yaml.safe_dump(
             {
@@ -47,7 +47,7 @@ def test_load_calibration_run_id_mismatch_raises(repo_root):
 
 
 def test_load_calibration_run_missing_required_field_raises(repo_root):
-    path = repo_root / "calibration_runs" / "C50.yaml"
+    path = repo_root / "config-runs" / "C50.yaml"
     with open(path, "w") as f:
         yaml.safe_dump({"calib_run_id": "C50"}, f)  # missing tdm_ref, baseline_control_center
     with pytest.raises(ConfigValidationError):
@@ -62,7 +62,7 @@ def test_load_calibration_run_rejects_unknown_top_level_key(repo_root):
 
 def test_load_calibration_run_id_pattern_enforced(repo_root):
     # calib_run_id must match ^C[0-9]{2,3}$
-    path = repo_root / "calibration_runs" / "fifty.yaml"
+    path = repo_root / "config-runs" / "fifty.yaml"
     with open(path, "w") as f:
         yaml.safe_dump(
             {
@@ -99,7 +99,7 @@ def test_resolved_output_spec_rejects_ceiling_above_framework_max(repo_root):
 
 
 def test_resolved_control_center_overrides_resolves_input_files_to_absolute_paths(repo_root):
-    calib_run_dir = repo_root / "calibration_runs"
+    calib_run_dir = repo_root / "config-runs"
     (calib_run_dir / "inputs").mkdir()
     (calib_run_dir / "inputs" / "SE_2050.csv").write_text("a,b\n1,2\n")
 

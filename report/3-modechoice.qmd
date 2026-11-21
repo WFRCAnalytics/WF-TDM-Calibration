@@ -32,26 +32,26 @@ calib_runs = vs.list_available_runs(repo_root)
 # tdmcalib run's curated copy carries a Cube-generated `___{runId}___`
 # filename prefix, an imported archived run's typically doesn't.
 config_paths = {
-    "obs"      : r"../inputs/UTA_OBS_2024_Linked_FactorAdjusted.csv",
-    "hts_trips": r"../inputs/UT_HTS_2023_Linked_Trips.csv",
-    "hts_hh"   : r"../inputs/UT_HTS_2023_Households.csv",
+    "obs"      : r"../data/UTA_OBS_2024_Linked_FactorAdjusted.csv",
+    "hts_trips": r"../data/UT_HTS_2023_Linked_Trips.csv",
+    "hts_hh"   : r"../data/UT_HTS_2023_Households.csv",
     "taz_v10"  : r"data/4-assignhwy/taz/WFv1000_TAZ.shp",
     "apc_board": r"data/3-modechoice/rail_stop_ridership_table.csv",
-    "obs_board": r"../inputs/UTA_OBS_2024_Linked_FactorAdjusted.csv",
+    "obs_board": r"../data/UTA_OBS_2024_Linked_FactorAdjusted.csv",
 }
 
 # 1. File Paths (interactive)
 # config_paths = {
-#     "obs": r"inputs/UTA_OBS_2024_Linked_FactorAdjusted.csv",
-#     "hts_trips": r"inputs/UT_HTS_2023_Linked_Trips.csv",
-#     "hts_hh": r"inputs/UT_HTS_2023_Households.csv",
+#     "obs": r"data/UTA_OBS_2024_Linked_FactorAdjusted.csv",
+#     "hts_trips": r"data/UT_HTS_2023_Linked_Trips.csv",
+#     "hts_hh": r"data/UT_HTS_2023_Households.csv",
 #     "tdm_pk": r"v10x/v1000/validation/data/3-modechoice/RegionShares_Pk_C03.csv",
 #     "tdm_ok": r"v10x/v1000/validation/data/3-modechoice/RegionShares_Ok_C03.csv",
 #     "tdm_boardings": r"v10x/v1000/validation/data/3-modechoice/_transit_brding_summary_node.csv",
 #     "taz_v10": r"v10x/v1000/validation/data/4-assignhwy/taz/WFv1000_TAZ.shp",
 #     "tdm_distsum": r"v10x/v1000/validation/data/3-modechoice/DISTLRG_PA_AllPurp_C03.csv",
 #     "apc_board": r"v10x/v1000/validation/data/3-modechoice/rail_stop_ridership_table.csv",
-#     "obs_board": r"inputs/UTA_OBS_2024_Linked_FactorAdjusted.csv",
+#     "obs_board": r"data/UTA_OBS_2024_Linked_FactorAdjusted.csv",
 # }
 
 # # 2. Calibration Targets (All Trips/Boardings)

@@ -11,10 +11,10 @@ Every calibration run must declare driver_script (required by
 calibration_run.schema.json) -- there is no framework-wide default it falls
 back to, so which driver script ran is always explicit in the run's own
 config, never an assumption baked into the framework. declared is resolved
-first against calibration_runs/ (a fully custom file, e.g.
-calibration_runs/hail-mary/__HailMary_1Subfolder_c50.s -- companion/modified
-step scripts it references are NOT auto-staged, they stay wherever
-calibration_runs/ keeps them, referenced by a relative path computed back to
+first against config-runs/ (a fully custom file, e.g. a relative path like
+../custom-tdm-scripts/hail-mary/__HailMary_resume_at_distribution_tail.s --
+companion/modified step scripts it references are NOT auto-staged, they stay
+wherever they're kept, referenced by a relative path computed back to
 that location the same way the default file's own
 '..\..\..\2_ModelScripts\...' references are relative to wherever it ends up
 running from), then as a bare filename against defaults_dir (a TDM-provided
@@ -68,7 +68,7 @@ from tdmcalib import general_parameters as gp
 from tdmcalib.exceptions import DriverScriptError
 
 # Matches the RESUME POINT marker comment in a resumable driver script
-# template (see calibration_runs/hail-mary/ or the TDM's own
+# template (see custom-tdm-scripts/hail-mary/ or the TDM's own
 # Scenarios/_default/__HailMary_resumable.s) through its GOTO line, keeping
 # the line's own indentation but capturing the label so it can be swapped
 # for start_at_label's value. Cube Voyager PILOT's GOTO takes a bare label
@@ -134,9 +134,9 @@ def stage(
     keeping its own filename. driver_script is required (see
     calibration_run.schema.json) -- there is no framework-default fallback,
     so every run's driver script is an explicit, traceable choice, not a
-    silently-assumed one. Resolved against calibration_runs/ first (a fully
+    silently-assumed one. Resolved against config-runs/ first (a fully
     custom file), then as a bare filename against defaults_dir. Returns the
-    source path for the metadata record -- calibration_runs/-relative for a
+    source path for the metadata record -- config-runs/-relative for a
     custom script, tdm-relative otherwise.
 
     When start_at_label is anything other than STEP0, the staged copy's

@@ -49,7 +49,7 @@ own Medium/Heavy percentages.
 # ==============================================================================
 # Unlike the other report pages, this data isn't part of the normal curated
 # runs/ output or report/preprocess/ cache -- computing it requires converting
-# raw Cube .mtx matrices via Voyager (see scripts/cv_purpose_factoring.py's
+# raw Cube .mtx matrices via Voyager (see custom-tdm-scripts/cv_purpose_factoring.py's
 # module docstring), which is too slow to do on every `quarto render`. Instead
 # that script is run manually per calibration run and its output committed
 # here as a small static CSV, same as any other report/data/ input. CVM
@@ -386,7 +386,7 @@ html`
   toward zero relative to what a full two-sided treatment would show. Treat
   the VMT split as directionally right, not to the same precision as trip
   generation.
-- Produced by `scripts/cv_purpose_factoring.py` (run manually per calibration
+- Produced by `custom-tdm-scripts/cv_purpose_factoring.py` (run manually per calibration
   run; see that script's module docstring for the full mechanism and
-  `scripts/cv_effective_factors.py` for the underlying per-zone factor
+  `custom-tdm-scripts/cv_effective_factors.py` for the underlying per-zone factor
   reconstruction).

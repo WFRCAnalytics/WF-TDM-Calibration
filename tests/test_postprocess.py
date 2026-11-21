@@ -106,7 +106,7 @@ def _make_publish_dirs(repo_root):
     create the ones a real run would have produced, no real git repo needed
     since subprocess.run is mocked."""
     (repo_root / "tdm").mkdir(exist_ok=True)
-    (repo_root / "calibration_runs" / "C50.yaml").write_text("calib_run_id: C50\n")
+    (repo_root / "config-runs" / "C50.yaml").write_text("calib_run_id: C50\n")
     (repo_root / "runs" / "C50").mkdir(parents=True)
     (repo_root / "docs").mkdir()
     (repo_root / "report" / "_pictures").mkdir(parents=True)
@@ -143,7 +143,7 @@ def test_publish_to_git_skips_groups_whose_paths_do_not_exist(repo_root, monkeyp
     # repo_root already has a tdm/ dir (conftest's fixture). No docs/ or
     # report/_pictures/ on disk, though -- that group must never reach `git
     # status` at all.
-    (repo_root / "calibration_runs" / "C50.yaml").write_text("calib_run_id: C50\n")
+    (repo_root / "config-runs" / "C50.yaml").write_text("calib_run_id: C50\n")
     (repo_root / "runs" / "C50").mkdir(parents=True)
 
     seen = []

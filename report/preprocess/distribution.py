@@ -23,9 +23,9 @@ import openmatrix as omx
 import pandas as pd
 
 TAZ_SHP = Path("data/4-assignhwy/taz/WFv1000_TAZ.shp")
-HTS_TRIPS_CSV = Path("inputs/UT_HTS_2023_Linked_Trips.csv")
-HTS_HH_CSV = Path("inputs/UT_HTS_2023_Households.csv")
-SKM_OBS_OMX = Path("inputs/trips_output_CVM_PVM.omx")
+HTS_TRIPS_CSV = Path("data/UT_HTS_2023_Linked_Trips.csv")
+HTS_HH_CSV = Path("data/UT_HTS_2023_Households.csv")
+SKM_OBS_OMX = Path("data/trips_output_CVM_PVM.omx")
 
 # ------------------------------------------------------------------ #
 # Static purpose/matrix-name maps -- duplicated from 2-distribution.qmd's

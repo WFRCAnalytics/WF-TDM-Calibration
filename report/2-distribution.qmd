@@ -26,9 +26,9 @@ calib_runs = vs.list_available_runs(repo_root)
 # filenames are resolved inside the per-run loader functions below, against
 # each run's own outputs_dir
 config_paths = {
-    "hts_trips_path": r"../inputs/UT_HTS_2023_Linked_Trips.csv",
-    "hts_hh"        : r"../inputs/UT_HTS_2023_Households.csv",
-    "skm_obs"       : r"../inputs/trips_output_CVM_PVM.omx",
+    "hts_trips_path": r"../data/UT_HTS_2023_Linked_Trips.csv",
+    "hts_hh"        : r"../data/UT_HTS_2023_Households.csv",
+    "skm_obs"       : r"../data/trips_output_CVM_PVM.omx",
     "taz_v10"       : r"data/4-assignhwy/taz/WFv1000_TAZ.shp",
 }
 

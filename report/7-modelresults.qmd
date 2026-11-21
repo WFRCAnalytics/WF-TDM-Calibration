@@ -25,7 +25,7 @@ calib_runs = vs.list_available_runs(repo_root)
 # see 3-modechoice.qmd's note) is resolved inside the per-run loader below,
 # against each run's own outputs_dir
 config_paths = {
-    "in_obs_processed": r"../inputs/UTA_OBS_2024_Linked_FactorAdjusted.csv",
+    "in_obs_processed": r"../data/UTA_OBS_2024_Linked_FactorAdjusted.csv",
 }
 ```
 

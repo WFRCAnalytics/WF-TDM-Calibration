@@ -7,7 +7,7 @@
 # outputs.include and report/preprocess/assignhwy.py's load_sfac_cfac()) on
 # one or both facilities get tuned to balance modeled volume between them.
 #
-# A repo-wide setting (not per-calibration-run, unlike calibration_runs/*.yaml)
+# A repo-wide setting (not per-calibration-run, unlike config-runs/*.yaml)
 # -- a corridor grouping is a property of the physical network, not of any
 # one model run. Consumed by report/4-assignhwy.qmd's Multi-Station
 # Comparison section (the "Parallel Corridor" filter).

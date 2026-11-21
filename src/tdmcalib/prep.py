@@ -2,7 +2,7 @@
 calibration run's YAML.
 
 The script is a plain Python file. The framework invokes it with two named
-arguments so it can locate calibration_runs/'s inputs and know which
+arguments so it can locate config-runs/'s inputs and know which
 calibration run it is prepping:
 
     python <script> --calib-run-dir <abs-path> --calib-run-id <id>

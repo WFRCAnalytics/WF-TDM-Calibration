@@ -1,5 +1,5 @@
 """Converts raw UDOT CCS (Continuous Count Station) hourly-by-lane workbooks
-into inputs/CCS_Observed_Counts_Raw.csv's row shape, and appends the result.
+into data/CCS_Observed_Counts_Raw.csv's row shape, and appends the result.
 
 Source workbooks (e.g. "2023 Station 301-431.xlsx", "2024 Station 301-513.xlsx")
 carry one sheet per station, each sheet one row per date x lane with hourly
@@ -11,11 +11,11 @@ for a station/date into one daily total, split into the same AM
 (06:00-08:00) / MD (09:00-14:00) / PM (15:00-17:00) / EV (18:00-23:00 +
 00:00-05:00) period buckets used throughout this report -- the exact
 aggregation already used to build the existing 2023 rows in
-inputs/CCS_Observed_Counts_Raw.csv (verified by reproducing station -302's
+data/CCS_Observed_Counts_Raw.csv (verified by reproducing station -302's
 2023-01-02 row from "2023 Station 301-431.xlsx" byte-for-byte before writing
 this script).
 
-Appends (not replaces) inputs/CCS_Observed_Counts_Raw.csv -- a single,
+Appends (not replaces) data/CCS_Observed_Counts_Raw.csv -- a single,
 growing, multi-year raw extract is simpler to keep in sync than one file per
 year, and matches the "raw observed counts" framing already in its name. Run
 again safely: de-dupes on (STATION, DATE_ONLY), keeping the newly-processed
@@ -23,11 +23,11 @@ version of any row that already existed.
 
 A few stations have no 2023 coverage at all (e.g. -316) -- for those,
 report/preprocess/assignhwy.py's _build_merged_base() picks a different
-year's rows via inputs/ccs_year_overrides.csv, a separate, hand-maintained
+year's rows via data/ccs_year_overrides.csv, a separate, hand-maintained
 file this script does not touch.
 
 Usage (from repo root):
-    python scripts/process_ccs_observed_counts.py "C:\\path\\to\\2024 Station 601-851.xlsx" "C:\\path\\to\\2024 Station 301-513.xlsx"
+    python custom-tdm-scripts/process_ccs_observed_counts.py "C:\\path\\to\\2024 Station 601-851.xlsx" "C:\\path\\to\\2024 Station 301-513.xlsx"
 """
 
 import argparse
@@ -50,7 +50,7 @@ EV_COLS = [f"H{str(h).zfill(2)}00" for h in list(range(0, 6)) + list(range(18, 2
 
 def aggregate_workbook(path: Path) -> pd.DataFrame:
     """One row per STATION x DATE (every lane/direction summed), matching
-    inputs/CCS_Observed_Counts_Raw.csv's columns."""
+    data/CCS_Observed_Counts_Raw.csv's columns."""
     all_sheets = pd.read_excel(path, sheet_name=None)
     all_sheets.pop("2023 CCS Hourly Volume Data", None)  # a non-data cover sheet some workbooks carry
     all_sheets.pop("2024 CCS Hourly Volume Data", None)

@@ -30,7 +30,7 @@ calib_runs = vs.list_available_runs(repo_root)
 #              Part 2: Vehicle Ownership
 config_paths = {
     "taz_shp": r"data/4-assignhwy/taz/WFv1000_TAZ.shp",
-    "hts_hh": r"../inputs/UT_HTS_2023_Households.csv",
+    "hts_hh": r"../data/UT_HTS_2023_Households.csv",
     "raw_pums": r"data/0-hhdisag-autoown/utah_raw_pums_person.csv",
     "pums_csv": r"data/0-hhdisag-autoown/utah_observed_pums_long.csv",
     "acs_tract": r"data/0-hhdisag-autoown/ACS5Y_2023_B08201_Tract.gpkg",

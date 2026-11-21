@@ -33,7 +33,7 @@ def resolve_latest_run_outputs(repo_root: Path, calib_run: str) -> Path:
 def find_one(outputs_dir: Path, pattern: str) -> str:
     """Resolves a single curated output file matching a glob pattern inside
     outputs_dir -- for filenames that may or may not carry a Cube-generated
-    `___{runId}___` prefix (see calibration_runs/*.yaml's outputs.include
+    `___{runId}___` prefix (see config-runs/*.yaml's outputs.include
     comments), depending on whether the run was executed through tdmcalib
     (prefix intact, since curation preserves the original filename) or
     imported from an archived source that was already de-prefixed. Callers

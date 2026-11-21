@@ -38,13 +38,13 @@ PATH_IN_CCS_LOCATIONS_SUPPLEMENT = Path(
 )
 GOOGLE_SPEEDS_MAG = Path("data/4-assignhwy/google-api-speeds/MAG/both_time_*_2023.csv")
 GOOGLE_SPEEDS_WFRC = Path("data/4-assignhwy/google-api-speeds/WFRC/both_time_*_2023.csv")
-PATH_IN_CCS_DAILY = Path("inputs/CCS_Observed_Counts_Raw.csv")
+PATH_IN_CCS_DAILY = Path("data/CCS_Observed_Counts_Raw.csv")
 # Per-station override of which year's rows in PATH_IN_CCS_DAILY to use (see
 # _build_merged_base()) -- for a station with no usable 2023 coverage (e.g.
 # -316), rather than a blanket year for every station. Hand-maintained; not
-# touched by scripts/process_ccs_observed_counts.py, which only appends new
+# touched by custom-tdm-scripts/process_ccs_observed_counts.py, which only appends new
 # rows to PATH_IN_CCS_DAILY itself.
-PATH_IN_CCS_YEAR_OVERRIDES = Path("inputs/ccs_year_overrides.csv")
+PATH_IN_CCS_YEAR_OVERRIDES = Path("data/ccs_year_overrides.csv")
 DEFAULT_CCS_YEAR = 2023
 
 CRS_UTM = 26912
@@ -242,7 +242,7 @@ def _build_merged_base(repo_root: Path) -> pd.DataFrame:
     Which year's rows get used is per-station: DEFAULT_CCS_YEAR unless
     PATH_IN_CCS_YEAR_OVERRIDES names a different year for that station (e.g.
     -316 has no usable 2023 coverage, so it uses 2024 -- see
-    scripts/process_ccs_observed_counts.py for how 2024 rows were added to
+    custom-tdm-scripts/process_ccs_observed_counts.py for how 2024 rows were added to
     PATH_IN_CCS_DAILY in the first place)."""
     df_bridge = _build_bridge(repo_root)
     seg_shp = _build_seg_shp(repo_root)

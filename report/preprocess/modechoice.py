@@ -131,7 +131,7 @@ DF_STATION_MASTER = pd.DataFrame(
     {"Stop_Name": _STATION_STOP_NAMES, "Model_N": _STATION_MODEL_N}
 )
 
-OBS_CSV = Path("inputs/UTA_OBS_2024_Linked_FactorAdjusted.csv")
+OBS_CSV = Path("data/UTA_OBS_2024_Linked_FactorAdjusted.csv")
 
 
 def _load_observed_data(repo_root: Path):

@@ -48,7 +48,7 @@ For rendering `report/` locally, one file is too large for git (142MB, over GitH
 100MB limit) and isn't committed — copy it in manually before rendering:
 
 ```bash
-cp "F:\SHARED\Chris\large_files_calibration\v1000\UT_HTS_2023_Linked_Trips.csv" inputs/
+cp "F:\SHARED\Chris\large_files_calibration\v1000\UT_HTS_2023_Linked_Trips.csv" data/
 ```
 
 ## Repo layout
@@ -57,24 +57,26 @@ cp "F:\SHARED\Chris\large_files_calibration\v1000\UT_HTS_2023_Linked_Trips.csv" 
 |---------------------|-------------------------------------------------------------|
 | `tdm/`              | TDM submodule — **do not edit directly** (see below)         |
 | `config/`           | `tdmcalib` framework settings (`framework.yaml`, `local.yaml` — gitignored, copy from `local.example.yaml`), JSON schemas |
-| `calibration_runs/` | One YAML per calibration run (`C50.yaml`, ...) — `tdm_ref`, `control_center_overrides`/`general_parameter_overrides`, `outputs.include` |
+| `config-runs/` | One YAML per calibration run (`C50.yaml`, ...) — `tdm_ref`, `control_center_overrides`/`general_parameter_overrides`, `outputs.include` |
 | `runs/`             | `tdmcalib`'s curated, committed output, one folder per calibration run (`runs/{calib_run_id}/`) — curated files sit directly in that folder; `run_info/{run_id}.json` holds a permanent, never-deleted metadata record for every attempt |
 | `src/tdmcalib/`      | The orchestrator CLI itself |
 | `bin/`              | `RunModel.bat` — the Cube Voyager entry point `tdmcalib` invokes |
 | `tests/`            | `pytest` suite for `src/tdmcalib/` |
-| `inputs/`           | Calibration targets, counts, survey data                 |
+| `data/`             | Calibration targets, counts, survey data                 |
+| `custom-tdm-inputs/`| Master network / FAC input files referenced by calibration run Control Center overrides |
+| `custom-tdm-scripts/` | Calibration scripts (matrix estimation, target matching) |
 | `report/`           | Quarto calibration reports (one file per stage, each covering every calibration run via an in-page selector), published to GitHub Pages — see `report/README.md` |
 
-`scripts/` (calibration scripts) and `configs/` (their parameter/target configs) don't
-exist yet — create them when actually needed, not speculatively.
+`configs/` (parameter/target configs for `custom-tdm-scripts/`) doesn't exist yet —
+create it when actually needed, not speculatively.
 
 ## Running a calibration iteration
 
 ```bash
-tdmcalib validate-config                    # schema + override-key checks, all calibration_runs/*.yaml (or --run C50)
+tdmcalib validate-config                    # schema + override-key checks, all config-runs/*.yaml (or --run C50)
 tdmcalib sync-tdm --run C50                 # check out C50's tdm_ref in tdm/, nothing else
 tdmcalib run --run C50                      # sync + render Control Center + invoke Cube Voyager + curate outputs
-tdmcalib run-all                            # every calibration run declared under calibration_runs/, sequentially
+tdmcalib run-all                            # every calibration run declared under config-runs/, sequentially
 tdmcalib status                             # latest known status per calibration run
 ```
 
@@ -85,7 +87,7 @@ curate its outputs after the fact instead of `run`:
 tdmcalib import-manual-run --run C50
 ```
 
-Add a new calibration run by copying an existing `calibration_runs/C5N.yaml` — no
+Add a new calibration run by copying an existing `config-runs/C5N.yaml` — no
 changes needed under `report/`, since every report covers all calibration runs
 automatically once `runs/C5N/outputs/` exists. See `report/README.md`.
 
@@ -134,7 +136,7 @@ Rationale: starting point for the C50 calibration iteration.
 Raw model output lives inside the `tdm/` submodule's own working tree
 (`tdm/Scenarios/{calib_run_id}/`, already gitignored there by `tdm/.gitignore`) — it
 never touches this repo's git history. `tdmcalib` copies a declared subset
-(`calibration_runs/*.yaml`'s `outputs.include`) into
+(`config-runs/*.yaml`'s `outputs.include`) into
 `runs/{calib_run_id}/outputs/`, which **is** committed — that curated, checksummed set
 is this repo's actual audit trail of what the latest run produced. Only the latest
 attempt is ever kept for a given calibration run: starting a new run for
