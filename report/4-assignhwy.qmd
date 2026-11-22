@@ -1636,10 +1636,13 @@ corridorProfileData = CORRIDOR_ROUTE_DEFS.map(def => ({
     // segment has no model output -- same HAS_MODEL_DATA gate used by the
     // Single-Station Detail chart, above.
     const modeled = stations.filter(d => d.HAS_MODEL_DATA);
-    const maxVol = (Math.max(
+    // Floor of 60k keeps every panel's y-axis on a comparable scale -- a
+    // low-volume corridor's line shouldn't look as busy as a high-volume one
+    // just because its own axis is more zoomed in.
+    const maxVol = Math.max((Math.max(
       d3.max(stations, d => d.TargetVol) ?? 0,
       d3.max(modeled, d => d.MODEL_VOL) ?? 0
-    ) || 1000) * 1.15;
+    ) || 1000) * 1.15, 60000);
 
     // Approximate county-line crossings -- a vertical rule at the midpoint
     // between two consecutive (by milepost) stations whose COUNTY_NAME
