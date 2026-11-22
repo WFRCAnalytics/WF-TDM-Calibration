@@ -277,14 +277,6 @@ for idx, row in gdf_ccs_locations.iterrows():
 # Create Bridge DataFrame
 df_bridge = pd.DataFrame(match_results)
 
-# Manual Override: -307 (Mountain Green, Morgan County) auto-matches to
-# 0084_092.3 via Route+MP, but that segment sits outside the model's
-# core-county reporting area and carries no Summary_SEGID output -- force it
-# to 0084_087.8 (Davis County side of the same I-84 corridor, BMP 87.8-90.9),
-# which does have modeled volume. See report/preprocess/assignhwy.py's
-# _build_bridge() for the duplicate of this override.
-df_bridge.loc[df_bridge["SITE"] == "-307", "MATCHED_SEGID"] = "0084_087.8"
-
 # Append Context (County Name) directly from Network
 fips_map = {3: "Box Elder", 11: "Davis", 35: "Salt Lake", 49: "Utah", 57: "Weber"}
 df_bridge = df_bridge.merge(
@@ -295,11 +287,6 @@ df_bridge = df_bridge.merge(
     right_on="SEGID",
     how="left",
 ).drop(columns=["SEGID", "CO_FIPS"])
-
-# Manual Override: 0084_087.8 (BMP 87.8-90.9) is attributed to Davis in the
-# segment shapefile's own CO_NAME, but is actually Weber County (Weber
-# Canyon) -- correct -307's county for reporting/grouping.
-df_bridge.loc[df_bridge["SITE"] == "-307", "COUNTY_NAME"] = "Weber"
 ```
 
 ```{python}
@@ -1539,7 +1526,6 @@ CORRIDOR_ROUTE_DEFS = [
   { label: "I-80", routeNames: ["I-80"] },
   { label: "US-6", routeNames: ["US-6"] },
   { label: "University Avenue (US-189)", routeNames: ["US-189"] },
-  { label: "I-84", routeNames: ["I-84"] },
   { label: "Legacy Parkway (SR-67)", routeNames: ["SR-67"] },
   { label: "Mountain View Corridor (SR-85)", routeNames: ["SR-85"] },
   { label: "Bangerter Highway (SR-154)", routeNames: ["SR-154"] },

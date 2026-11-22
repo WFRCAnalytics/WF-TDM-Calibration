@@ -151,23 +151,15 @@ def _build_bridge(repo_root: Path) -> pd.DataFrame:
 
     df_bridge = pd.DataFrame(match_results)
 
-    # Manual Override: -307 (Mountain Green, Morgan County) auto-matches to
-    # 0084_092.3 via Route+MP, but that segment sits outside the model's
-    # core-county reporting area and carries no Summary_SEGID output --
-    # force it to 0084_087.8 (Davis County side of the same I-84 corridor,
-    # BMP 87.8-90.9), which does have modeled volume.
-    df_bridge.loc[df_bridge["SITE"] == "-307", "MATCHED_SEGID"] = "0084_087.8"
-
     # Manual Override: -615 (I-80 1 mile E of SR-36 Mills Jct, Lake Point,
     # Tooele -- MP 100.2) auto-matches to 0080_099.5 via Route+MP, but that's
     # west of the model's westernmost coded I-80 segment (0080_101.5 --
     # everything west of it is external to the assignment network and
     # carries no Summary_SEGID output). Force it to 0080_101.5, the nearest
     # segment that does have modeled volume, so -615 gets a Modeled Volume
-    # stand-in instead of HAS_MODEL_DATA = false; same external/no-output
-    # tradeoff -307 above already accepts (its own HPMS AADT2023, pulled
-    # from this overridden segment below, comes along for the ride and is
-    # no longer -615's own precise value -- same as -307's).
+    # stand-in instead of HAS_MODEL_DATA = false (its own HPMS AADT2023,
+    # pulled from this overridden segment below, comes along for the ride and
+    # is no longer -615's own precise value).
     df_bridge.loc[df_bridge["SITE"] == "-615", "MATCHED_SEGID"] = "0080_101.5"
 
     df_bridge = df_bridge.merge(
@@ -178,11 +170,6 @@ def _build_bridge(repo_root: Path) -> pd.DataFrame:
         right_on="SEGID",
         how="left",
     ).drop(columns=["SEGID", "CO_FIPS"])
-
-    # Manual Override: 0084_087.8 (BMP 87.8-90.9) is attributed to Davis in
-    # the segment shapefile's own CO_NAME, but is actually Weber County
-    # (Weber Canyon) -- correct -307's county for reporting/grouping.
-    df_bridge.loc[df_bridge["SITE"] == "-307", "COUNTY_NAME"] = "Weber"
 
     # 0080_101.5 (-615's overridden MATCHED_SEGID above) is Salt Lake County,
     # but -615 itself is in Tooele -- Tooele isn't in FIPS_MAP so this
