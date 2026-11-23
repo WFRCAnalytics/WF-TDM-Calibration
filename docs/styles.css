@@ -1,0 +1,114 @@
+/* Sticky calibration-run control bar, shared across every report page via
+   report/_calib_run_selector.qmd ({{< include >}}). Sits directly under
+   the page title and stays visible while scrolling. */
+.calib-run-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 1.5rem 0;
+  padding: 0.6rem 1rem;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+}
+
+.calib-run-bar label {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.calib-run-bar select {
+  min-width: 12rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .calib-run-bar {
+    background: #26292c;
+    border-color: #3a3f44;
+  }
+}
+
+/* Same control, moved into Quarto's docked sidebar (between its
+   .sidebar-header and .sidebar-menu-container) by
+   report/_calib_run_selector.qmd's OJS cell -- styled to sit above the
+   page-navigation links as a compact, full-width block instead of the
+   sticky top-of-page bar. */
+.calib-run-sidebar {
+  display: block;
+  padding: 0.75rem 1rem 1rem 1rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.calib-run-sidebar label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.8rem;
+  margin-bottom: 0.3rem;
+}
+
+.calib-run-sidebar select {
+  width: 100%;
+  min-width: 10rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .calib-run-sidebar {
+    border-color: #3a3f44;
+  }
+}
+
+/* Same control, moved next to the site title in the navbar header (inside
+   .navbar-brand-container) by report/_calib_run_selector.qmd's OJS cell --
+   styled as a compact pill that reads against the navbar's dark brand
+   background (see wfrc-brand's navbar-bg) rather than the page background. */
+/* The brand container's default flex-shrink lets bootstrap ellipsize the
+   title text down to nothing to make room for whatever else is in the row
+   -- wrap instead, so a tight viewport drops the control to its own line
+   under the logo/title rather than eating the site title. */
+#quarto-header .navbar-brand-container {
+  flex-wrap: wrap;
+  row-gap: 0.25rem;
+}
+
+#quarto-header .navbar-brand-container > .navbar-brand {
+  flex-shrink: 0;
+}
+
+.calib-run-navbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  margin-left: 1rem;
+  padding: 0.25rem 0.6rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+}
+
+.calib-run-navbar label {
+  margin-bottom: 0;
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.calib-run-navbar select {
+  min-width: 6rem;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 991.98px) {
+  .calib-run-navbar {
+    margin-left: 0.5rem;
+  }
+  .calib-run-navbar label {
+    display: none;
+  }
+}
