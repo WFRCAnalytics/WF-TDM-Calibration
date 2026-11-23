@@ -41,6 +41,7 @@ corridors:
     members:
       - site: "-625"
       - site: "-315"
+      - segid: "0106_003.6"
   - id: davis_north
     label: "I-15 and US-89 (Layton)"
     members:
@@ -51,6 +52,7 @@ corridors:
     members:
       - site: "-624"
       - site: "-616"
+      - segid: "0089_384.6"
   - id: beck
     label: "I-15 and Beck Street"
     members:
