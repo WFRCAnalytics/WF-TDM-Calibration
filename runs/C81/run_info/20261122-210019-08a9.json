@@ -836,5 +836,18 @@
     "overrides": {
       "CALIB_MC": 0
     }
+  },
+  "preprocess": {
+    "status": "success"
+  },
+  "postprocess": {
+    "status": "success"
+  },
+  "git_publish": {
+    "status": "success",
+    "committed": [
+      "Add C81 calibration run outputs\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>",
+      "Re-render reports with C81\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+    ]
   }
 }
