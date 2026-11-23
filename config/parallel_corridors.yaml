@@ -52,7 +52,8 @@ corridors:
     members:
       - site: "-624"
       - site: "-616"
-      - segid: "0089_384.6"
+      - segid: "0089_384.9"
+      - segid: "1380_000.0"
   - id: beck
     label: "I-15 and Beck Street"
     members:
