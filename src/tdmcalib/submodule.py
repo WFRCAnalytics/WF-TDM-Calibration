@@ -108,16 +108,14 @@ def resolve_version(repo_root: Path, tdm_path: Path, ref: str) -> TdmVersionStat
             "commit, stash, or discard the changes first."
         )
 
-    try:
-        # --force so a tag that was moved (force-pushed) on the remote --
-        # e.g. a fixup tag under active iteration -- is actually updated
-        # locally instead of silently left pointing at the old commit.
-        _git(["fetch", "--all", "--tags", "--force", "--quiet"], cwd=tdm_path)
-    except VersionResolutionError:
-        # Best effort: a local-path or offline remote may not support fetch
-        # the same way a real remote does. Proceed with what's already local;
-        # checkout below will fail clearly if the ref truly isn't available.
-        pass
+    # --force so a tag that was moved (force-pushed) on the remote -- e.g. a
+    # fixup tag under active iteration -- is actually updated locally instead
+    # of silently left pointing at the old commit. A failed fetch must be
+    # fatal: swallowing it previously let a run silently proceed against
+    # whatever stale ref happened to already be checked out, with run_info
+    # reporting a clean, successful-looking resolution that didn't reflect
+    # upstream at all.
+    _git(["fetch", "--all", "--tags", "--force", "--quiet"], cwd=tdm_path)
 
     try:
         _git(["checkout", "--quiet", ref], cwd=tdm_path)

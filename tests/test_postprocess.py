@@ -227,6 +227,32 @@ def test_publish_to_git_failed_on_push_error(repo_root, monkeypatch):
     assert len(result["committed"]) == 3
 
 
+def test_publish_to_git_skips_docs_group_when_render_failed(repo_root, monkeypatch):
+    # quarto render failing (e.g. a stale preview server locking docs/) must
+    # never let a broken/partial docs/ reach origin -- the tdm pointer and
+    # runs+run-configs groups are unaffected and still publish normally.
+    _make_publish_dirs(repo_root)
+    calls = []
+
+    def fake_run(command, cwd, capture_output, text, timeout=None):
+        calls.append(command)
+        if command[1] == "status":
+            return subprocess.CompletedProcess(command, returncode=0, stdout=" M dummy\n", stderr="")
+        if command[1] in ("add", "commit", "push"):
+            return subprocess.CompletedProcess(command, returncode=0, stdout="", stderr="")
+        raise AssertionError(f"unexpected git call: {command}")
+
+    monkeypatch.setattr(pp.subprocess, "run", fake_run)
+    framework = {"postprocess": {"git_publish": True}}
+    result = pp.publish_to_git(repo_root, "C50", framework, render_status="failed")
+
+    assert result["status"] == "success"
+    assert len(result["committed"]) == 2
+    assert not any("Re-render reports with C50" in m for m in result["committed"])
+    assert "render_validation failed" in result["reason"]
+    assert not any("docs" in c or "report/_pictures" in c for c in calls)
+
+
 def test_publish_to_git_failed_on_push_timeout(repo_root, monkeypatch):
     _make_publish_dirs(repo_root)
 

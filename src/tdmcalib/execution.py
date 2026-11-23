@@ -464,7 +464,10 @@ def run(
     if status == "success":
         run_metadata["preprocess"] = pp.build_report_cache(repo_root, calib_run_id)
         run_metadata["postprocess"] = pp.render_validation(repo_root, framework)
-        run_metadata["git_publish"] = pp.publish_to_git(repo_root, calib_run_id, framework)
+        run_metadata["git_publish"] = pp.publish_to_git(
+            repo_root, calib_run_id, framework,
+            render_status=run_metadata["postprocess"].get("status"),
+        )
         md.write(run_dir, run_metadata)
 
     return run_metadata
@@ -550,7 +553,10 @@ def import_manual_run(repo_root: Path, calib_run_id: str, scenario_folder: Path 
     if status == "success":
         run_metadata["preprocess"] = pp.build_report_cache(repo_root, calib_run_id)
         run_metadata["postprocess"] = pp.render_validation(repo_root, framework)
-        run_metadata["git_publish"] = pp.publish_to_git(repo_root, calib_run_id, framework)
+        run_metadata["git_publish"] = pp.publish_to_git(
+            repo_root, calib_run_id, framework,
+            render_status=run_metadata["postprocess"].get("status"),
+        )
         md.write(run_dir, run_metadata)
 
     return run_metadata

@@ -105,7 +105,9 @@ _PUBLISH_GROUPS = [
 ]
 
 
-def publish_to_git(repo_root: Path, calib_run_id: str, framework: dict) -> dict:
+def publish_to_git(
+    repo_root: Path, calib_run_id: str, framework: dict, render_status: str | None = None
+) -> dict:
     """
     Commits and pushes this run's curated outputs, submodule pointer, and
     re-rendered report to the remote -- the same three commits (submodule
@@ -117,6 +119,14 @@ def publish_to_git(repo_root: Path, calib_run_id: str, framework: dict) -> dict:
     or "failed"); never raises -- a push failure (or nothing to push) leaves
     the calibration run's outputs exactly as safely committed/curated as
     they already were.
+
+    render_status is render_validation()'s own "status" ("success", "failed",
+    or "skipped") for this same run. When it's "failed", the docs/report
+    group is never committed -- `quarto render`'s cleanup step can leave
+    docs/ emptied or partial (e.g. a stale local preview server holding a
+    file lock), and committing+pushing that would put a broken report on the
+    live GitHub Pages site. The other two groups (tdm pointer, runs+run-configs)
+    are independent of rendering and still get published normally.
     """
     pub_cfg = framework.get("postprocess", {})
     if not pub_cfg.get("git_publish", False):
@@ -128,7 +138,11 @@ def publish_to_git(repo_root: Path, calib_run_id: str, framework: dict) -> dict:
         )
 
     committed = []
+    skipped_render_failed = False
     for raw_paths, raw_message in _PUBLISH_GROUPS:
+        if raw_paths == ["docs", "report/_pictures"] and render_status == "failed":
+            skipped_render_failed = True
+            continue
         paths = [p.format(calib_run_id=calib_run_id) for p in raw_paths]
         paths = [p for p in paths if (repo_root / p).exists()]
         if not paths:
@@ -155,6 +169,11 @@ def publish_to_git(repo_root: Path, calib_run_id: str, framework: dict) -> dict:
         committed.append(message)
 
     if not committed:
+        if skipped_render_failed:
+            return {
+                "status": "skipped",
+                "reason": "nothing to commit (docs/report group skipped: render_validation failed)",
+            }
         return {"status": "skipped", "reason": "nothing to commit"}
 
     try:
@@ -170,4 +189,7 @@ def publish_to_git(repo_root: Path, calib_run_id: str, framework: dict) -> dict:
             "reason": f"git push failed: {push.stderr.strip()}",
             "committed": committed,
         }
-    return {"status": "success", "committed": committed}
+    result = {"status": "success", "committed": committed}
+    if skipped_render_failed:
+        result["reason"] = "docs/report group skipped: render_validation failed"
+    return result
