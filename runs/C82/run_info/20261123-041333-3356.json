@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "calib_run_id": "C82",
+  "run_id": "20261123-041333-3356",
+  "status": "running",
+  "execution_mode": "cli",
+  "started_at": "2026-11-23T04:13:33.847532+00:00",
+  "finished_at": null,
+  "framework_commit": "52de7dc74033d80cbb60b81c5f15de6e1c602d9b",
+  "tdm": {
+    "requested_ref": "calib/sfac-cfac",
+    "resolved_commit": "8c6932ae95b1f38d90a45848543b41a7a75718e2",
+    "resolved_tag": "calib/sfac-cfac",
+    "branch": null,
+    "detached_head": true,
+    "dirty": false
+  },
+  "control_center": {
+    "baseline_file": "_ControlCenter - Base_2023.block",
+    "overrides": {
+      "UserName": "Bill Hereth",
+      "UserCompany": "WFRC",
+      "runId": "_",
+      "Run_vizTool": 1,
+      "MasterPrefix": "../../../custom-tdm-inputs/WFv1000_MasterNet_20260430_sfac_cfac",
+      "SpdFactor": "SFAC_C82",
+      "CapFactor": "CFAC_C82",
+      "CoresAvailable": 12
+    },
+    "rendered_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C82\\_ControlCenter.block",
+    "driver_script": "Scenarios/_default/__HailMary_resumable.s",
+    "driver_script_override": false,
+    "start_at_label": "STEP0",
+    "start_at_override": false
+  },
+  "scenario_folder": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C82",
+  "execution": {
+    "command": [
+      "cmd.exe",
+      "/c",
+      "M:\\GitHub\\WF-TDM-Calibration\\bin\\RunModel.bat",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C82\\_ControlCenter.block",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C82"
+    ],
+    "log_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C82\\logs\\orchestrator_invocation.log"
+  },
+  "outputs": {
+    "inventory_count": null,
+    "inventory_total_bytes": null,
+    "curated": []
+  },
+  "error": null,
+  "general_parameters": {
+    "overrides": {
+      "CALIB_MC": 0
+    }
+  }
+}
