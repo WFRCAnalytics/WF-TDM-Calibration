@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "calib_run_id": "C85",
+  "run_id": "20261124-154852-5a18",
+  "status": "failed",
+  "execution_mode": "cli",
+  "started_at": "2026-11-24T15:48:52.635243+00:00",
+  "finished_at": "2026-11-24T15:49:09.458845+00:00",
+  "framework_commit": "616fcb0222e50466715ff5736629eccd50a04590",
+  "tdm": {
+    "requested_ref": "calib/C85",
+    "resolved_commit": "bb06f2367e4dba2d546adfd88756ad0dfac2f8b9",
+    "resolved_tag": "calib/C85",
+    "branch": null,
+    "detached_head": true,
+    "dirty": false
+  },
+  "control_center": {
+    "baseline_file": "_ControlCenter - Base_2023.block",
+    "overrides": {
+      "UserName": "Bill Hereth",
+      "UserCompany": "WFRC",
+      "runId": "_",
+      "Run_vizTool": 1,
+      "MasterPrefix": "../../../custom-tdm-inputs/WFv1000_MasterNet_20260430_sfac_cfac",
+      "SpdFactor": "SFAC_C85",
+      "CapFactor": "CFAC_C85",
+      "CoresAvailable": 12
+    },
+    "rendered_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C85\\_ControlCenter.block",
+    "driver_script": "Scenarios/_default/__HailMary_resumable.s",
+    "driver_script_override": false,
+    "start_at_label": "STEP0",
+    "start_at_override": false
+  },
+  "scenario_folder": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C85",
+  "execution": {
+    "command": [
+      "cmd.exe",
+      "/c",
+      "M:\\GitHub\\WF-TDM-Calibration\\bin\\RunModel.bat",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C85\\_ControlCenter.block",
+      "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C85"
+    ],
+    "exit_code": 3221225477,
+    "log_path": "M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C85\\logs\\orchestrator_invocation.log",
+    "status_source": "exit_code"
+  },
+  "outputs": {
+    "inventory_count": 26,
+    "inventory_total_bytes": 2753291,
+    "curated": []
+  },
+  "error": "No resolved model completion report in M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C85\\_Log\\_RunTime.txt (see M:\\GitHub\\WF-TDM-Calibration\\tdm\\Scenarios\\C85\\logs\\orchestrator_invocation.log). Voyager exit code: 3221225477.\n\nVoyager errors (TPPL0001.PRN):\nF(161): li.1.SFAC_C85 is unrecognized variable name\nF(161): li.1.CFAC_C85 is unrecognized variable name\nF(048): check missing valid expression.",
+  "general_parameters": {
+    "overrides": {
+      "CALIB_MC": 0,
+      "OneWayBump_Spd": 1.0,
+      "OneWayBump_Cap": 1.0
+    }
+  }
+}
