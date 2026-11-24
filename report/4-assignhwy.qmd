@@ -4516,7 +4516,7 @@ gdf_polygons = gpd.read_file(config_paths['geojson_file'])
 
 ```{python}
 # NOTE: requires the GP_IVT tab from Skm_AM/MD/PM/EV.omx -- confirm
-# run-configs/*.yaml's matrix outputs.include entries for these
+# scenario-configs/*.yaml's matrix outputs.include entries for these
 # declare GP_IVT (they may only declare GP_Dist for other sections).
 
 # See report/preprocess/assignhwy.py.

@@ -1,5 +1,5 @@
 #========================================================================================
-# run-configs/C79.yaml
+# scenario-configs/C79.yaml
 #
 # This run declares no outputs section of its own -- it uses
 # config/framework.yaml's default outputs.include/max_file_size_mb, which is

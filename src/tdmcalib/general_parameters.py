@@ -45,7 +45,7 @@ def write_override_file(overrides: dict, output_path: Path):
     every line here is orchestrator-generated."""
     lines = [
         ";--- General Parameter overrides for this calibration run",
-        "; (see this run's run-configs YAML general_parameter_overrides) ---",
+        "; (see this run's scenario-configs YAML general_parameter_overrides) ---",
         *cc.render_assignment_lines(overrides),
     ]
     output_path.parent.mkdir(parents=True, exist_ok=True)

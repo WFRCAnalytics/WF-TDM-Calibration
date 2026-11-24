@@ -237,7 +237,7 @@ def run(
     unresolvable TDM ref); execution and output failures are instead
     recorded in a 'failed' run record.
 
-    start_at_label, if given, overrides run-configs/<id>.yaml's own
+    start_at_label, if given, overrides scenario-configs/<id>.yaml's own
     declared start_at_label for this attempt only -- the CLI's `--start-at`
     (see cli.py). This is the sanctioned way to resume a crashed attempt
     from its driver script's RESUME POINT (see driver_script.py): the
@@ -248,7 +248,7 @@ def run(
     is still the right call -- a deliberately partial run, e.g. paired with
     start_from_copy, not an ad hoc resume).
 
-    driver_script, if given, likewise overrides run-configs/<id>.yaml's own
+    driver_script, if given, likewise overrides scenario-configs/<id>.yaml's own
     declared driver_script for this attempt only -- the CLI's
     `--driver-script`. Resuming through a custom driver script variant (as
     start_at_label resumes often need) no longer requires temporarily
@@ -274,7 +274,7 @@ def run(
     tdm_path = repo_root / framework["tdm_submodule_path"]
     requested_ref = calib_run["tdm_ref"]
     baseline_filename = calib_run["baseline_control_center"]
-    cr_dir = repo_root / "run-configs"
+    cr_dir = repo_root / "scenario-configs"
     overrides = cfg.resolved_control_center_overrides(calib_run, cr_dir)
     general_parameter_overrides = cfg.resolved_general_parameter_overrides(calib_run)
     output_spec = cfg.resolved_output_spec(framework, calib_run)
@@ -506,7 +506,7 @@ def import_manual_run(repo_root: Path, calib_run_id: str, scenario_folder: Path 
 
     requested_ref = calib_run["tdm_ref"]
     baseline_filename = calib_run["baseline_control_center"]
-    cr_dir = repo_root / "run-configs"
+    cr_dir = repo_root / "scenario-configs"
     overrides = cfg.resolved_control_center_overrides(calib_run, cr_dir)
     general_parameter_overrides = cfg.resolved_general_parameter_overrides(calib_run)
     output_spec = cfg.resolved_output_spec(framework, calib_run)
@@ -565,7 +565,7 @@ def import_manual_run(repo_root: Path, calib_run_id: str, scenario_folder: Path 
 def import_manual_run_all(repo_root: Path, only: list = None) -> list:
     """
     Runs import_manual_run() for every calibration run declared under
-    run-configs/, resolving each one's raw folder via
+    scenario-configs/, resolving each one's raw folder via
     resolved_manual_run_folder(). A run whose resolved folder doesn't
     actually hold the declared outputs.include patterns is recorded as a
     failed result rather than stopping the rest.
@@ -591,7 +591,7 @@ def import_manual_run_all(repo_root: Path, only: list = None) -> list:
 
 def run_all(repo_root: Path, only: list = None, force: bool = False) -> list:
     """
-    Runs every calibration run declared under run-configs/ sequentially.
+    Runs every calibration run declared under scenario-configs/ sequentially.
     A failed run does not stop the rest -- successful runs already on disk
     are untouched, and the function returns metadata for every attempted
     run so the caller can report a clear success/failure summary.

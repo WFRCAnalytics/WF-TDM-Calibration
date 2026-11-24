@@ -1,5 +1,5 @@
 """Shared fixtures. Each test gets its own throwaway repo layout under
-tmp_path, so tests never touch the real tdm/ submodule or run-configs/.
+tmp_path, so tests never touch the real tdm/ submodule or scenario-configs/.
 
 Reduced scope vs. WF-TDM-Runs' own test suite (see repo README /
 report/README.md): this ports controlcenter.py/config.py/outputs.py
@@ -90,7 +90,7 @@ def repo_root(tmp_path):
     (repo / "config" / "schemas").mkdir(parents=True)
     (repo / "tdm" / "Scenarios" / "_default").mkdir(parents=True)
     (repo / "tdm" / "1_Inputs" / "0_GlobalData").mkdir(parents=True)
-    (repo / "run-configs").mkdir(parents=True)
+    (repo / "scenario-configs").mkdir(parents=True)
 
     shutil.copytree(
         REPO_ROOT / "config" / "schemas", repo / "config" / "schemas", dirs_exist_ok=True

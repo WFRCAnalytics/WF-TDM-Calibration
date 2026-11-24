@@ -1,5 +1,5 @@
 #========================================================================================
-# run-configs/C67.yaml
+# scenario-configs/C68.yaml
 #
 # This run declares no outputs section of its own -- it uses
 # config/framework.yaml's default outputs.include/max_file_size_mb, which is
@@ -11,12 +11,12 @@
 # copy_files list is still the best record of where the TDM actually writes
 # each file within a run's working folder).
 #========================================================================================
-calib_run_id: C67
+calib_run_id: C68
 author: ""
 description: >
-  Calibration iteration C67, base year 2023.
+  Calibration iteration C68, base year 2023.
 
-tdm_ref: "calib/C67"
+tdm_ref: "calib/C68"
 baseline_control_center: "_ControlCenter - BY_2023.block"
 
 driver_script: "__HailMary_resumable.s"
@@ -42,15 +42,15 @@ general_parameter_overrides:
   calibFac_LT_SL: 1.00
   calibFac_LT_UT: 1.00
   calibFac_MD_BE: 0.73
-  calibFac_MD_WE: 0.75 # Weber needs a little less MD volume
+  calibFac_MD_WE: 0.72 # a little less
   calibFac_MD_DA: 2.50
-  calibFac_MD_SL: 0.87 # a little less MD
-  calibFac_MD_UT: 1.15 # a little less MD
+  calibFac_MD_SL: 0.92 # a little more
+  calibFac_MD_UT: 1.15 # a little less
   calibFac_HV_BE: 3.00
-  calibFac_HV_WE: 2.20
-  calibFac_HV_DA: 1.10 # Davis needs less HV
-  calibFac_HV_SL: 2.90
-  calibFac_HV_UT: 0.85
+  calibFac_HV_WE: 2.10 # a little less
+  calibFac_HV_DA: 0.85 # way less HV
+  calibFac_HV_SL: 3.10 # a little more
+  calibFac_HV_UT: 0.82 # a little less
   WE_NonFwyTruckCostFac: 1.25 # NEW -- to avoid heavy truck cut-through in Weber urban areas
   DA_FwyTruckCostFac   : 1.30
   DA_NonFwyTruckCostFac: 0.75
@@ -64,7 +64,7 @@ general_parameter_overrides:
   calibFac_Ext_PL_3606: 1.20 # US-91 Logan - LOCKED IN. LINES UP WELL. CCS #682
   calibFac_Ext_MD_3606: 1.05 # already have good MD truck volumes
   calibFac_Ext_HV_3606: 1.10 # need a little bump in heavy truck volumes
-  calibFac_Ext_PL_3609: 1.00 # I-84 Morgan - LOCKED IN. LENGTH DATA SAYS 18000 daily but model is around 28
+  calibFac_Ext_PL_3609: 1.10 # I-84 Morgan - Low VMT in Weber suggest need more externals
   calibFac_Ext_MD_3609: 1.20
   calibFac_Ext_HV_3609: 1.20
   calibFac_Ext_PL_3612: 1.05 # I-80 Tooele - LOCKED IN. LINES UP WELL WITH CCS.

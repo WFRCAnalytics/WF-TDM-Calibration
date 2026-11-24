@@ -8,7 +8,7 @@ class tdmcalibError(Exception):
 
 
 class ConfigValidationError(tdmcalibError):
-    """Raised when a run-configs/*.yaml / framework.yaml fails schema
+    """Raised when a scenario-configs/*.yaml / framework.yaml fails schema
     validation, or references something (a calibration run or baseline file)
     that does not exist."""
 

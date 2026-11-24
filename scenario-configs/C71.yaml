@@ -1,5 +1,5 @@
 #========================================================================================
-# run-configs/C73.yaml
+# scenario-configs/C71.yaml
 #
 # This run declares no outputs section of its own -- it uses
 # config/framework.yaml's default outputs.include/max_file_size_mb, which is
@@ -11,12 +11,12 @@
 # copy_files list is still the best record of where the TDM actually writes
 # each file within a run's working folder).
 #========================================================================================
-calib_run_id: C73
+calib_run_id: C71
 author: ""
 description: >
-  Calibration iteration C73, base year 2023.
+  Calibration iteration C71, base year 2023.
 
-tdm_ref: "calib/C73"
+tdm_ref: "calib/C71"
 baseline_control_center: "_ControlCenter - Base_2023.block"
 
 driver_script: "__HailMary_resumable.s"
@@ -27,13 +27,6 @@ control_center_overrides:
   UserCompany: "WFRC"
   runId: "_"
   Run_vizTool: 1
-  # tdm_ref calib/C73 renamed the master network files to add a
-  # "_sfac_cfac" suffix (commit a9190bff) without updating the baseline
-  # Control Center block's MasterPrefix to match -- override it here rather
-  # than editing tdm/.
-  MasterPrefix: "WFv1000_MasterNet_20260430_sfac_cfac"
-  SpdFactor: "SFAC_C73"
-  CapFactor: "CFAC_C73"
 
 # calibFac_LT_*/calibFac_MD_*/calibFac_HV_* and the truck-cost/ramp-penalty
 # factors below are GeneralParameters.block keys (tdm/1_Inputs/0_GlobalData/),
@@ -42,4 +35,4 @@ control_center_overrides:
 # folder rather than templated per run (see src/tdmcalib/general_parameters.py).
 
 general_parameter_overrides: # keep everything same as C68, except for mode choice calibration
-  CALIB_MC: 0 # calibrating mode choice
+  CALIB_MC: 1 # calibrating mode choice

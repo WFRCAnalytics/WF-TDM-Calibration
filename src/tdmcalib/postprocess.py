@@ -98,7 +98,7 @@ def render_validation(repo_root: Path, framework: dict) -> dict:
 _PUBLISH_GROUPS = [
     (["tdm"], "Record tdm submodule pointer for {calib_run_id}"),
     (
-        ["run-configs/{calib_run_id}.yaml", "runs/{calib_run_id}"],
+        ["scenario-configs/{calib_run_id}.yaml", "runs/{calib_run_id}"],
         "Add {calib_run_id} calibration run outputs",
     ),
     (["docs", "report/_pictures"], "Re-render reports with {calib_run_id}"),
@@ -111,7 +111,7 @@ def publish_to_git(
     """
     Commits and pushes this run's curated outputs, submodule pointer, and
     re-rendered report to the remote -- the same three commits (submodule
-    pointer / runs+run-configs / docs+report pictures) a manual
+    pointer / runs+scenario-configs / docs+report pictures) a manual
     commit-after-a-run has used, now automatic. Only commits paths relevant
     to this calib_run_id (see _PUBLISH_GROUPS); never `git add -A`. A group
     with nothing changed under its paths is skipped rather than producing an
@@ -125,7 +125,7 @@ def publish_to_git(
     group is never committed -- `quarto render`'s cleanup step can leave
     docs/ emptied or partial (e.g. a stale local preview server holding a
     file lock), and committing+pushing that would put a broken report on the
-    live GitHub Pages site. The other two groups (tdm pointer, runs+run-configs)
+    live GitHub Pages site. The other two groups (tdm pointer, runs+scenario-configs)
     are independent of rendering and still get published normally.
     """
     pub_cfg = framework.get("postprocess", {})

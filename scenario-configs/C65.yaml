@@ -1,5 +1,5 @@
 #========================================================================================
-# run-configs/C66.yaml
+# scenario-configs/C65.yaml
 #
 # This run declares no outputs section of its own -- it uses
 # config/framework.yaml's default outputs.include/max_file_size_mb, which is
@@ -11,12 +11,12 @@
 # copy_files list is still the best record of where the TDM actually writes
 # each file within a run's working folder).
 #========================================================================================
-calib_run_id: C66
+calib_run_id: C65
 author: ""
 description: >
-  Calibration iteration C66, base year 2023.
+  Calibration iteration C65, base year 2023.
 
-tdm_ref: "calib/C66"
+tdm_ref: "calib/C65"
 baseline_control_center: "_ControlCenter - BY_2023.block"
 
 driver_script: "__HailMary_resumable.s"
@@ -37,7 +37,7 @@ control_center_overrides:
 
 general_parameter_overrides:
   calibFac_LT_BE: 1.15
-  calibFac_LT_WE: 1.50 # Weber needs more volume
+  calibFac_LT_WE: 1.30 # Weber needs more volume
   calibFac_LT_DA: 1.06
   calibFac_LT_SL: 1.00
   calibFac_LT_UT: 1.00
@@ -54,17 +54,17 @@ general_parameter_overrides:
   WE_NonFwyTruckCostFac: 1.25 # NEW -- to avoid heavy truck cut-through in Weber urban areas
   DA_FwyTruckCostFac   : 1.30
   DA_NonFwyTruckCostFac: 0.75
-  DA_RampTruckPenAdd   : 1.35 
-  SL_FwyTruckCostFac   : 1.15 # went too far move down
+  DA_RampTruckPenAdd   : 1.50 # too much freeway
+  SL_FwyTruckCostFac   : 1.25 # too much freeway
   SL_NonFwyTruckCostFac: 0.95
-  SL_RampTruckPenAdd   : 0.65 # to get trucks off freeways, fixing previous wrong-direction adjustment
-  calibFac_Ext_PL_3604: 1.82 # I-15 Box Elder -- still low on FWY for PC/LT trucks  CCS #613 is south of Brigham City, so have to add desired difference to external
+  SL_RampTruckPenAdd   : 0.75 # to get trucks off freeways, fixing previous wrong-direction adjustment
+  calibFac_Ext_PL_3604: 1.60 # I-15 Box Elder -- raised from 1.50 (C61), still low on FWY for PC/LT trucks
   calibFac_Ext_MD_3604: 1.05
   calibFac_Ext_HV_3604: 1.15
-  calibFac_Ext_PL_3606: 1.20 # US-91 Logan - LOCKED IN. LINES UP WELL. CCS #682
+  calibFac_Ext_PL_3606: 1.20 # US-91 Logan - Model showing 25,000 and CCS showing 30,000
   calibFac_Ext_MD_3606: 1.05 # already have good MD truck volumes
   calibFac_Ext_HV_3606: 1.10 # need a little bump in heavy truck volumes
-  calibFac_Ext_PL_3609: 1.00 # I-84 Morgan - LOCKED IN. LENGTH DATA SAYS 18000 daily but model is around 28
+  calibFac_Ext_PL_3609: 1.00 # I-84 Morgan - Reduce to 1.0 and LOCK IN. LENGTH DATA SAYS 18000 daily but model is around 28
   calibFac_Ext_MD_3609: 1.20
   calibFac_Ext_HV_3609: 1.20
   calibFac_Ext_PL_3612: 1.05 # I-80 Tooele - LOCKED IN. LINES UP WELL WITH CCS.
@@ -73,14 +73,23 @@ general_parameter_overrides:
   calibFac_Ext_PL_3614: 1.05 # I-80 Summit - LOCKED IN. GOOD FOR SEPT WEEKDAY VOLUMES
   calibFac_Ext_MD_3614: 1.05
   calibFac_Ext_HV_3614: 1.05
-  calibFac_Ext_PL_3620: 1.23 # Provo Canyon - CCS #319. LOCKED IN.
+  calibFac_Ext_PL_3620: 1.23 # Provo Canyon - Added bit more
   calibFac_Ext_MD_3620: 1.23
   calibFac_Ext_HV_3620: 1.23
-  calibFac_Ext_PL_3628: 1.11 # I-15 Juab - CCS #638. REDUCE!!
-  calibFac_Ext_MD_3628: 1.11
+  calibFac_Ext_PL_3628: 1.25 # I-15 Juab - Added bit more
+  calibFac_Ext_MD_3628: 1.15
   calibFac_Ext_HV_3628: 1.10
   calibFac_ff_spd_ArtColLoc: 0.9 # 10% reduction in speed on arterial collector local roads to see if better match observed speeds for short trips
   calibFac_ff_spd_ExpwyFwy: 0.95 # 5% reduction in freeflow speed on expressways/freeways (FT 12-15, 20-42)
+  calibFac_mc_transit_share: 1.23 # need about 4% increase in transit trips
+  CALIB_MC: 1
+  CALIB_MC_BREAK_ITER_HBW_PK: 20
+  CALIB_MC_BREAK_ITER_HBW_OK: 20
+  CALIB_MC_BREAK_ITER_HBO_PK: 20
+  CALIB_MC_BREAK_ITER_HBO_OK: 20
+  CALIB_MC_BREAK_ITER_NHB_PK: 20
+  CALIB_MC_BREAK_ITER_NHB_OK: 20
+  CALIB_MC_BREAK_ITER_HBC_PK: 20
 
 # No outputs section: this run's raw output matches the raw TDM Scenario
 # folder layout, so it uses config/framework.yaml's default outputs.include

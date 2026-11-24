@@ -11,7 +11,7 @@ Every calibration run must declare driver_script (required by
 calibration_run.schema.json) -- there is no framework-wide default it falls
 back to, so which driver script ran is always explicit in the run's own
 config, never an assumption baked into the framework. declared is resolved
-first against run-configs/ (a fully custom file, e.g. a relative path like
+first against scenario-configs/ (a fully custom file, e.g. a relative path like
 ../custom-tdm-scripts/hail-mary/__HailMary_resume_at_distribution_tail.s --
 companion/modified step scripts it references are NOT auto-staged, they stay
 wherever they're kept, referenced by a relative path computed back to
@@ -134,9 +134,9 @@ def stage(
     keeping its own filename. driver_script is required (see
     calibration_run.schema.json) -- there is no framework-default fallback,
     so every run's driver script is an explicit, traceable choice, not a
-    silently-assumed one. Resolved against run-configs/ first (a fully
+    silently-assumed one. Resolved against scenario-configs/ first (a fully
     custom file), then as a bare filename against defaults_dir. Returns the
-    source path for the metadata record -- run-configs/-relative for a
+    source path for the metadata record -- scenario-configs/-relative for a
     custom script, tdm-relative otherwise.
 
     When start_at_label is anything other than STEP0, the staged copy's
