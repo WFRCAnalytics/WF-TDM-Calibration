@@ -109,7 +109,11 @@ loader that needs it recomputing it independently rather than restructuring
 2. Nothing under `report/` needs to change — every `.qmd` discovers `C5N` on its own
    via `_validation_scripts.list_available_runs()`.
 3. If rendering locally instead of relying on the automatic post-run render: `quarto
-   render` from the repo root, then commit `docs/` — CI does **not** render (it can't
+   render . --no-clean` from the repo root (`--no-clean` avoids a `quarto render`
+   failure mode on Windows where it deletes `docs/` before writing it back, which fails
+   outright if anything — a stray local `quarto preview`, Explorer, antivirus,
+   OneDrive — holds so much as a file handle open under it), then commit `docs/` — CI
+   does **not** render (it can't
    reach `tdm/`/Cube Voyager); it only publishes the already-rendered `docs/` to
    GitHub Pages on push to `main` (`.github/workflows/publish-pages.yml`). This can't
    be a plain "deploy from branch" Pages source instead — GitHub's own built-in
@@ -122,7 +126,7 @@ loader that needs it recomputing it independently rather than restructuring
 
 `tdmcalib run` and `tdmcalib import_manual_run` call
 `tdmcalib.postprocess.render_validation()` after a successful curation, which runs
-`quarto render` against the repo root project (`config/framework.yaml`'s `postprocess`
+`quarto render . --no-clean` against the repo root project (`config/framework.yaml`'s `postprocess`
 section controls this — `render_validation: false` to disable, plus the Quarto
 executable path and a timeout). A rendering failure is logged into the attempt's
 `run_info/{run_id}.json` under `postprocess` but does **not** fail the run itself — the

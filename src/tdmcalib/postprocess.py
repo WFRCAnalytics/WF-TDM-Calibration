@@ -70,8 +70,16 @@ def render_validation(repo_root: Path, framework: dict) -> dict:
 
     timeout_seconds = pp_cfg.get("timeout_seconds", 3600)
     try:
+        # --no-clean: a plain `quarto render` deletes docs/ before writing it
+        # back, which fails outright on Windows if anything -- a stray local
+        # `quarto preview`, Explorer, antivirus, OneDrive -- holds so much as
+        # a file handle open under it. --no-clean overwrites in place instead,
+        # so this step can't be silently skipped by an unrelated process
+        # having docs/ open; it only risks leaving an orphaned HTML file
+        # behind if a .qmd page was deleted, which a manual `quarto render`
+        # cleans up next time docs/ isn't locked by anything.
         result = subprocess.run(
-            [quarto_exe, "render", "."],
+            [quarto_exe, "render", ".", "--no-clean"],
             cwd=str(repo_root),
             capture_output=True,
             text=True,
