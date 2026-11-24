@@ -35,6 +35,14 @@ jobs:
         with:
           path: docs
 
+      # deploy-pages queries the Artifacts API for the artifact just uploaded
+      # above; that API lags the upload by a few seconds to ~a minute, which
+      # otherwise intermittently fails deploy-pages with "No artifacts named
+      # github-pages were found" even though the artifact exists (seen on
+      # 2026-11-24's C84 publish, twice).
+      - name: Wait for artifact metadata to propagate
+        run: sleep 30
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
